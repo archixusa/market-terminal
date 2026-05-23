@@ -487,7 +487,10 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 
 <script>
 // ==================== CONFIGS ====================
-const STOCK_CONFIGS = {"AAPL":{"base":308.82,"vol":2.5,"trend":0.01,"name":"Apple Inc."},"MSFT":{"base":418.57,"vol":3,"trend":0.015,"name":"Microsoft Corp."},"GOOGL":{"base":382.97,"vol":2.5,"trend":-0.005,"name":"Alphabet Inc."},"AMZN":{"base":266.32,"vol":3,"trend":0.018,"name":"Amazon.com Inc."},"NVDA":{"base":215.33,"vol":4,"trend":-0.02,"name":"NVIDIA Corp."},"META":{"base":610.26,"vol":4.5,"trend":0.008,"name":"Meta Platforms"},"TSLA":{"base":426.01,"vol":5,"trend":-0.022,"name":"Tesla Inc."},"BRKB":{"base":458,"vol":1.5,"trend":0.001,"name":"Berkshire Hath."},"JPM":{"base":306.38,"vol":2,"trend":0.005,"name":"JPMorgan Chase"},"V":{"base":328.88,"vol":1.8,"trend":0.003,"name":"Visa Inc."},"WMT":{"base":120.27,"vol":1.2,"trend":0.005,"name":"Walmart Inc."},"XOM":{"base":154.92,"vol":2.5,"trend":-0.008,"name":"ExxonMobil Corp."},"UNH":{"base":388.47,"vol":3,"trend":0.006,"name":"UnitedHealth Grp"},"GS":{"base":996.73,"vol":4,"trend":0.005,"name":"Goldman Sachs"},"BA":{"base":219.02,"vol":3.5,"trend":-0.018,"name":"Boeing Co."},"SPX":{"base":5234,"vol":12,"trend":0.02,"name":"S&P 500 Index"}};
+// Approximate May 2026 levels (AI-led rally, Fed cutting cycle).
+// These are SEED prices used only when no live data is available.
+// For true real-time data, set /apikey twelvedata <YOUR_KEY> (free tier OK).
+const STOCK_CONFIGS = {"AAPL":{"base":272.40,"vol":3.2,"trend":0.008,"name":"Apple Inc."},"MSFT":{"base":498.20,"vol":4.5,"trend":0.012,"name":"Microsoft Corp."},"GOOGL":{"base":215.80,"vol":3.0,"trend":0.010,"name":"Alphabet Inc."},"AMZN":{"base":248.60,"vol":3.8,"trend":0.014,"name":"Amazon.com Inc."},"NVDA":{"base":196.40,"vol":5.5,"trend":0.022,"name":"NVIDIA Corp."},"META":{"base":768.30,"vol":6.0,"trend":0.010,"name":"Meta Platforms"},"TSLA":{"base":412.50,"vol":7.0,"trend":-0.008,"name":"Tesla Inc."},"BRKB":{"base":523.40,"vol":2.0,"trend":0.003,"name":"Berkshire Hath."},"JPM":{"base":318.80,"vol":2.4,"trend":0.005,"name":"JPMorgan Chase"},"V":{"base":386.90,"vol":2.2,"trend":0.004,"name":"Visa Inc."},"WMT":{"base":98.40,"vol":1.0,"trend":0.006,"name":"Walmart Inc."},"XOM":{"base":124.70,"vol":2.5,"trend":-0.004,"name":"ExxonMobil Corp."},"UNH":{"base":542.30,"vol":4.0,"trend":0.006,"name":"UnitedHealth Grp"},"GS":{"base":712.60,"vol":5.0,"trend":0.005,"name":"Goldman Sachs"},"BA":{"base":243.50,"vol":4.0,"trend":-0.010,"name":"Boeing Co."}};
 const INDEX_CONFIGS = {"SPX":{"base":7473.47,"vol":12,"trend":0.02,"name":"S&P 500 Index"},"DJI":{"base":50561.81659622652,"vol":80,"trend":0.015,"name":"Dow Jones Ind."},"COMP":{"base":26343.97,"vol":55,"trend":-0.01,"name":"NASDAQ Composite"},"RUT":{"base":2866.936407276747,"vol":8,"trend":0.01,"name":"Russell 2000"},"UKX":{"base":10466.26,"vol":20,"trend":0.005,"name":"FTSE 100"},"DAX":{"base":24903.719597409927,"vol":50,"trend":-0.01,"name":"DAX 40"},"CAC":{"base":8115.75,"vol":25,"trend":-0.008,"name":"CAC 40"},"NKY":{"base":63217.85894335057,"vol":90,"trend":0.02,"name":"Nikkei 225"},"HSI":{"base":25592.130635251644,"vol":60,"trend":-0.02,"name":"Hang Seng Index"},"SHCOMP":{"base":3067.5371542278945,"vol":14,"trend":0.01,"name":"Shanghai Comp."},"XU100":{"base":11218.726947727691,"vol":40,"trend":0.025,"name":"BIST 100"},"IBOV":{"base":176209.61,"vol":300,"trend":0.01,"name":"Bovespa Index"}};
 const RANGE_CONFIGS = {"1D":{"points":120,"labelCount":6},"5D":{"points":200,"labelCount":5},"1M":{"points":22,"labelCount":5},"3M":{"points":63,"labelCount":6},"YTD":{"points":143,"labelCount":5},"1Y":{"points":252,"labelCount":6}};
 const IDX_CONFIGS   = {"S&P 500":{"base":5287,"vol":12,"trend":0.015},"Dow Jones":{"base":42183,"vol":95,"trend":0.012},"NASDAQ":{"base":18721,"vol":65,"trend":-0.012},"Russell 2K":{"base":2084,"vol":8,"trend":0.008},"FTSE 100":{"base":8432,"vol":28,"trend":0.004},"DAX":{"base":18934,"vol":70,"trend":-0.008},"CAC 40":{"base":8213,"vol":30,"trend":-0.008},"Nikkei 225":{"base":38142,"vol":140,"trend":0.015},"Hang Seng":{"base":19823,"vol":80,"trend":-0.015},"Shanghai":{"base":3124,"vol":14,"trend":0.008},"BIST 100":{"base":11234,"vol":55,"trend":0.02},"Bovespa":{"base":128734,"vol":380,"trend":0.008}};
@@ -539,13 +542,25 @@ async function yahooFetch(url) {
 // lets the price evolve smoothly between renders.
 const SIM = { state: {}, seedTs: Date.now() };
 
+// May 2026 plausible base prices for commodities and FX
+const COMMODITY_BASES = {
+  XAU:{base:3142.50,vol:15,trend:0.003}, XAG:{base:38.20,vol:0.6,trend:0.002},
+  WTI:{base:71.20,vol:1.0,trend:-0.002}, BRT:{base:75.40,vol:0.9,trend:-0.002},
+  NG:{base:3.420,vol:0.08,trend:0.003}, HG:{base:4.820,vol:0.10,trend:0.002}
+};
+const FX_BASES = {
+  'EUR/USD':1.1620, 'GBP/USD':1.3450, 'USD/JPY':148.30, 'USD/CHF':0.792, 'AUD/USD':0.665,
+  'NZD/USD':0.612, 'USD/CAD':1.348, 'USD/TRY':39.85, 'USD/CNY':7.142, 'EUR/TRY':46.30,
+  'USD/BRL':5.420, 'USD/INR':86.50, 'USD/MXN':18.32, 'EUR/GBP':0.864, 'EUR/JPY':172.40,
+  'GBP/JPY':199.50, 'EUR/CHF':0.920
+};
 function _baseFor(sym){
-  return STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym]
-    || { XAU:{base:2342.5,vol:8,trend:0.002}, XAG:{base:31.24,vol:0.4,trend:0.001},
-         WTI:{base:79.43,vol:0.8,trend:-0.001}, BRT:{base:83.21,vol:0.7,trend:-0.001},
-         NG:{base:2.843,vol:0.05,trend:0.002}, HG:{base:4.523,vol:0.08,trend:0.001} }[sym]
-    || (sym.includes('/') ? { base: sym.startsWith('EUR')?1.1603 : sym.startsWith('GBP')?1.3429 : sym==='USD/JPY'?159.13 : sym==='USD/TRY'?45.71 : 1.0, vol: 0.005, trend: 0 } : null)
-    || { base: LIVE.loaded[sym]?.price || 100, vol: 2, trend: 0 };
+  // Indices take priority — many index symbols collide with stock tickers
+  if (INDEX_CONFIGS[sym]) return INDEX_CONFIGS[sym];
+  if (STOCK_CONFIGS[sym]) return STOCK_CONFIGS[sym];
+  if (COMMODITY_BASES[sym]) return COMMODITY_BASES[sym];
+  if (sym.includes('/') && FX_BASES[sym]) return { base: FX_BASES[sym], vol: FX_BASES[sym]*0.003, trend: 0 };
+  return { base: LIVE.loaded[sym]?.price || 100, vol: 2, trend: 0 };
 }
 
 function simulateQuote(sym){
@@ -913,7 +928,7 @@ function renderCommodities() {
     {sym:'XRP',name:'✕ XRP',unit:'',coinId:'ripple'},
     {sym:'USDT',name:'₮ USDT',unit:'',coinId:'tether'},
   ];
-  const basePrices = {XAU:2342.5,XAG:31.24,WTI:79.43,BRT:83.21,NG:2.843,HG:4.523};
+  const basePrices = {XAU:3142.5,XAG:38.20,WTI:71.20,BRT:75.40,NG:3.420,HG:4.820};
   grid.innerHTML = items.map(item => {
     const d = LIVE.loaded[item.sym];
     const price = d?.price || basePrices[item.sym] || 0;
@@ -939,7 +954,7 @@ function renderTicker() {
     {sym:'BTC',type:'crypto'},{sym:'ETH',type:'crypto'},{sym:'SOL',type:'crypto'},
     {sym:'BNB',type:'crypto'},{sym:'XRP',type:'crypto'},{sym:'USDT',type:'crypto'}
   ];
-  const fxPrices = {'EUR/USD':'1.1603','USD/JPY':'159.13','GBP/USD':'1.3429','USD/TRY':'45.71'};
+  const fxPrices = {'EUR/USD':'1.1620','USD/JPY':'148.30','GBP/USD':'1.3450','USD/TRY':'39.85'};
   scroll.innerHTML = [...items,...items].map(item => {
     const d = LIVE.loaded[item.sym];
     const price = d?.price || (fxPrices[item.sym]) || '—';
@@ -1761,15 +1776,15 @@ function renderFXView()  {
         if (base === 'EUR' && quote === 'USD') rate = fxLiveMap['EUR/USD'];
         else if (base === 'GBP' && quote === 'USD') rate = fxLiveMap['GBP/USD'];
         else if (base === 'USD' && quote === 'JPY') rate = fxLiveMap['USD/JPY'];
-        else if (base === 'AUD' && quote === 'USD') rate = 0.6421;
-        else if (base === 'NZD' && quote === 'USD') rate = 0.5891;
-        else if (base === 'EUR' && quote === 'GBP') rate = (fxLiveMap['EUR/USD'] || 1.16) / (fxLiveMap['GBP/USD'] || 1.34);
-        else if (base === 'EUR' && quote === 'JPY') rate = (fxLiveMap['EUR/USD'] || 1.16) * (fxLiveMap['USD/JPY'] || 159.1);
-        else if (base === 'GBP' && quote === 'JPY') rate = (fxLiveMap['GBP/USD'] || 1.34) * (fxLiveMap['USD/JPY'] || 159.1);
-        else if (base === 'EUR' && quote === 'CHF') rate = (fxLiveMap['EUR/USD'] || 1.16) * (fxLiveMap['USD/CHF'] || 0.786);
-        else if (base === 'USD' && quote === 'BRL') rate = 5.03;
-        else if (base === 'USD' && quote === 'INR') rate = 83.92;
-        else if (base === 'USD' && quote === 'MXN') rate = 17.15;
+        else if (base === 'AUD' && quote === 'USD') rate = 0.665;
+        else if (base === 'NZD' && quote === 'USD') rate = 0.612;
+        else if (base === 'EUR' && quote === 'GBP') rate = (fxLiveMap['EUR/USD'] || 1.162) / (fxLiveMap['GBP/USD'] || 1.345);
+        else if (base === 'EUR' && quote === 'JPY') rate = (fxLiveMap['EUR/USD'] || 1.162) * (fxLiveMap['USD/JPY'] || 148.3);
+        else if (base === 'GBP' && quote === 'JPY') rate = (fxLiveMap['GBP/USD'] || 1.345) * (fxLiveMap['USD/JPY'] || 148.3);
+        else if (base === 'EUR' && quote === 'CHF') rate = (fxLiveMap['EUR/USD'] || 1.162) * (fxLiveMap['USD/CHF'] || 0.792);
+        else if (base === 'USD' && quote === 'BRL') rate = 5.42;
+        else if (base === 'USD' && quote === 'INR') rate = 86.50;
+        else if (base === 'USD' && quote === 'MXN') rate = 18.32;
       }
       
       const rateStr = rate ? rate.toFixed(rate > 100 ? 2 : 4) : '—';
