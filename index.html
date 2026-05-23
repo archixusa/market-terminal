@@ -1655,7 +1655,50 @@ async function fetchIndexPrice(sym, rangeKey){
   return fetchChartTwelve(sym, rangeKey || '1D');
 }
 
-// Commodities — metals via gold-api.com (free, no key); oil/gas stay sim
+// US Energy Information Administration — free WTI/Brent/Natural Gas spot prices
+// DEMO_KEY works for low volume; cache 1h since data is daily-frequency anyway
+const EIA_CONFIG = {
+  WTI: { endpoint: 'petroleum/pri/spt',     series: 'RWTC',    unit: '$/bbl' },
+  BRT: { endpoint: 'petroleum/pri/spt',     series: 'RBRTE',   unit: '$/bbl' },
+  NG:  { endpoint: 'natural-gas/pri/fut',   series: 'RNGWHHD', unit: '$/MMBtu' }
+};
+async function fetchEIAPrice(sym){
+  const cfg = EIA_CONFIG[sym];
+  if (!cfg) return null;
+  const cached = cacheGet('eia_'+sym, 60 * 60 * 1000); // 1h cache (daily-frequency data)
+  if (cached) return cached;
+  try {
+    const url = 'https://api.eia.gov/v2/' + cfg.endpoint +
+      '/data/?api_key=DEMO_KEY&frequency=daily&data[0]=value&facets[series][]=' + cfg.series +
+      '&sort[0][column]=period&sort[0][direction]=desc&offset=0&length=2';
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const rows = j.response?.data;
+    if (!rows || rows.length < 1) return null;
+    const last = parseFloat(rows[0].value);
+    const prev = rows.length > 1 ? parseFloat(rows[1].value) : last;
+    if (!isFinite(last)) return null;
+    const ts = new Date(rows[0].period + 'T16:00:00Z').getTime();
+    const chg = last - prev;
+    const pct = prev ? (chg / prev) * 100 : 0;
+    const result = {
+      sym, price: last, chg, pct,
+      open: prev, high: Math.max(last, prev), low: Math.min(last, prev),
+      prevClose: prev,
+      regularClose: last,
+      regularCloseTs: ts,
+      regularOpen: prev,
+      regularOpenTs: ts - 6.5 * 3600 * 1000,
+      session: 'regular',
+      vol: 0, ts, _source: 'eia'
+    };
+    cacheSet('eia_'+sym, result);
+    return result;
+  } catch(e) { return null; }
+}
+
+// Commodities — metals via gold-api.com (free, no key); WTI/Brent/NG via EIA
 const COMMODITY_YAHOO = { XAU:'GC=F', XAG:'SI=F', WTI:'CL=F', BRT:'BZ=F', NG:'NG=F', HG:'HG=F' };
 const GOLDAPI_SYMBOLS = ['XAU','XAG','XPT','XPD','HG']; // copper too
 async function fetchGoldApiPrice(sym){
@@ -1710,9 +1753,17 @@ async function fetchCommoditiesLive(){
       liveHits++;
     }
   }));
-  // 2. Oil + Gas — try Twelve Data/Finnhub if user has key, else simulate
+  // 2. Oil + Gas — EIA spot prices (free, daily frequency)
   await Promise.all(['WTI','BRT','NG'].map(async sym => {
-    let d = await fetchStockPrice(COMMODITY_YAHOO[sym]);
+    let d = await fetchEIAPrice(sym);
+    if (d && d.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...d };
+      LIVE.sourceFor[sym] = 'live';
+      liveHits++;
+      return;
+    }
+    // Optional: try Twelve Data / Finnhub for intraday futures if user has key
+    d = await fetchStockPrice(COMMODITY_YAHOO[sym]);
     if (d && d.price) { LIVE.loaded[sym] = { ...d, sym }; LIVE.sourceFor[sym] = 'live'; liveHits++; }
     else if (!LIVE.loaded[sym] || LIVE.sourceFor[sym] !== 'live') {
       d = simulateQuote(sym);
