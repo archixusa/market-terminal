@@ -776,8 +776,26 @@ let newsData = [{"source":"CNBC","category":"equities","headline":"S&P 500 hits 
 
 const LIVE = { loaded:{}, fx:[], chartCache:{}, cryptoPriceHistory:{}, sourceFor:{} };
 const API_KEY_STORAGE = 'mtp_api_keys';
-function getApiKeys(){ try{ return JSON.parse(localStorage.getItem(API_KEY_STORAGE)||'{}'); }catch(e){ return {}; } }
-function setApiKey(provider, key){ const k = getApiKeys(); k[provider] = key; localStorage.setItem(API_KEY_STORAGE, JSON.stringify(k)); }
+// Shared / bundled API keys — usable by every visitor as a default.
+// User can override any of these via /apikey <provider> <key>
+// SECURITY NOTE: these keys live in a public GitHub repo. Anyone may
+// reuse them. Finnhub free is 60 calls/min shared across all users of
+// this site — if it gets exhausted, you'll see SIM instead of LIVE.
+// For your own dedicated quota, get your own key and /apikey it.
+const DEFAULT_KEYS = {
+  finnhub: 'd88t8i9r01qs9ff633rgd88t8i9r01qs9ff633s0'
+};
+function getApiKeys(){
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem(API_KEY_STORAGE)||'{}'); } catch(e){}
+  return { ...DEFAULT_KEYS, ...user };
+}
+function setApiKey(provider, key){
+  let k = {};
+  try { k = JSON.parse(localStorage.getItem(API_KEY_STORAGE)||'{}'); } catch(e){}
+  k[provider] = key;
+  localStorage.setItem(API_KEY_STORAGE, JSON.stringify(k));
+}
 let DATA_MODE = 'init'; // 'live' | 'sim' | 'mixed' | 'init'
 function setDataMode(m){ DATA_MODE = m; const el=document.getElementById('sb-datamode'); if(el){ const cls = m==='live'?'sb-green':m==='sim'?'sb-yellow':'sb-blue'; el.innerHTML = '<span class="sb-dot '+cls+'"></span>Data: '+(m==='live'?'LIVE':m==='sim'?'SIMULATED':m==='mixed'?'PARTIAL LIVE':'INIT'); } }
 
@@ -968,6 +986,10 @@ function _baseFor(sym){
   if (STOCK_CONFIGS[sym]) return STOCK_CONFIGS[sym];
   if (COMMODITY_BASES[sym]) return COMMODITY_BASES[sym];
   if (sym.includes('/') && FX_BASES[sym]) return { base: FX_BASES[sym], vol: FX_BASES[sym]*0.003, trend: 0 };
+  // Crypto seeds
+  if (typeof CRYPTO_BASE !== 'undefined' && CRYPTO_BASE[sym]) {
+    return { base: CRYPTO_BASE[sym], vol: CRYPTO_VOL?.[sym] || CRYPTO_BASE[sym]*0.03, trend: 0 };
+  }
   return { base: LIVE.loaded[sym]?.price || 100, vol: 2, trend: 0 };
 }
 
@@ -1129,6 +1151,65 @@ async function fetchCryptoLive(){
   updateTickerBar();
   checkAlerts();
   return success;
+}
+
+// ETF proxies for symbols Finnhub free tier doesn't carry directly.
+// We fetch the ETF and present it as the underlying index/instrument
+// (scaled where needed). The ETF tracks the index closely enough for
+// retail viewing; precision-traded products use the real future.
+const ETF_PROXIES = {
+  // US indices
+  SPX:    { etf:'SPY',  scale:10.05,  note:'S&P 500 via SPY ETF' },
+  DJI:    { etf:'DIA',  scale:100,    note:'Dow Jones via DIA ETF' },
+  COMP:   { etf:'QQQ',  scale:46.5,   note:'Nasdaq Composite via QQQ ETF (≈Nasdaq 100)' },
+  RUT:    { etf:'IWM',  scale:13.5,   note:'Russell 2000 via IWM ETF' },
+  // International indices
+  UKX:    { etf:'EWU',  scale:284,    note:'FTSE 100 via EWU ETF (UK)' },
+  DAX:    { etf:'EWG',  scale:660,    note:'DAX via EWG ETF (Germany)' },
+  NKY:    { etf:'EWJ',  scale:836,    note:'Nikkei 225 via EWJ ETF (Japan)' },
+  HSI:    { etf:'EWH',  scale:1308,   note:'Hang Seng via EWH ETF (Hong Kong)' },
+  CAC:    { etf:'EWQ',  scale:218,    note:'CAC 40 via EWQ ETF (France)' },
+  SHCOMP: { etf:'FXI',  scale:108,    note:'Shanghai via FXI ETF (China)' },
+  IBOV:   { etf:'EWZ',  scale:6125,   note:'Bovespa via EWZ ETF (Brazil)' },
+  XU100:  { etf:'TUR',  scale:392,    note:'BIST 100 via TUR ETF (Türkiye)' },
+  // Macro
+  VIX:    { etf:'VXX',  scale:1,      note:'VIX via VXX ETF (volatility)' },
+  DXY:    { etf:'UUP',  scale:3.6,    note:'Dollar Index via UUP ETF' },
+  // Futures (use index ETF as proxy)
+  ES:     { etf:'SPY',  scale:10.05,  note:'ES future via SPY ETF' },
+  NQ:     { etf:'QQQ',  scale:46.5,   note:'NQ future via QQQ ETF' },
+  YM:     { etf:'DIA',  scale:100,    note:'YM future via DIA ETF' },
+  RTY:    { etf:'IWM',  scale:13.5,   note:'RTY future via IWM ETF' }
+};
+
+// FX major pairs — Finnhub supports OANDA forex feed (free for majors)
+const FX_TO_FINNHUB = {
+  'EUR/USD':'OANDA:EUR_USD', 'GBP/USD':'OANDA:GBP_USD', 'USD/JPY':'OANDA:USD_JPY',
+  'USD/CHF':'OANDA:USD_CHF', 'AUD/USD':'OANDA:AUD_USD', 'NZD/USD':'OANDA:NZD_USD',
+  'USD/CAD':'OANDA:USD_CAD', 'USD/TRY':'OANDA:USD_TRY', 'USD/CNY':'OANDA:USD_CNH',
+  'EUR/TRY':'OANDA:EUR_TRY', 'USD/BRL':'OANDA:USD_BRL', 'USD/INR':'OANDA:USD_INR',
+  'USD/MXN':'OANDA:USD_MXN', 'EUR/GBP':'OANDA:EUR_GBP', 'EUR/JPY':'OANDA:EUR_JPY',
+  'GBP/JPY':'OANDA:GBP_JPY', 'EUR/CHF':'OANDA:EUR_CHF'
+};
+
+// Fetch any ETF/proxy symbol via Finnhub, return quote in "underlying" units
+async function fetchFinnhubProxy(displaySym, proxySym, scale){
+  const q = await fetchQuoteFinnhub(proxySym);
+  if (!q) return null;
+  const scaled = {
+    ...q,
+    sym: displaySym,
+    price: q.price * scale,
+    prevClose: q.prevClose * scale,
+    chg: q.chg * scale,
+    pct: q.pct, // percent change preserved
+    open: q.open * scale,
+    high: q.high * scale,
+    low: q.low * scale,
+    _proxy: proxySym,
+    _proxyScale: scale
+  };
+  return scaled;
 }
 
 // Twelve Data: map our internal symbols to Twelve Data's
@@ -4926,17 +5007,114 @@ async function refreshWatchlistLive(){
 }
 
 async function refreshIndicesLive(){
-  const syms = Object.keys(INDEX_CONFIGS).slice(0, 6); // budget-conscious
-  const fresh = await fetchBatchQuotes(syms);
-  for (const [sym, q] of Object.entries(fresh)) {
-    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
-    LIVE.sourceFor[sym] = 'live';
-  }
-  if (Object.keys(fresh).length) { renderIndices(); updateTickerBar(); updateDataModeBadge(); }
-  return Object.keys(fresh).length;
+  // Use Finnhub ETF proxies — covers all indices via free 60/min tier
+  let hits = 0;
+  const syms = Object.keys(INDEX_CONFIGS);
+  await Promise.all(syms.map(async sym => {
+    const proxy = ETF_PROXIES[sym];
+    if (!proxy) return;
+    const q = await fetchFinnhubProxy(sym, proxy.etf, proxy.scale);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+      LIVE.sourceFor[sym] = 'live';
+      hits++;
+    }
+  }));
+  if (hits) { renderIndices(); updateTickerBar(); updateDataModeBadge(); }
+  return hits;
+}
+
+async function refreshMacroLive(){
+  // VIX, DXY via ETF proxies (VXX, UUP)
+  let hits = 0;
+  await Promise.all(['VIX','DXY'].map(async sym => {
+    const proxy = ETF_PROXIES[sym];
+    if (!proxy) return;
+    const q = await fetchFinnhubProxy(sym, proxy.etf, proxy.scale);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+      LIVE.sourceFor[sym] = 'live';
+      hits++;
+    }
+  }));
+  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); }
+  return hits;
+}
+
+async function refreshFuturesLive(){
+  // ES, NQ, YM, RTY → index ETF proxies
+  let hits = 0;
+  await Promise.all(['ES','NQ','YM','RTY'].map(async sym => {
+    const proxy = ETF_PROXIES[sym];
+    if (!proxy) return;
+    const q = await fetchFinnhubProxy(sym, proxy.etf, proxy.scale);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+      LIVE.sourceFor[sym] = 'live';
+      hits++;
+    }
+  }));
+  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); }
+  return hits;
+}
+
+async function refreshSectorsLive(){
+  // Sector ETFs are regular US stocks — fetch from Finnhub
+  let hits = 0;
+  const syms = SECTOR_ETFS.map(s => s.sym);
+  await Promise.all(syms.map(async sym => {
+    const q = await fetchQuoteFinnhub(sym);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+      LIVE.sourceFor[sym] = 'live';
+      hits++;
+    }
+  }));
+  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); }
+  return hits;
+}
+
+async function refreshAllStocksLive(){
+  // Fetch all our tracked US stocks from Finnhub at once (15 symbols)
+  let hits = 0;
+  const stockSyms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','BRKB','JPM','V','WMT','XOM','UNH','GS','BA'];
+  // Filter to those Finnhub recognizes (BRKB → BRK.B)
+  const map = { BRKB: 'BRK.B' };
+  await Promise.all(stockSyms.map(async sym => {
+    const fhSym = map[sym] || sym;
+    const q = await fetchQuoteFinnhub(fhSym);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q, sym };
+      LIVE.sourceFor[sym] = 'live';
+      updateWatchlistRow(sym, LIVE.loaded[sym]);
+      if (chartState.symbol === sym) updateChartHeader(LIVE.loaded[sym]);
+      hits++;
+    }
+  }));
+  if (hits) { updateTickerBar(); checkAlerts(); updateDataModeBadge(); }
+  return hits;
 }
 
 async function refreshFXLive(){
+  // Use Finnhub OANDA forex feed (free tier supports majors)
+  const syms = Object.keys(FX_TO_FINNHUB);
+  let hits = 0;
+  await Promise.all(syms.map(async sym => {
+    const oanda = FX_TO_FINNHUB[sym];
+    const q = await fetchQuoteFinnhub(oanda);
+    if (q && q.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q, sym };
+      LIVE.sourceFor[sym] = 'live';
+      const f = LIVE.fx.find(x => x.pair === sym);
+      if (f) { f.rate = q.price; f.pct = q.pct; }
+      else LIVE.fx.push({ pair: sym, rate: q.price, pct: q.pct });
+      hits++;
+    }
+  }));
+  if (hits) { updateTickerBar(); updateDataModeBadge(); }
+  return hits;
+}
+async function _refreshFXLive_OLD(){
   const syms = ['EUR/USD','GBP/USD','USD/JPY','USD/TRY'];
   const fresh = await fetchBatchQuotes(syms);
   for (const [sym, q] of Object.entries(fresh)) {
@@ -5102,15 +5280,21 @@ async function init() {
   // Initial batches — staggered to fit credit budget (works with either provider)
   const hasApi = !!(getApiKeys().twelvedata || getApiKeys().finnhub);
   if (hasApi) {
-    setTimeout(async () => { await refreshIndicesLive(); }, 200);
-    setTimeout(async () => { await refreshFXLive(); }, 8500);          // next minute window
-    setTimeout(async () => { await refreshWatchlistLive(); }, 17000);  // third minute window
-    setTimeout(async () => { await refreshCommoditiesLive(); }, 25000);
-    // Periodic refresh — staggered, far less frequent than before
-    setInterval(refreshIndicesLive, 5 * 60 * 1000);     // 5 min
-    setInterval(refreshFXLive,      6 * 60 * 1000);     // 6 min
-    setInterval(refreshWatchlistLive, 4 * 60 * 1000);   // 4 min
-    setInterval(refreshCommoditiesLive, 8 * 60 * 1000); // 8 min
+    // Finnhub free is 60 calls/min — we have plenty of budget. Spread these
+    // out so any single minute stays under ~30 calls (leaves room for chart loads).
+    setTimeout(async () => { await refreshAllStocksLive(); }, 200);     // 15 calls
+    setTimeout(async () => { await refreshSectorsLive(); }, 2000);      // 11 calls
+    setTimeout(async () => { await refreshIndicesLive(); }, 4000);      // 12 calls
+    setTimeout(async () => { await refreshMacroLive(); }, 6000);        // 2 calls (VIX, DXY)
+    setTimeout(async () => { await refreshFuturesLive(); }, 8000);      // 4 calls
+    setTimeout(async () => { await refreshFXLive(); }, 15000);          // 17 calls
+    // Periodic refresh — every few minutes; Finnhub free easily handles this
+    setInterval(refreshAllStocksLive, 2 * 60 * 1000);   // 2 min
+    setInterval(refreshSectorsLive,   3 * 60 * 1000);
+    setInterval(refreshIndicesLive,   3 * 60 * 1000);
+    setInterval(refreshMacroLive,     2 * 60 * 1000);
+    setInterval(refreshFuturesLive,   3 * 60 * 1000);
+    setInterval(refreshFXLive,        4 * 60 * 1000);
   } else {
     // Without key, gently animate sim values every 8s so UI feels alive
     setInterval(() => {
