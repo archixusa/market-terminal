@@ -4518,6 +4518,11 @@ const COMMANDS = [
   { cmd: '/workspaces', desc: 'List saved workspaces' },
   { cmd: '/draw',     desc: 'Activate a drawing tool — /draw trend | hline | fib | clear' },
   { cmd: '/split',    desc: 'Toggle 2×2 multi-chart split view' },
+  { cmd: '/conv',     desc: 'Currency converter — /conv 1000 USD TRY' },
+  { cmd: '/m',        desc: 'Quick calculator — /m 1000 * 1.05 - 50' },
+  { cmd: '/tz',       desc: 'Timezone converter — /tz 14:00 NY IST' },
+  { cmd: '/cagr',     desc: 'CAGR / compound return — /cagr 1000 5000 5' },
+  { cmd: '/q',        desc: 'Instant quote popup — /q AAPL (no chart switch)' },
   { cmd: '/settings', desc: 'Open settings (beginner mode, tooltips, …)' },
   { cmd: '/tour',     desc: 'Re-show the welcome tour' },
   { cmd: '/apikey',   desc: 'Save API key for live data — /apikey twelvedata YOURKEY (free at twelvedata.com)' },
@@ -4782,6 +4787,112 @@ function runCommand(raw) {
       return;
     }
     case '/split': toggleSplitView(); return;
+    case '/conv': {
+      // /conv 1000 USD TRY  → convert via LIVE.loaded FX
+      const m = txt.match(/^\/conv\s+([\d.]+)\s+([A-Z]{3})\s+([A-Z]{3})/i);
+      if (!m) { showToast('Usage', '/conv 1000 USD TRY', 'alert'); return; }
+      const amt = parseFloat(m[1]); const from = m[2].toUpperCase(); const to = m[3].toUpperCase();
+      // Determine rate via cross. We have USD pairs.
+      function _rate(b, q){
+        if (b === q) return 1;
+        const direct = LIVE.loaded[b+'/'+q]; if (direct?.price) return direct.price;
+        const inv = LIVE.loaded[q+'/'+b]; if (inv?.price) return 1/inv.price;
+        const bUSD = b === 'USD' ? 1 : (LIVE.loaded[b+'/USD']?.price ?? (LIVE.loaded['USD/'+b]?.price ? 1/LIVE.loaded['USD/'+b].price : null));
+        const qUSD = q === 'USD' ? 1 : (LIVE.loaded[q+'/USD']?.price ?? (LIVE.loaded['USD/'+q]?.price ? 1/LIVE.loaded['USD/'+q].price : null));
+        if (bUSD && qUSD) return bUSD / qUSD;
+        return null;
+      }
+      const r = _rate(from, to);
+      if (!r) { showToast('Pair unavailable', from+'/'+to+' rate not loaded', 'alert'); return; }
+      const result = amt * r;
+      const fmt = v => v >= 1000 ? v.toLocaleString('en-US',{maximumFractionDigits:2}) : v.toFixed(4);
+      showToast(amt.toLocaleString('en-US') + ' ' + from + ' = ' + fmt(result) + ' ' + to, 'Rate: 1 ' + from + ' = ' + r.toFixed(4) + ' ' + to, 'ok');
+      return;
+    }
+    case '/m': case '/calc-math': {
+      const expr = txt.slice(2).trim() || txt.slice(8).trim();
+      if (!expr) { showToast('Usage', '/m 1000 * 1.05 - 50', 'alert'); return; }
+      // Safe-ish math eval: allow only digits, operators, parens, spaces, e, .
+      if (!/^[\d+\-*/().eE\s%]+$/.test(expr)) { showToast('Invalid expression', 'Only numbers + - * / ( ) % allowed', 'alert'); return; }
+      try {
+        const val = Function('"use strict";return (' + expr + ')')();
+        if (!isFinite(val)) throw new Error('not a number');
+        const fmt = v => Math.abs(v) >= 1000 ? v.toLocaleString('en-US') : v.toLocaleString('en-US',{maximumFractionDigits:6});
+        showToast(expr + ' = ' + fmt(val), '', 'ok');
+      } catch(e) { showToast('Math error', e.message, 'alert'); }
+      return;
+    }
+    case '/tz': {
+      // /tz 14:00 NY IST   or  /tz now NY IST
+      const m = txt.match(/^\/tz\s+(\S+)\s+([A-Za-z]+)\s+([A-Za-z]+)/);
+      if (!m) { showToast('Usage', '/tz 14:00 NY IST  (cities: NY LON IST TOK SHA DXB)', 'alert'); return; }
+      const TZ_MAP = { NY:'America/New_York', LON:'Europe/London', LDN:'Europe/London', PAR:'Europe/Paris', BER:'Europe/Berlin', IST:'Europe/Istanbul', TR:'Europe/Istanbul', DXB:'Asia/Dubai', TOK:'Asia/Tokyo', JP:'Asia/Tokyo', SHA:'Asia/Shanghai', CN:'Asia/Shanghai', HK:'Asia/Hong_Kong', SYD:'Australia/Sydney', LA:'America/Los_Angeles', UTC:'UTC', GMT:'UTC' };
+      const fromTz = TZ_MAP[m[2].toUpperCase()];
+      const toTz   = TZ_MAP[m[3].toUpperCase()];
+      if (!fromTz || !toTz) { showToast('Unknown city', 'Known: NY LON IST TOK SHA HK DXB SYD LA UTC', 'alert'); return; }
+      const timeStr = m[1].toLowerCase() === 'now' ? null : m[1];
+      // Build a date in source timezone today, then re-format in target
+      const now = new Date();
+      let src;
+      if (timeStr) {
+        const [hh, mm] = timeStr.split(':').map(Number);
+        // Get today's date in source tz, then set hh:mm in that tz
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: fromTz, year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(now);
+        const ymd = {};
+        parts.forEach(p => ymd[p.type] = p.value);
+        // Construct ISO and find UTC offset of source tz at that moment
+        const naiveIso = ymd.year + '-' + ymd.month + '-' + ymd.day + 'T' + String(hh).padStart(2,'0') + ':' + String(mm||0).padStart(2,'0') + ':00';
+        const tmp = new Date(naiveIso + 'Z');
+        // Compute the actual UTC time corresponding to the source-tz wall time
+        // Get the source-tz formatted version of tmp to find its offset
+        const fmtIn = new Intl.DateTimeFormat('en-US', { timeZone: fromTz, hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const asInSrc = fmtIn.formatToParts(tmp);
+        const got = {};
+        asInSrc.forEach(p => got[p.type] = p.value);
+        const targetMinutes = hh * 60 + (mm||0);
+        const gotMinutes = parseInt(got.hour,10) * 60 + parseInt(got.minute,10);
+        const offsetMin = targetMinutes - gotMinutes;
+        src = new Date(tmp.getTime() + offsetMin * 60000);
+      } else { src = now; }
+      const fmt = (d, tz, label) => {
+        const t = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12:false, hour:'2-digit', minute:'2-digit', weekday:'short' }).format(d);
+        return label + ': ' + t;
+      };
+      showToast('Time conversion', fmt(src, fromTz, m[2].toUpperCase()) + '   →   ' + fmt(src, toTz, m[3].toUpperCase()), 'ok');
+      return;
+    }
+    case '/cagr': {
+      // /cagr 1000 5000 5  → start, end, years
+      const m = txt.match(/^\/cagr\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      if (!m) { showToast('Usage', '/cagr 1000 5000 5   (start, end, years)', 'alert'); return; }
+      const start = parseFloat(m[1]), end = parseFloat(m[2]), yrs = parseFloat(m[3]);
+      if (start <= 0 || yrs <= 0) { showToast('Invalid inputs', 'start and years must be > 0', 'alert'); return; }
+      const cagr = Math.pow(end/start, 1/yrs) - 1;
+      const totalRet = (end/start - 1) * 100;
+      showToast('CAGR ' + (cagr*100).toFixed(2) + '%/yr', 'Total return ' + totalRet.toFixed(2) + '% over ' + yrs + ' years', 'ok');
+      return;
+    }
+    case '/q': {
+      const sym = (args[0]||'').toUpperCase();
+      if (!sym) { showToast('Usage', '/q AAPL', 'alert'); return; }
+      const d = LIVE.loaded[sym];
+      if (d && isFinite(d.price)) {
+        const u = d.pct >= 0 ? '+' : '';
+        showToast(sym + ' · $' + d.price.toFixed(2), (u + d.pct.toFixed(2)) + '% · O:' + (d.open?.toFixed(2)||'—') + ' H:' + (d.high?.toFixed(2)||'—') + ' L:' + (d.low?.toFixed(2)||'—') + (d.vol ? ' V:' + (d.vol>=1e6?(d.vol/1e6).toFixed(1)+'M':(d.vol/1e3).toFixed(0)+'K') : ''), d.pct >= 0 ? 'ok' : 'alert');
+      } else {
+        // Try fetching once
+        showToast('Fetching ' + sym + '…', '', 'ok');
+        fetchQuoteFinnhub(sym).then(q => {
+          if (q && q.price) {
+            const u = q.pct >= 0 ? '+' : '';
+            showToast(sym + ' · $' + q.price.toFixed(2), (u + q.pct.toFixed(2)) + '% · prev close ' + q.prevClose.toFixed(2), q.pct >= 0 ? 'ok' : 'alert');
+          } else {
+            showToast('No data for ' + sym, '', 'alert');
+          }
+        });
+      }
+      return;
+    }
     case '/settings': openSettings(); return;
     case '/tour': resetTour(); return;
   }
