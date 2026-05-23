@@ -823,6 +823,8 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="chart-tool-sep"></span>
     <span class="chart-tool-btn" onclick="quickAlert()" data-tip="Set a price alert for the selected symbol.">Alert</span>
     <span class="chart-tool-btn" onclick="toggleSplitView()" data-tip="Toggle 2×2 split view — see 4 charts at once.">Split</span>
+    <span class="chart-tool-btn" onclick="toggleNoteEditor(chartState.symbol)" data-tip="Personal note for this symbol (saved in your browser).">📝 Note</span>
+    <span class="chart-tool-btn" onclick="openPopupChart()" data-tip="Open the current chart in a new window — useful for multi-monitor setups.">⧉ Popup</span>
     <span style="flex:1"></span>
     <span id="chart-range-info" style="font-size:10px;color:#6e7681;white-space:nowrap;font-family:'JetBrains Mono',monospace">Daily · 1Y</span>
   </div>
@@ -881,6 +883,17 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
   </div>
 </div>
 </div>
+<div id="news-ticker" style="background:#0a0d12;border-top:1px solid #1a1f26;height:24px;display:flex;align-items:center;overflow:hidden;flex-shrink:0">
+  <span style="background:#dc2626;color:#fff;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:0.5px;margin-right:8px;flex-shrink:0">● BREAKING</span>
+  <div id="news-ticker-scroll" style="display:inline-flex;white-space:nowrap;animation:news-ticker-scroll 240s linear infinite;font-size:11px;color:#c9d1d9;font-family:Inter,sans-serif"></div>
+</div>
+<style>
+@keyframes news-ticker-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+#news-ticker:hover #news-ticker-scroll { animation-play-state: paused; }
+.nti { padding: 0 28px; cursor: pointer; }
+.nti:hover { color: #f97316; }
+.nti-sep { color: #4a5158; padding: 0 4px; }
+</style>
 <div id="cmdbar">
   <span class="cmd-prompt">›</span>
   <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type a symbol (AAPL) or command (/help, /alert AAPL > 200, /watch TSLA, /sma 20)" />
@@ -964,6 +977,13 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
         <button onclick="setTheme('green')"   id="theme-btn-green"   style="background:#001a00;border:1px solid #00591a;color:#4ade80;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Green</button>
         <button onclick="setTheme('light')"   id="theme-btn-light"   style="background:#fff;border:1px solid #d0d7de;color:#1f2328;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Light</button>
       </div>
+    </div>
+    <div class="settings-row">
+      <div class="s-lbl">
+        <div class="s-name">Sound cues</div>
+        <div class="s-desc">Audio beeps when an alert fires. Bloomberg-style chirp. Off for silent work.</div>
+      </div>
+      <div class="toggle on" id="toggle-sound" onclick="toggleSound()"></div>
     </div>
     <div class="settings-row">
       <div class="s-lbl">
@@ -2114,6 +2134,17 @@ async function fetchLiveNews(){
   cacheSet('live_news_us', result);
   return result;
 }
+function renderNewsTicker(){
+  const el = document.getElementById('news-ticker-scroll');
+  if (!el) return;
+  const items = (window.newsData || newsData).slice(0, 30);
+  if (!items.length) { el.innerHTML = '<span class="nti" style="color:#6e7681">Loading news…</span>'; return; }
+  el.innerHTML = items.map(n => {
+    const t = n.time || '';
+    const href = (n.url || '').replace(/'/g,'%27');
+    return '<span class="nti" onclick="window.open(\''+href+'\',\'_blank\',\'noopener\')"><b style="color:#f97316;font-family:JetBrains Mono,monospace">'+t+'</b> · '+n.headline+'</span><span class="nti-sep">◆</span>';
+  }).join('');
+}
 async function loadLiveNewsIntoFeed(){
   // If user is viewing company-specific news, refresh that instead
   if (window._companyNewsSymbol) {
@@ -2125,6 +2156,7 @@ async function loadLiveNewsIntoFeed(){
   newsData.length = 0;
   news.forEach(n => newsData.push(n));
   renderNews(_newsCatFilter || 'all');
+  renderNewsTicker();
   const badge = document.getElementById('feed-badge');
   if (badge) { badge.style.background='#22c55e'; badge.style.color='#0d1117'; badge.textContent='● LIVE'; }
 }
@@ -4969,9 +5001,33 @@ function runCommand(raw) {
   if (!txt) return;
   const lc = txt.toLowerCase();
 
-  // Bare symbol → load chart
+  // Bloomberg-style function codes: "AAPL FA", "AAPL HP", "MSFT DES", etc.
   if (!txt.startsWith('/')) {
-    const sym = txt.toUpperCase().split(/\s+/)[0];
+    const parts = txt.toUpperCase().split(/\s+/);
+    const sym = parts[0];
+    const code = parts[1] || '';
+    const FN_CODES = ['DES','FA','HP','EE','PEERS','N','CN','GP','VOL','INS','MOST'];
+    if (code && FN_CODES.includes(code)) {
+      // Load the symbol first
+      const found = _allSearchSymbols.find(s => s.sym === sym);
+      if (found?.type === 'index') selectIndex(sym); else selectStock(sym);
+      // Then route to the function view
+      switch (code) {
+        case 'DES':   showStockOverview(sym); break;
+        case 'FA':    switchTab('markets'); break;  // fundamentals already in chart bar
+        case 'HP':    openFunctionView(sym, 'hp'); break;
+        case 'EE':    openFunctionView(sym, 'ee'); break;
+        case 'PEERS': openFunctionView(sym, 'peers'); break;
+        case 'N': case 'CN': toggleCompanyNews(sym); break;
+        case 'GP':    switchTab('markets'); break;
+        case 'VOL':   toggleIndicator('vol'); break;
+        case 'INS':   switchTab('insider'); runInsiderScan(true); break;
+        case 'MOST':  switchTab('screener'); renderScreenerView('volume'); break;
+      }
+      showToast(sym + ' ' + code, 'Function code executed', 'ok');
+      return;
+    }
+    // Plain symbol — load chart
     const found = _allSearchSymbols.find(s => s.sym === sym);
     if (found) {
       if (found.type === 'index') selectIndex(sym);
@@ -4979,10 +5035,9 @@ function runCommand(raw) {
       switchTab('markets');
       showToast('Loaded ' + sym, found.name);
     } else {
-      // Try fetch as a Yahoo symbol
       selectStock(sym);
       switchTab('markets');
-      showToast('Loading ' + sym, 'Symbol not in local index — fetching from Yahoo');
+      showToast('Loading ' + sym, 'Trying Finnhub for unknown symbol');
     }
     return;
   }
@@ -5300,6 +5355,7 @@ function checkAlerts() {
       a.triggeredAt = Date.now();
       fired = true;
       showToast('🔔 ALERT  ' + a.sym, a.sym + ' ' + (a.op === '>' ? '≥' : '≤') + ' ' + a.price + '  (now ' + live.price.toFixed(2) + ')', 'alert');
+      playAlertSound();
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('Market Terminal alert', { body: a.sym + ' ' + (a.op === '>' ? '≥' : '≤') + ' ' + a.price + '\nNow: ' + live.price.toFixed(2) });
@@ -5316,6 +5372,59 @@ function quickAlert() {
   const px  = document.getElementById('ap-px');
   if (sym) sym.value = chartState.symbol;
   if (px && live && isFinite(live.price)) px.value = (live.price * 1.05).toFixed(2);
+}
+
+// ==================== SOUND CUES ====================
+// Web Audio beeps — no external audio file needed. Bloomberg-style chirp sounds.
+let _audioCtx;
+function _ctx(){ if (!_audioCtx) try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} return _audioCtx; }
+function playBeep(freq, durMs, type, vol){
+  if (getSettings().sound === false) return;
+  const ctx = _ctx(); if (!ctx) return;
+  try {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    g.gain.value = (vol || 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (durMs/1000));
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + (durMs/1000));
+  } catch(e){}
+}
+function playAlertSound(){ playBeep(880,150,'sine',0.12); setTimeout(()=>playBeep(1320,180,'sine',0.10), 160); }
+function playNewsBlip(){ playBeep(700,80,'triangle',0.06); }
+function playMoveSound(up){ playBeep(up ? 1100 : 450, 120, 'sawtooth', 0.05); }
+
+// ==================== PER-STOCK NOTES ====================
+const NOTES_KEY = 'mtp_notes';
+function loadNotes(){ try{ return JSON.parse(localStorage.getItem(NOTES_KEY)||'{}'); }catch(e){ return {}; } }
+function saveNotes(obj){ localStorage.setItem(NOTES_KEY, JSON.stringify(obj)); }
+function getNote(sym){ return loadNotes()[sym] || ''; }
+function setNote(sym, txt){ const all = loadNotes(); if (txt) all[sym] = txt; else delete all[sym]; saveNotes(all); }
+function toggleNoteEditor(sym){
+  const existing = document.getElementById('note-editor-panel');
+  if (existing) { existing.remove(); return; }
+  const panel = document.createElement('div');
+  panel.id = 'note-editor-panel';
+  panel.style.cssText = 'position:fixed;top:80px;right:16px;width:340px;background:#161b22;border:1px solid #f97316;border-radius:8px;z-index:9999;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.7)';
+  panel.innerHTML =
+    '<div style="display:flex;align-items:center;margin-bottom:8px;gap:8px"><b style="color:#f97316;font-size:13px">📝 Note · ' + sym + '</b><span style="margin-left:auto;cursor:pointer;color:#8b949e" onclick="document.getElementById(\'note-editor-panel\').remove()">✕</span></div>' +
+    '<textarea id="note-textarea" style="width:100%;height:140px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:8px;border-radius:4px;font-family:Inter,sans-serif;font-size:12px;line-height:1.5;resize:vertical;box-sizing:border-box;outline:none" placeholder="Your personal notes for ' + sym + '…\nThoughts, support/resistance levels, plan, anything.">' + getNote(sym).replace(/</g,'&lt;') + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px"><button onclick="(function(){ setNote(\''+sym+'\', document.getElementById(\'note-textarea\').value); showToast(\'Note saved\',\'\',\'ok\'); document.getElementById(\'note-editor-panel\').remove(); renderFundamentalsForSymbol(\''+sym+'\'); })()" style="background:#22c55e;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:700">Save</button><button onclick="(function(){ setNote(\''+sym+'\', \'\'); document.getElementById(\'note-editor-panel\').remove(); renderFundamentalsForSymbol(\''+sym+'\'); })()" style="background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:6px 12px;border-radius:4px;cursor:pointer">Clear</button></div>';
+  document.body.appendChild(panel);
+  setTimeout(()=>document.getElementById('note-textarea')?.focus(), 50);
+}
+
+// ==================== POPUP CHART ====================
+function openPopupChart(){
+  const sym = chartState.symbol;
+  const range = chartState.range;
+  const url = location.origin + location.pathname + '?popup=1&sym=' + sym + '&range=' + range;
+  const win = window.open(url, sym + '-chart', 'width=900,height=600,toolbar=no,menubar=no,location=no,resizable=yes');
+  if (!win) { showToast('Popup blocked', 'Allow popups for this site', 'alert'); return; }
+  showToast('Chart popup opened', sym + ' in a new window', 'ok');
 }
 
 // ==================== SMART TOOLTIPS ====================
@@ -5457,6 +5566,7 @@ function applySettings(){
   document.getElementById('toggle-flash')?.classList.toggle('on', s.flash !== false);
   document.getElementById('toggle-tips')?.classList.toggle('on', s.tips !== false);
   document.getElementById('toggle-compact')?.classList.toggle('on', !!s.compact);
+  document.getElementById('toggle-sound')?.classList.toggle('on', s.sound !== false);
   ['default','amber','green','light'].forEach(t => {
     const btn = document.getElementById('theme-btn-'+t);
     if (btn) btn.style.outline = (t === theme) ? '2px solid var(--t-accent, #f97316)' : 'none';
@@ -5484,6 +5594,14 @@ function toggleCompact(){
   saveSettings(s);
   applySettings();
   showToast(s.compact ? 'Compact mode on' : 'Compact mode off', '', 'ok');
+}
+function toggleSound(){
+  const s = getSettings();
+  s.sound = s.sound === false ? true : false;
+  saveSettings(s);
+  document.getElementById('toggle-sound')?.classList.toggle('on', s.sound !== false);
+  if (s.sound !== false) playAlertSound();
+  showToast(s.sound !== false ? 'Sound on' : 'Sound off', '', 'ok');
 }
 function setLang(lang){
   const s = getSettings();
@@ -5979,6 +6097,146 @@ function _renderInsiderCard(r){
     (r.reasons.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + r.reasons.map(re => '<span style="background:'+r.verdict.color+'18;border:1px solid '+r.verdict.color+'44;color:#c9d1d9;padding:3px 8px;border-radius:3px;font-size:11px">'+re+'</span>').join('') + '</div>' : '') +
     (txRows ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr style="color:#6e7681;font-size:9px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Date</th><th style="text-align:left;padding:4px 8px">Insider</th><th style="text-align:right;padding:4px 8px">Action</th><th style="text-align:right;padding:4px 8px">Shares</th><th style="text-align:right;padding:4px 8px">Price</th><th style="text-align:right;padding:4px 8px">Value</th></tr></thead><tbody>'+txRows+'</tbody></table>' : '') +
   '</div>';
+}
+
+// ==================== FUNCTION VIEWS (HP / EE / PEERS) ====================
+async function fetchPeers(sym){
+  const cached = cacheGet('peers_'+sym, 24*60*60*1000); if (cached) return cached;
+  const j = await fhFetch('stock/peers', { symbol: sym });
+  if (!Array.isArray(j)) return null;
+  cacheSet('peers_'+sym, j);
+  return j;
+}
+async function fetchEarningsHistory(sym){
+  const cached = cacheGet('earn_hist_'+sym, 6*60*60*1000); if (cached) return cached;
+  const j = await fhFetch('stock/earnings', { symbol: sym });
+  if (!Array.isArray(j)) return null;
+  cacheSet('earn_hist_'+sym, j);
+  return j;
+}
+
+function openFunctionView(sym, code){
+  // Create or reuse the function view modal
+  let m = document.getElementById('fn-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'fn-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px';
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    document.body.appendChild(m);
+  }
+  m.innerHTML =
+    '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:980px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.7)">' +
+      '<div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">' + sym + ' ' + code.toUpperCase() + '</span><span style="color:#8b949e;font-size:11px">' + ({hp:'Historical Price',ee:'Earnings History',peers:'Peer Comparison'}[code]||code) + '</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div>' +
+      '<div style="overflow:auto;padding:16px" id="fn-body"><div style="padding:30px;text-align:center;color:#6e7681">Loading…</div></div>' +
+    '</div>';
+  if (code === 'hp')    return _renderHP(sym);
+  if (code === 'ee')    return _renderEE(sym);
+  if (code === 'peers') return _renderPeers(sym);
+}
+
+async function _renderHP(sym){
+  const body = document.getElementById('fn-body');
+  // Use cached chart data if symbol matches current chart, otherwise fetch
+  let data = (chartState.symbol === sym && chartState.data?.length) ? chartState.data : null;
+  if (!data) {
+    const r = await fetchChartTwelve(sym, '3M') || await fetchChartFinnhub(sym, '3M');
+    if (!r) { body.innerHTML = '<div style="padding:30px;text-align:center;color:#6e7681">No data available.</div>'; return; }
+    data = [];
+    for (let i = 0; i < (r.timestamps||[]).length; i++) {
+      data.push({ ts: r.timestamps[i]*1000, o: r.opens?.[i], h: r.highs?.[i], l: r.lows?.[i], c: r.closes?.[i], v: r.volumes?.[i] });
+    }
+  }
+  const fmtV = v => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
+  const rows = data.slice().reverse().slice(0, 80).map((d, i) => {
+    const prev = data[data.length - 1 - i - 1];
+    const chg = prev ? d.c - prev.c : 0;
+    const pct = prev?.c ? (chg/prev.c)*100 : 0;
+    const cc = pct >= 0 ? '#22c55e' : '#ef4444';
+    const dt = new Date(d.ts);
+    return '<tr style="border-bottom:1px solid #1a1f26"><td style="padding:5px 10px;font-family:JetBrains Mono,monospace;color:#8b949e">'+dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'2-digit'})+'</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(d.o?.toFixed(2)||'—')+'</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(d.h?.toFixed(2)||'—')+'</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(d.l?.toFixed(2)||'—')+'</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:#e6edf3;font-weight:600">'+(d.c?.toFixed(2)||'—')+'</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:'+cc+'">'+(pct>=0?'+':'')+pct.toFixed(2)+'%</td>' +
+      '<td style="padding:5px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:#8b949e">'+(d.v?fmtV(d.v):'—')+'</td></tr>';
+  }).join('');
+  body.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#6e7681;font-size:10px;text-transform:uppercase;background:#161b22"><th style="text-align:left;padding:8px 10px">Date</th><th style="text-align:right;padding:8px 10px">Open</th><th style="text-align:right;padding:8px 10px">High</th><th style="text-align:right;padding:8px 10px">Low</th><th style="text-align:right;padding:8px 10px">Close</th><th style="text-align:right;padding:8px 10px">Chg%</th><th style="text-align:right;padding:8px 10px">Volume</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+async function _renderEE(sym){
+  const body = document.getElementById('fn-body');
+  const data = await fetchEarningsHistory(sym);
+  if (!data || !data.length) { body.innerHTML = '<div style="padding:30px;text-align:center;color:#6e7681">No earnings history found.</div>'; return; }
+  const last8 = data.slice(0, 8).reverse(); // chronological
+  // Compute bar chart
+  const maxAbs = Math.max(...last8.map(e => Math.abs((e.actual||0) - (e.estimate||0))), 0.01);
+  const bars = last8.map(e => {
+    const surprise = (e.actual ?? 0) - (e.estimate ?? 0);
+    const surprisePct = e.estimate ? (surprise/Math.abs(e.estimate))*100 : 0;
+    const beat = surprise > 0;
+    const h = (Math.abs(surprise) / maxAbs) * 60;
+    const c = beat ? '#22c55e' : '#ef4444';
+    const q = 'Q' + e.quarter + ' ' + (e.year||'').toString().slice(-2);
+    return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:0">' +
+      '<div style="height:70px;display:flex;align-items:flex-end;justify-content:center;width:100%"><div style="width:60%;height:'+h+'px;background:'+c+';border-radius:2px 2px 0 0" title="'+(beat?'Beat':'Miss')+' by '+surprisePct.toFixed(1)+'%"></div></div>' +
+      '<div style="font-size:10px;color:#8b949e;margin-top:4px;font-family:JetBrains Mono,monospace">'+q+'</div>' +
+      '<div style="font-size:10px;color:'+c+';font-weight:700;font-family:JetBrains Mono,monospace">'+(beat?'+':'')+surprisePct.toFixed(1)+'%</div>' +
+      '<div style="font-size:9px;color:#6e7681">Act $'+(e.actual?.toFixed(2)||'—')+'</div>' +
+      '<div style="font-size:9px;color:#6e7681">Est $'+(e.estimate?.toFixed(2)||'—')+'</div>' +
+    '</div>';
+  }).join('');
+  const beats = last8.filter(e => (e.actual||0) > (e.estimate||0)).length;
+  body.innerHTML =
+    '<div style="margin-bottom:14px;color:#8b949e;font-size:12px">Last ' + last8.length + ' quarters · <b style="color:#22c55e">' + beats + ' beats</b> · <b style="color:#ef4444">' + (last8.length-beats) + ' misses</b></div>' +
+    '<div style="display:flex;gap:10px;padding:14px;background:#0d1117;border:1px solid #30363d;border-radius:6px">' + bars + '</div>' +
+    '<table style="margin-top:14px;width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#6e7681;font-size:10px;text-transform:uppercase;background:#161b22"><th style="text-align:left;padding:8px 10px">Quarter</th><th style="text-align:right;padding:8px 10px">Estimate EPS</th><th style="text-align:right;padding:8px 10px">Actual EPS</th><th style="text-align:right;padding:8px 10px">Surprise</th></tr></thead><tbody>' +
+      last8.slice().reverse().map(e => {
+        const surprise = (e.actual ?? 0) - (e.estimate ?? 0);
+        const pct = e.estimate ? (surprise/Math.abs(e.estimate))*100 : 0;
+        const beat = surprise > 0;
+        const c = beat ? '#22c55e' : '#ef4444';
+        return '<tr style="border-bottom:1px solid #1a1f26"><td style="padding:6px 10px;font-family:JetBrains Mono,monospace">Q'+e.quarter+' '+e.year+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:#8b949e">$'+(e.estimate?.toFixed(2)||'—')+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace;font-weight:700">$'+(e.actual?.toFixed(2)||'—')+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:'+c+';font-weight:700">'+(beat?'+':'')+pct.toFixed(1)+'%</td></tr>';
+      }).join('') +
+    '</tbody></table>';
+}
+
+async function _renderPeers(sym){
+  const body = document.getElementById('fn-body');
+  const peers = await fetchPeers(sym);
+  if (!peers || !peers.length) { body.innerHTML = '<div style="padding:30px;text-align:center;color:#6e7681">No peers data found.</div>'; return; }
+  body.innerHTML = '<div style="padding:14px;color:#8b949e">Fetching live data for ' + peers.length + ' peers…</div>';
+  // Fetch quote + fundamentals for each peer (cached)
+  const rows = [];
+  for (const p of peers.slice(0, 10)) {
+    const q = await fetchQuoteFinnhub(p);
+    const f = await fetchFundamentals(p);
+    rows.push({ sym: p, price: q?.price, pct: q?.pct, mcap: f?.metric?.marketCapitalization, pe: f?.metric?.peNormalizedAnnual || f?.metric?.peBasicExclExtraTTM, beta: f?.metric?.beta, w52h: f?.metric?.['52WeekHigh'], w52l: f?.metric?.['52WeekLow'], divYield: f?.metric?.currentDividendYieldTTM, profile: f?.profile });
+  }
+  const fmt$ = v => v >= 1e6 ? '$'+(v/1e3).toFixed(1)+'B' : v >= 1e3 ? '$'+v.toFixed(0)+'M' : '—';
+  body.innerHTML =
+    '<div style="margin-bottom:10px;color:#8b949e;font-size:12px">Peers of <b style="color:#f97316">' + sym + '</b> — sector comparison from Finnhub</div>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#6e7681;font-size:10px;text-transform:uppercase;background:#161b22"><th style="text-align:left;padding:8px 10px">Symbol</th><th style="text-align:right;padding:8px 10px">Price</th><th style="text-align:right;padding:8px 10px">Chg%</th><th style="text-align:right;padding:8px 10px">Mkt Cap</th><th style="text-align:right;padding:8px 10px">P/E</th><th style="text-align:right;padding:8px 10px">Beta</th><th style="text-align:right;padding:8px 10px">Div Yld</th></tr></thead><tbody>' +
+      rows.map(r => {
+        const cc = (r.pct||0) >= 0 ? '#22c55e' : '#ef4444';
+        const isMain = r.sym === sym;
+        return '<tr style="border-bottom:1px solid #1a1f26;cursor:pointer;'+(isMain?'background:rgba(249,115,22,0.06)':'')+'" onclick="selectStock(\''+r.sym+'\');document.getElementById(\'fn-modal\').remove()" onmouseover="this.style.background=\'#161b22\'" onmouseout="this.style.background=\''+(isMain?'rgba(249,115,22,0.06)':'')+'\'">' +
+          '<td style="padding:7px 10px;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(isMain?'#f97316':'#e6edf3')+'">'+r.sym+(isMain?' ★':'')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(r.price?'$'+r.price.toFixed(2):'—')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:'+cc+';font-weight:700">'+(r.pct?((r.pct>=0?'+':'')+r.pct.toFixed(2)+'%'):'—')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(r.mcap?fmt$(r.mcap):'—')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(r.pe?r.pe.toFixed(1)+'x':'—')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(r.beta?r.beta.toFixed(2):'—')+'</td>' +
+          '<td style="padding:7px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+(r.divYield?r.divYield.toFixed(2)+'%':'—')+'</td>' +
+        '</tr>';
+      }).join('') +
+    '</tbody></table>';
+}
+
+function showStockOverview(sym){
+  // DES = Description — just ensure chart loaded and toast
+  showToast(sym + ' DES', 'See fundamentals bar under chart', 'ok');
 }
 
 // ==================== SCREENER + SCANNERS ====================
