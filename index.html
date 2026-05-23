@@ -629,196 +629,144 @@ const getDateLabels = function(range) {
   }
   return ['','','','','',''];
 };
-function drawChart()  {
+function drawChart() {
   const canvas = document.getElementById('mainChart');
   if (!canvas) return;
 
   const par = canvas.parentElement;
-  const W = par.clientWidth || 562;
-  const H = par.clientHeight || 400;
+  const W = par.clientWidth || 800;
+  const H = par.clientHeight || 380;
   if (W < 50 || H < 50) return;
+
   canvas.width = W;
   canvas.height = H;
-
   const ctx = canvas.getContext('2d');
-  const data = window.chartState && window.chartState.data;
-  const rk = (window.chartState && window.chartState.range) || '1D';
 
-  if (!data || data.length < 2) {
-    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H); return;
-  }
+  const data = chartState && chartState.data;
+  const rk = (chartState && chartState.range) || '1D';
 
-  // Live fiyatı al (her zaman doğru kaynak)
-  const livePriceEl = document.getElementById('chart-price');
-  const livePrice = livePriceEl ? parseFloat(livePriceEl.textContent.replace(/,/g, '')) : null;
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
 
-  // Data'dan close fiyatları
+  if (!data || data.length < 2) return;
+
+  // Get valid close prices
   const closes = data.map(d => d.c).filter(p => typeof p === 'number' && !isNaN(p) && p > 0);
-  if (closes.length === 0) return;
+  if (closes.length < 2) return;
 
+  // Live price for badge
+  const livePriceEl = document.getElementById('chart-price');
+  const livePrice = livePriceEl ? parseFloat(livePriceEl.textContent.replace(/,/g, '')) || closes[closes.length-1] : closes[closes.length-1];
+
+  // Scale factor to normalize data to live price
   const dataLastPrice = closes[closes.length - 1];
+  const scaleFactor = (livePrice > 0 && dataLastPrice > 0) ? livePrice / dataLastPrice : 1;
 
-  // Scale faktörü: live fiyat ile data son fiyatı arasındaki oran
-  // Bunu tüm data'ya uygula → grafiğin son noktası = live fiyata denk gelir
-  let scaleFactor = 1;
-  if (livePrice && livePrice > 0 && dataLastPrice > 0) {
-    const ratio = livePrice / dataLastPrice;
-    // Her zaman scale et (sadece büyük fark değil)
-    scaleFactor = ratio;
-  }
-
-  // Normalize edilmiş data
-  const normCloses = closes.map(c => c * scaleFactor);
-  const normData = data.map((d, i) => {
-    const idx = data.filter((x, j) => j <= i && typeof x.c === 'number' && !isNaN(x.c) && x.c > 0).length - 1;
-    const sf = scaleFactor;
-    return {
-      ...d,
-      _c: typeof d.c === 'number' && !isNaN(d.c) && d.c > 0 ? d.c * sf : null,
-      _h: typeof d.h === 'number' && !isNaN(d.h) && d.h > 0 ? d.h * sf : null,
-      _l: typeof d.l === 'number' && !isNaN(d.l) && d.l > 0 ? d.l * sf : null,
-    };
-  });
-
-  let minP = Math.min(...normCloses);
-  let maxP = Math.max(...normCloses);
+  const scaled = closes.map(c => c * scaleFactor);
+  let minP = Math.min(...scaled);
+  let maxP = Math.max(...scaled);
   let priceRange = maxP - minP;
-  if (priceRange < maxP * 0.001) { priceRange = maxP * 0.02; minP = maxP - priceRange; }
-
-  const padPct = 0.18;
+  if (priceRange < maxP * 0.0005) { priceRange = maxP * 0.02; minP = maxP - priceRange; }
+  const padPct = 0.15;
   minP -= priceRange * padPct;
   maxP += priceRange * padPct;
   priceRange = maxP - minP;
 
-  const PAD = { top: 28, right: 76, bottom: 42, left: 76 };
+  const PAD = { top: 28, right: 80, bottom: 38, left: 80 };
   const CW = W - PAD.left - PAD.right;
   const CH = H - PAD.top - PAD.bottom;
-
-  const xPos = i => PAD.left + (i / Math.max(normData.length - 1, 1)) * CW;
+  const xPos = i => PAD.left + (i / Math.max(closes.length - 1, 1)) * CW;
   const yPos = p => PAD.top + CH - ((p - minP) / priceRange) * CH;
 
-  // Arka plan
-  ctx.fillStyle = '#0d1117';
-  ctx.fillRect(0, 0, W, H);
-
-  // Yatay grid + Y etiketi
-  const gridN = 5;
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-  
-  function fmtPrice(p) {
-    if (p >= 10000) return p.toFixed(0);
-    if (p >= 1000) return p.toFixed(1);
-    if (p >= 10) return p.toFixed(2);
-    return p.toFixed(4);
-  }
-
-  for (let g = 0; g <= gridN; g++) {
-    const gp = minP + (priceRange * (gridN - g) / gridN);
-    const gy = PAD.top + (g / gridN) * CH;
-    ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
-    
-    ctx.fillStyle = 'rgba(160,172,190,0.85)';
-    ctx.font = '11px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(fmtPrice(gp), PAD.left - 5, gy + 4);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(100,110,130,0.6)';
-    ctx.fillText(fmtPrice(gp), W - PAD.right + 4, gy + 4);
-  }
-
-  // Renk
-  const firstC = normData.find(d => d._c) ? normData.find(d => d._c)._c : normCloses[0];
-  const lastC = livePrice || normCloses[normCloses.length - 1]; // Her zaman live fiyat kullan
+  // Determine color (up/down)
+  const firstC = scaled[0];
+  const lastC = livePrice;
   const isUp = lastC >= firstC;
   const lineColor = isUp ? '#00e676' : '#ff5252';
 
+  // Grid lines and Y labels
+  const fmt = p => p >= 10000 ? p.toFixed(0) : p >= 1000 ? p.toFixed(1) : p >= 10 ? p.toFixed(2) : p.toFixed(4);
+  ctx.font = '11px monospace';
+  const gridN = 5;
+  for (let g = 0; g <= gridN; g++) {
+    const gp = minP + (priceRange * (gridN - g) / gridN);
+    const gy = PAD.top + (g / gridN) * CH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
+    ctx.fillStyle = 'rgba(160,172,190,0.8)';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(gp), PAD.left - 5, gy + 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(100,110,130,0.5)';
+    ctx.fillText(fmt(gp), W - PAD.right + 4, gy + 4);
+  }
+
   // Gradient fill
   const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + CH);
-  grad.addColorStop(0, isUp ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)');
+  grad.addColorStop(0, isUp ? 'rgba(0,230,118,0.12)' : 'rgba(255,82,82,0.12)');
   grad.addColorStop(1, 'rgba(13,17,23,0.01)');
 
-  // Alan
+  // Fill area
   ctx.beginPath();
-  let firstIdx = normData.findIndex(d => d._c);
-  if (firstIdx < 0) return;
-  ctx.moveTo(xPos(firstIdx), yPos(normData[firstIdx]._c));
-  for (let i = firstIdx + 1; i < normData.length; i++) {
-    if (!normData[i]._c) continue;
-    ctx.lineTo(xPos(i), yPos(normData[i]._c));
-  }
-  ctx.lineTo(xPos(normData.length - 1), PAD.top + CH);
-  ctx.lineTo(xPos(firstIdx), PAD.top + CH);
+  ctx.moveTo(xPos(0), yPos(scaled[0]));
+  for (let i = 1; i < scaled.length; i++) ctx.lineTo(xPos(i), yPos(scaled[i]));
+  ctx.lineTo(xPos(scaled.length - 1), PAD.top + CH);
+  ctx.lineTo(xPos(0), PAD.top + CH);
   ctx.closePath();
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Çizgi
+  // Price line
   ctx.beginPath();
-  let fd2 = true;
-  for (let i = 0; i < normData.length; i++) {
-    if (!normData[i]._c) continue;
-    fd2 ? (ctx.moveTo(xPos(i), yPos(normData[i]._c)), fd2 = false) : ctx.lineTo(xPos(i), yPos(normData[i]._c));
-  }
+  ctx.moveTo(xPos(0), yPos(scaled[0]));
+  for (let i = 1; i < scaled.length; i++) ctx.lineTo(xPos(i), yPos(scaled[i]));
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 1.8;
   ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // Son fiyat çizgisi (live fiyata göre)
+  // Last price dashed line
   const liveY = yPos(lastC);
-  ctx.setLineDash([5, 5]);
-  ctx.strokeStyle = lineColor + '80';
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = lineColor + '70';
   ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(PAD.left, liveY);
-  ctx.lineTo(W - PAD.right, liveY);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PAD.left, liveY); ctx.lineTo(W - PAD.right, liveY); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Badge (live fiyat)
-  const badgeStr = fmtPrice(lastC);
+  // Price badge on right
+  const badgeStr = fmt(lastC);
   ctx.font = 'bold 11px monospace';
   const bw = ctx.measureText(badgeStr).width + 14;
   ctx.fillStyle = lineColor;
-  if (ctx.roundRect) {
-    ctx.beginPath(); ctx.roundRect(W - PAD.right + 2, liveY - 10, bw, 20, 3); ctx.fill();
-  } else {
-    ctx.fillRect(W - PAD.right + 2, liveY - 10, bw, 20);
-  }
+  ctx.fillRect(W - PAD.right + 2, liveY - 10, bw, 20);
   ctx.fillStyle = '#0d1117';
   ctx.textAlign = 'left';
   ctx.fillText(badgeStr, W - PAD.right + 7, liveY + 4);
 
-  // X ekseni etiketleri
-  ctx.fillStyle = 'rgba(130,142,160,0.8)';
+  // X axis time labels
+  ctx.fillStyle = 'rgba(130,142,160,0.75)';
   ctx.font = '11px monospace';
   ctx.textAlign = 'center';
-  const maxLbls = Math.max(4, Math.floor(CW / 72));
-  const lStep = Math.max(1, Math.floor(normData.length / maxLbls));
-
-  for (let i = 0; i < normData.length; i += lStep) {
-    const d = normData[i];
+  const maxLbls = Math.floor(CW / 80);
+  const lStep = Math.max(1, Math.floor(data.length / maxLbls));
+  for (let i = 0; i < data.length; i += lStep) {
+    const d = data[i];
     let lbl = d.label || '';
     if (!lbl && d.ts) {
-      const tsv = typeof d.ts === 'string' ? new Date(d.ts) : new Date(d.ts);
-      if (!isNaN(tsv.getTime())) {
-        if (rk === '1D') lbl = tsv.getHours() + ':' + String(tsv.getMinutes()).padStart(2, '0');
-        else if (rk === '5D') lbl = (tsv.getMonth()+1)+'/'+tsv.getDate()+' '+tsv.getHours()+'h';
-        else lbl = (tsv.getMonth()+1)+'/'+tsv.getDate();
+      const dt = new Date(d.ts);
+      if (!isNaN(dt.getTime())) {
+        if (rk === '1D') lbl = dt.getHours() + ':' + String(dt.getMinutes()).padStart(2,'0');
+        else lbl = (dt.getMonth()+1)+'/'+ dt.getDate();
       }
     }
     if (!lbl) continue;
-    const xp = xPos(i);
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top + CH); ctx.stroke();
-    ctx.fillStyle = 'rgba(130,142,160,0.8)';
-    ctx.fillText(lbl, xp, H - 9);
+    ctx.fillText(lbl, xPos(i), H - 8);
   }
 
-  // Sol border
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  // Left border
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(PAD.left, PAD.top);
@@ -1362,6 +1310,7 @@ async function init() {
   // Crypto fiyatlarını al
   await fetchCryptoLive();
   renderCommodities();
+  updateTickerBar();
   renderTicker();
   
   // S&P 500'ü yükle
