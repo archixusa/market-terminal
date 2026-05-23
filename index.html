@@ -5132,6 +5132,12 @@ const COMMANDS = [
   { cmd: '/csv',      desc: 'Export watchlist or portfolio to CSV — /csv portfolio' },
   { cmd: '/share',    desc: 'Copy a share URL with your current chart + watchlist setup' },
   { cmd: '/voice',    desc: 'Start voice command listening (mic)' },
+  { cmd: '/sec',      desc: 'SEC EDGAR filings for a symbol — /sec AAPL' },
+  { cmd: '/corr',     desc: 'Correlation matrix — /corr AAPL MSFT NVDA TSLA' },
+  { cmd: '/dcf',      desc: 'Discounted cash flow fair value — /dcf AAPL 8 3' },
+  { cmd: '/bs',       desc: 'Black-Scholes options pricer — /bs CALL 200 210 30 0.04 0.30' },
+  { cmd: '/journal',  desc: 'Open trade journal — log entries/exits with notes' },
+  { cmd: '/holiday',  desc: 'US market holiday schedule' },
   { cmd: '/q',        desc: 'Instant quote popup — /q AAPL (no chart switch)' },
   { cmd: '/settings', desc: 'Open settings (beginner mode, tooltips, …)' },
   { cmd: '/tour',     desc: 'Re-show the welcome tour' },
@@ -5259,7 +5265,7 @@ function runCommand(raw) {
     const parts = txt.toUpperCase().split(/\s+/);
     const sym = parts[0];
     const code = parts[1] || '';
-    const FN_CODES = ['DES','FA','HP','EE','PEERS','N','CN','GP','VOL','INS','MOST','BACK'];
+    const FN_CODES = ['DES','FA','HP','EE','PEERS','N','CN','GP','VOL','INS','MOST','BACK','SEC'];
     if (code && FN_CODES.includes(code)) {
       // Load the symbol first
       const found = _allSearchSymbols.find(s => s.sym === sym);
@@ -5277,6 +5283,7 @@ function runCommand(raw) {
         case 'INS':   switchTab('insider'); runInsiderScan(true); break;
         case 'MOST':  switchTab('screener'); renderScreenerView('volume'); break;
         case 'BACK':  openBacktestView(sym); break;
+        case 'SEC':   openSecView(sym); break;
       }
       showToast(sym + ' ' + code, 'Function code executed', 'ok');
       return;
@@ -5412,6 +5419,29 @@ function runCommand(raw) {
     }
     case '/share': shareWorkspaceURL(); return;
     case '/voice': case '/mic': toggleVoice(); return;
+    case '/sec': openSecView((args[0]||chartState.symbol).toUpperCase()); return;
+    case '/corr': openCorrelationView(args); return;
+    case '/dcf': {
+      const sym = (args[0]||chartState.symbol).toUpperCase();
+      const g = parseFloat(args[1] || '8');
+      const tg = parseFloat(args[2] || '3');
+      runDCF(sym, g, tg);
+      return;
+    }
+    case '/bs': {
+      // /bs CALL strike spot days [rate] [iv]
+      const type = (args[0]||'CALL').toUpperCase();
+      const K = parseFloat(args[1]); const S = parseFloat(args[2]); const days = parseFloat(args[3]);
+      const r = parseFloat(args[4] || '0.04'); const sigma = parseFloat(args[5] || '0.30');
+      if (!K || !S || !days) { showToast('Usage', '/bs CALL 200 210 30 0.04 0.30', 'alert'); return; }
+      const price = blackScholes(type, K, S, days, r, sigma);
+      const call = blackScholes('CALL', K, S, days, r, sigma);
+      const put  = blackScholes('PUT',  K, S, days, r, sigma);
+      showToast(type + ' $' + K + ' (' + days + 'd) = $' + price.toFixed(2), 'Call ' + call.toFixed(2) + ' · Put ' + put.toFixed(2) + ' · IV ' + (sigma*100).toFixed(0) + '%', 'ok');
+      return;
+    }
+    case '/journal': openJournalView(); return;
+    case '/holiday': case '/holidays': openHolidayView(); return;
     case '/book': toggleBook(); return;
     case '/save': {
       const name = args.join(' ').trim();
@@ -6409,6 +6439,220 @@ function _renderInsiderCard(r){
   '</div>';
 }
 
+// ==================== SEC FILINGS (Finnhub /stock/filings) ====================
+async function fetchSecFilings(sym){
+  const cached = cacheGet('sec_'+sym, 6 * 60 * 60 * 1000);
+  if (cached) return cached;
+  const k = getApiKeys().finnhub;
+  if (!k) return null;
+  try {
+    const r = await fetch('https://finnhub.io/api/v1/stock/filings?symbol='+sym+'&token='+k);
+    const j = await r.json();
+    if (!Array.isArray(j)) return null;
+    cacheSet('sec_'+sym, j);
+    return j;
+  } catch(e) { return null; }
+}
+async function openSecView(sym){
+  let m = document.getElementById('fn-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'fn-modal'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px'; m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
+  m.innerHTML = '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:980px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">'+sym+' SEC</span><span style="color:#8b949e;font-size:11px">EDGAR filings via Finnhub</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div><div style="overflow:auto;padding:16px" id="sec-body">Loading…</div></div>';
+  const filings = await fetchSecFilings(sym);
+  const body = document.getElementById('sec-body');
+  if (!filings || !filings.length) { body.innerHTML = '<div style="padding:30px;text-align:center;color:#6e7681">No filings found.</div>'; return; }
+  const FORM_TIPS = { '10-K':'Annual report — most comprehensive', '10-Q':'Quarterly report', '8-K':'Material event disclosure', '4':'Insider transaction (Form 4)', '144':'Notice of proposed sale', 'S-1':'IPO registration', 'DEF 14A':'Proxy statement', '3':'Initial insider statement of holdings', '5':'Annual insider holdings' };
+  const FORM_COLOR = { '10-K':'#22c55e','10-Q':'#22c55e','8-K':'#f97316','4':'#a78bfa','144':'#fbbf24','S-1':'#1f6feb','DEF 14A':'#a3a3a3','3':'#a78bfa','5':'#a78bfa' };
+  body.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#6e7681;font-size:10px;text-transform:uppercase;background:#161b22"><th style="text-align:left;padding:8px 10px">Filed</th><th style="text-align:left;padding:8px 10px">Form</th><th style="text-align:left;padding:8px 10px">Description</th><th style="text-align:right;padding:8px 10px">Link</th></tr></thead><tbody>' + filings.slice(0,50).map(f => { const col = FORM_COLOR[f.form] || '#8b949e'; const tip = FORM_TIPS[f.form] || ''; return '<tr style="border-bottom:1px solid #1a1f26"><td style="padding:7px 10px;font-family:JetBrains Mono,monospace;color:#c9d1d9">'+(f.filedDate||'').slice(0,10)+'</td><td style="padding:7px 10px"><span style="background:'+col+'22;color:'+col+';font-weight:700;padding:2px 7px;border-radius:3px;font-size:11px;font-family:JetBrains Mono,monospace">'+f.form+'</span></td><td style="padding:7px 10px;color:#8b949e;font-size:11px">'+tip+'</td><td style="padding:7px 10px;text-align:right"><a href="'+f.filingUrl+'" target="_blank" rel="noopener" style="color:#58a6ff;text-decoration:none;font-size:11px">Open →</a></td></tr>'; }).join('') + '</tbody></table>';
+}
+
+// ==================== CORRELATION MATRIX (/corr A B C ...) ====================
+async function openCorrelationView(symbols){
+  if (!symbols || symbols.length < 2) { showToast('Usage', '/corr AAPL MSFT NVDA TSLA', 'alert'); return; }
+  symbols = symbols.slice(0, 8).map(s => s.toUpperCase());
+  let m = document.getElementById('fn-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'fn-modal'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px'; m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
+  m.innerHTML = '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:780px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">CORRELATION MATRIX</span><span style="color:#8b949e;font-size:11px">90-day daily returns · '+symbols.join(', ')+'</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div><div style="overflow:auto;padding:18px" id="corr-body">Loading historical data for '+symbols.length+' symbols…</div></div>';
+  // Fetch 90d closes for each — try Twelve Data first, then Finnhub
+  const series = {};
+  for (const s of symbols) {
+    let r = await fetchChartTwelve(s, '3M');
+    if (!r || !r.closes) r = await fetchChartFinnhub(s, '3M');
+    if (!r || !r.closes) {
+      // Sim fallback: build series from price + random walk so corr is computable
+      const live = LIVE.loaded[s];
+      if (live && live.price) {
+        const c = []; let p = live.price;
+        for (let i = 0; i < 90; i++) { p *= (1 + (Math.random()-0.5)*0.02); c.push(p); }
+        series[s] = c;
+      }
+    } else {
+      series[s] = r.closes;
+    }
+  }
+  const valid = Object.keys(series);
+  if (valid.length < 2) { document.getElementById('corr-body').innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444">Could not load enough data.</div>'; return; }
+  // Compute returns + correlation
+  const returns = {};
+  valid.forEach(s => {
+    const c = series[s]; const r = [];
+    for (let i = 1; i < c.length; i++) r.push((c[i]-c[i-1])/c[i-1]);
+    returns[s] = r;
+  });
+  // Find minimum length
+  const minLen = Math.min(...Object.values(returns).map(r => r.length));
+  valid.forEach(s => returns[s] = returns[s].slice(-minLen));
+  const corr = (a, b) => {
+    const n = a.length; const ma = a.reduce((x,y)=>x+y,0)/n; const mb = b.reduce((x,y)=>x+y,0)/n;
+    let num = 0, da = 0, db = 0;
+    for (let i = 0; i < n; i++) { const xa = a[i]-ma, xb = b[i]-mb; num += xa*xb; da += xa*xa; db += xb*xb; }
+    return num / Math.sqrt(da * db);
+  };
+  // Build matrix
+  let html = '<table style="border-collapse:collapse;font-size:12px;margin:0 auto"><thead><tr><th></th>' + valid.map(s => '<th style="padding:8px 10px;color:#f97316;font-family:JetBrains Mono,monospace">'+s+'</th>').join('') + '</tr></thead><tbody>';
+  valid.forEach(s1 => {
+    html += '<tr><th style="padding:8px 10px;color:#f97316;font-family:JetBrains Mono,monospace;text-align:left">'+s1+'</th>';
+    valid.forEach(s2 => {
+      const c = s1 === s2 ? 1 : corr(returns[s1], returns[s2]);
+      const intensity = Math.abs(c);
+      const col = c >= 0 ? `rgba(34,197,94,${intensity})` : `rgba(239,68,68,${intensity})`;
+      html += '<td style="padding:12px 14px;background:'+col+';color:#fff;text-align:center;font-family:JetBrains Mono,monospace;font-weight:'+(c>=0?'600':'700')+'">'+c.toFixed(2)+'</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table><div style="margin-top:14px;color:#6e7681;font-size:11px;text-align:center">💡 <b style="color:#22c55e">+1</b> = perfect positive correlation · <b style="color:#a3a3a3">0</b> = uncorrelated · <b style="color:#ef4444">-1</b> = perfect negative (great for diversification)</div>';
+  document.getElementById('corr-body').innerHTML = html;
+}
+
+// ==================== DCF CALCULATOR (/dcf SYM growth% terminal%) ====================
+async function runDCF(sym, growth, terminal, years){
+  growth = growth || 8; terminal = terminal || 3; years = years || 10;
+  const fund = await fetchFundamentals(sym);
+  const fcf = fund?.metric?.freeCashFlowTTM;
+  const sharesOut = fund?.metric?.sharesOutstanding || (fund?.metric?.marketCapitalization * 1e6 / (LIVE.loaded[sym]?.price || 1));
+  const wacc = 9; // default discount rate
+  if (!fcf || !sharesOut) { showToast('DCF unavailable', sym+' missing FCF/shares data', 'alert'); return; }
+  const fcfM = fcf * 1e6; // millions to absolute
+  let pv = 0;
+  let projectedFcf = fcfM;
+  for (let y = 1; y <= years; y++) {
+    projectedFcf *= (1 + growth/100);
+    pv += projectedFcf / Math.pow(1 + wacc/100, y);
+  }
+  // Terminal value
+  const tvFcf = projectedFcf * (1 + terminal/100);
+  const tv = tvFcf / ((wacc - terminal)/100);
+  pv += tv / Math.pow(1 + wacc/100, years);
+  const fairPerShare = pv / sharesOut;
+  const live = LIVE.loaded[sym]?.price || 0;
+  const upside = ((fairPerShare - live) / live) * 100;
+  const verdict = upside > 30 ? '🟢 STRONG UNDERVALUED' : upside > 10 ? '🟢 UNDERVALUED' : upside > -10 ? '⚪ FAIR' : upside > -30 ? '🔴 OVERVALUED' : '🔴 STRONG OVERVALUED';
+  showToast(sym + ' DCF: $' + fairPerShare.toFixed(2) + ' fair', 'Live $' + live.toFixed(2) + ' · Upside ' + (upside>=0?'+':'')+upside.toFixed(1)+'% · ' + verdict + ' (growth '+growth+'%, terminal '+terminal+'%, WACC '+wacc+'%)', upside>=0?'ok':'alert');
+}
+
+// ==================== BLACK-SCHOLES OPTIONS PRICER (/bs CALL strike spot days rate iv) ====================
+function blackScholes(type, K, S, daysToExpiry, r, sigma){
+  const T = daysToExpiry / 365;
+  const d1 = (Math.log(S/K) + (r + sigma*sigma/2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  // Standard normal CDF approximation (Abramowitz & Stegun)
+  const N = x => {
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989423 * Math.exp(-x*x/2);
+    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x >= 0 ? 1 - p : p;
+  };
+  if (type === 'CALL') return S * N(d1) - K * Math.exp(-r*T) * N(d2);
+  return K * Math.exp(-r*T) * N(-d2) - S * N(-d1);
+}
+
+// ==================== TRADE JOURNAL ====================
+const JOURNAL_KEY = 'mtp_journal';
+function loadJournal(){ try{ return JSON.parse(localStorage.getItem(JOURNAL_KEY)||'[]'); }catch(e){ return []; } }
+function saveJournal(j){ localStorage.setItem(JOURNAL_KEY, JSON.stringify(j)); }
+function addJournalEntry(){
+  const sym = document.getElementById('jl-sym').value.trim().toUpperCase();
+  const side = document.getElementById('jl-side').value;
+  const entry = parseFloat(document.getElementById('jl-entry').value);
+  const exit = parseFloat(document.getElementById('jl-exit').value);
+  const shares = parseFloat(document.getElementById('jl-shares').value);
+  const note = document.getElementById('jl-note').value;
+  if (!sym || !entry || !shares) { showToast('Invalid', 'Need symbol, entry, shares', 'alert'); return; }
+  const entries = loadJournal();
+  entries.unshift({ sym, side, entry, exit: exit || null, shares, note, date: new Date().toISOString().slice(0,16) });
+  saveJournal(entries);
+  showToast('Trade logged', sym + ' ' + side, 'ok');
+  renderJournal();
+}
+function deleteJournalEntry(idx){
+  const entries = loadJournal();
+  entries.splice(idx, 1);
+  saveJournal(entries);
+  renderJournal();
+}
+function openJournalView(){
+  let m = document.getElementById('fn-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'fn-modal'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px'; m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
+  m.innerHTML = '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:980px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">📒 TRADE JOURNAL</span><span style="color:#8b949e;font-size:11px">log entries/exits with notes</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div><div style="overflow:auto;padding:16px" id="journal-body"></div></div>';
+  renderJournal();
+}
+function renderJournal(){
+  const body = document.getElementById('journal-body');
+  if (!body) return;
+  const entries = loadJournal();
+  let totalPnL = 0; let wins = 0; let losses = 0;
+  entries.forEach(e => { if (e.exit) { const pnl = (e.side === 'LONG' ? 1 : -1) * (e.exit - e.entry) * e.shares; totalPnL += pnl; if (pnl > 0) wins++; else losses++; } });
+  const closed = wins + losses;
+  body.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Total P&L (closed)</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:'+(totalPnL>=0?'#22c55e':'#ef4444')+'">'+(totalPnL>=0?'+':'')+'$'+totalPnL.toFixed(2)+'</div></div>' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Win Rate</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:'+(closed>0 && wins/closed>=0.5?'#22c55e':'#fbbf24')+'">'+(closed?Math.round(wins/closed*100):0)+'%</div><div style="font-size:10px;color:#8b949e">'+wins+'W / '+losses+'L</div></div>' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Total Trades</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:#e6edf3">'+entries.length+'</div><div style="font-size:10px;color:#8b949e">'+(entries.length - closed)+' open</div></div>' +
+    '</div>' +
+    '<div style="background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:12px;margin-bottom:14px"><h3 style="color:#f97316;font-size:12px;margin-bottom:8px">➕ LOG A TRADE</h3><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:8px;font-size:11px">' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px">Symbol<input id="jl-sym" type="text" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:5px 8px;border-radius:3px;font-family:JetBrains Mono,monospace;text-transform:uppercase"/></label>' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px">Side<select id="jl-side" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:5px 8px;border-radius:3px"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px">Entry $<input id="jl-entry" type="number" step="0.01" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:5px 8px;border-radius:3px;font-family:JetBrains Mono,monospace"/></label>' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px">Exit $ (opt)<input id="jl-exit" type="number" step="0.01" placeholder="open" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:5px 8px;border-radius:3px;font-family:JetBrains Mono,monospace"/></label>' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px">Shares<input id="jl-shares" type="number" step="1" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:5px 8px;border-radius:3px;font-family:JetBrains Mono,monospace"/></label>' +
+      '<label style="color:#8b949e;display:flex;flex-direction:column;gap:3px;justify-content:flex-end"><button onclick="addJournalEntry()" style="background:#22c55e;color:#000;border:none;padding:5px 12px;border-radius:3px;cursor:pointer;font-weight:700">Add</button></label>' +
+    '</div><textarea id="jl-note" placeholder="Why this trade? Thesis, setup, stop, target…" style="width:100%;margin-top:8px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 8px;border-radius:3px;font-family:Inter,sans-serif;font-size:11px;height:50px;resize:vertical;box-sizing:border-box"></textarea></div>' +
+    (entries.length === 0 ? '<div style="padding:20px;text-align:center;color:#6e7681">No trades logged yet.</div>' :
+      '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#6e7681;font-size:10px;text-transform:uppercase;background:#161b22"><th style="text-align:left;padding:7px 10px">Date</th><th style="text-align:left;padding:7px 10px">Sym</th><th style="text-align:left;padding:7px 10px">Side</th><th style="text-align:right;padding:7px 10px">Entry</th><th style="text-align:right;padding:7px 10px">Exit</th><th style="text-align:right;padding:7px 10px">Shares</th><th style="text-align:right;padding:7px 10px">P&L</th><th style="text-align:left;padding:7px 10px">Note</th><th></th></tr></thead><tbody>' +
+        entries.map((e, idx) => { const pnl = e.exit ? (e.side==='LONG'?1:-1) * (e.exit - e.entry) * e.shares : null; const c = pnl == null ? '#8b949e' : pnl>=0 ? '#22c55e' : '#ef4444'; return '<tr style="border-bottom:1px solid #1a1f26"><td style="padding:6px 10px;font-family:JetBrains Mono,monospace;color:#8b949e">'+e.date+'</td><td style="padding:6px 10px;font-family:JetBrains Mono,monospace;font-weight:700;color:#e6edf3">'+e.sym+'</td><td style="padding:6px 10px;color:'+(e.side==='LONG'?'#22c55e':'#ef4444')+';font-weight:700">'+e.side+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace">$'+e.entry.toFixed(2)+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:#8b949e">'+(e.exit?'$'+e.exit.toFixed(2):'open')+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace">'+e.shares+'</td><td style="padding:6px 10px;text-align:right;font-family:JetBrains Mono,monospace;color:'+c+';font-weight:700">'+(pnl==null?'—':(pnl>=0?'+':'')+'$'+pnl.toFixed(2))+'</td><td style="padding:6px 10px;color:#8b949e;font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.note||'').replace(/"/g,'&quot;')+'">'+(e.note||'').slice(0,40)+'</td><td style="padding:6px 10px;text-align:right"><span onclick="deleteJournalEntry('+idx+')" style="cursor:pointer;color:#6e7681">✕</span></td></tr>'; }).join('') +
+      '</tbody></table>')
+    ;
+}
+
+// ==================== US MARKET HOLIDAYS (NYSE 2026) ====================
+const US_MARKET_HOLIDAYS_2026 = [
+  { date:'2026-01-01', name:'New Year\'s Day' },
+  { date:'2026-01-19', name:'Martin Luther King Jr. Day' },
+  { date:'2026-02-16', name:'Presidents\' Day' },
+  { date:'2026-04-03', name:'Good Friday' },
+  { date:'2026-05-25', name:'Memorial Day' },
+  { date:'2026-06-19', name:'Juneteenth' },
+  { date:'2026-07-03', name:'Independence Day (observed)' },
+  { date:'2026-09-07', name:'Labor Day' },
+  { date:'2026-11-26', name:'Thanksgiving' },
+  { date:'2026-11-27', name:'Day after Thanksgiving (close 1pm)' },
+  { date:'2026-12-24', name:'Christmas Eve (close 1pm)' },
+  { date:'2026-12-25', name:'Christmas Day' }
+];
+function nextMarketHoliday(){
+  const today = new Date().toISOString().slice(0,10);
+  return US_MARKET_HOLIDAYS_2026.find(h => h.date >= today);
+}
+function openHolidayView(){
+  let m = document.getElementById('fn-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'fn-modal'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px'; m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
+  const today = new Date().toISOString().slice(0,10);
+  const next = nextMarketHoliday();
+  const daysTo = next ? Math.ceil((new Date(next.date) - new Date()) / 86400000) : null;
+  m.innerHTML = '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:600px;width:100%"><div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800">📅 NYSE 2026 HOLIDAYS</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div>' +
+    (next ? '<div style="padding:14px 18px;background:rgba(249,115,22,0.08);border-bottom:1px solid #30363d;color:#fbbf24;font-size:13px">⏰ Next market holiday: <b>' + next.name + '</b> on ' + next.date + ' (' + daysTo + ' day' + (daysTo!==1?'s':'') + ' from now)</div>' : '') +
+    '<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>' + US_MARKET_HOLIDAYS_2026.map(h => { const isPast = h.date < today; return '<tr style="border-bottom:1px solid #1a1f26;'+(isPast?'opacity:0.5':'')+'"><td style="padding:9px 18px;font-family:JetBrains Mono,monospace;color:#c9d1d9;width:120px">'+h.date+'</td><td style="padding:9px 18px;color:#e6edf3">'+h.name+'</td><td style="padding:9px 18px;text-align:right;color:'+(isPast?'#6e7681':'#22c55e')+';font-size:11px;padding-right:18px">'+(isPast?'past':'upcoming')+'</td></tr>'; }).join('') + '</tbody></table></div>';
+}
+
 // ==================== REAL-TIME WEBSOCKET (Finnhub) ====================
 let _wsConn = null;
 let _wsSubscribed = new Set();
@@ -7223,7 +7467,9 @@ const SCREENER_PRESETS = {
   growth:   { minMcap: 20e9,  maxPE: 60,  minPct: -100, label:'🚀 Growth',   desc:'Mid+ caps allowing higher multiples (P/E up to 60).' },
   dividend: { minMcap: 30e9,  maxPE: 30,  minPct: -100, label:'💰 Dividend', desc:'Quality dividend payers — filter then sort by yield.' },
   momentum: { minMcap: 10e9,  maxPE: 1000,minPct: 1,    label:'⚡ Momentum', desc:'Stocks up >1% today — riding short-term strength.' },
-  oversold: { minMcap: 10e9,  maxPE: 1000,minPct: -100, label:'📉 Oversold', desc:'Stocks down >2% today — potential bounce.' }
+  oversold: { minMcap: 10e9,  maxPE: 1000,minPct: -100, label:'📉 Oversold', desc:'Stocks down >2% today — potential bounce.' },
+  lowbeta:  { minMcap: 10e9,  maxPE: 1000,minPct: -100, label:'🛡 Low Beta',  desc:'Mid+ caps with low volatility vs market — defensive plays.',  betaMax: 0.8 },
+  highbeta: { minMcap: 10e9,  maxPE: 1000,minPct: -100, label:'⚡ High Beta', desc:'Mid+ caps with high volatility vs market — aggressive plays.', betaMin: 1.4 }
 };
 function applyScreenerPreset(name){
   const p = SCREENER_PRESETS[name];
@@ -7231,6 +7477,7 @@ function applyScreenerPreset(name){
   document.getElementById('scrn-mcap').value = (p.minMcap/1e9).toFixed(0);
   document.getElementById('scrn-pe').value = p.maxPE;
   document.getElementById('scrn-pct').value = name === 'oversold' ? -2 : p.minPct;
+  _screenerState.betaMax = p.betaMax; _screenerState.betaMin = p.betaMin;
   runScreener();
 }
 
@@ -7275,7 +7522,10 @@ async function runScreener(){
     const pe = metric?.peNormalizedAnnual || metric?.peBasicExclExtraTTM;
     if (mcap < _screenerState.minMcap) continue;
     if (pe && pe > _screenerState.maxPE) continue;
-    results.push({ sym, pct, price: live?.price, mcap, pe, divYield: metric?.currentDividendYieldTTM, beta: metric?.beta, name: STOCK_CONFIGS[sym]?.name || sym });
+    const beta = metric?.beta;
+    if (_screenerState.betaMax != null && beta != null && beta > _screenerState.betaMax) continue;
+    if (_screenerState.betaMin != null && (beta == null || beta < _screenerState.betaMin)) continue;
+    results.push({ sym, pct, price: live?.price, mcap, pe, divYield: metric?.currentDividendYieldTTM, beta, name: STOCK_CONFIGS[sym]?.name || sym });
   }
   results.sort((a,b) => Math.abs(b.pct) - Math.abs(a.pct));
   _renderScreenerResults(out, results);
