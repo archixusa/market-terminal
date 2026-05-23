@@ -891,7 +891,7 @@ function renderNews(cat)  {
   const body = document.getElementById('news-body');
   if (!body) return;
   
-  const filter = catFilter || window._newsCatFilter || 'all';
+  const filter = cat || window._newsCatFilter || 'all';
   window._newsCatFilter = filter;
 
   const srcColors = {
@@ -1372,6 +1372,24 @@ async function init() {
   
   // Stok fiyatlarını sırayla güncelle (her 4 saniyede bir sonraki)
   setInterval(refreshNextStock, 4000);
+  
+  // İlk yüklemede tüm hisse fiyatlarını hızlıca al (3 paralel batch)
+  (async () => {
+    const allSyms = Object.keys(STOCK_CONFIGS);
+    // 3 batch, aralarında 1500ms bekle
+    for (let i = 0; i < allSyms.length; i++) {
+      const sym = allSyms[i];
+      fetchStockPrice(sym).then(d => {
+        if (d && d.price) {
+          LIVE.loaded[sym] = d;
+          updateWatchlistRow(sym, d);
+          if (chartState.symbol === sym) updateChartHeader(d);
+          updateTickerBar();
+        }
+      });
+      await new Promise(r => setTimeout(r, 600));
+    }
+  })();
   
   // Crypto her 60 saniyede bir güncelle
   setInterval(async () => {
