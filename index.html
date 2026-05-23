@@ -407,6 +407,20 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
 .sec-card .sec-pct  { font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; margin-top:2px; }
 .sec-card .sec-tint { position:absolute; left:0; right:0; bottom:0; height:3px; opacity:0.7; }
 .sec-divider { background:#21262d; width:1px; flex-shrink:0; align-self:stretch; margin:0 2px; }
+
+#chart-grid.active { display:grid !important; }
+.mini-chart { background:#0d1117; position:relative; display:flex; flex-direction:column; min-height:0; min-width:0; overflow:hidden; }
+.mini-chart-head { display:flex; align-items:center; gap:6px; padding:4px 8px; border-bottom:1px solid #21262d; background:#161b22; flex-shrink:0; }
+.mini-chart-head input { background:#0d1117; border:1px solid #30363d; color:#e6edf3; font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 6px; border-radius:3px; outline:none; width:64px; text-transform:uppercase; }
+.mini-chart-head .m-sym  { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:#e6edf3; }
+.mini-chart-head .m-px   { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:#c9d1d9; margin-left:auto; }
+.mini-chart-head .m-pct  { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; }
+.mini-chart-head .m-range { display:flex; gap:2px; }
+.mini-chart-head .m-range span { padding:1px 5px; font-size:9px; color:#8b949e; cursor:pointer; border-radius:2px; }
+.mini-chart-head .m-range span.active { background:#f97316; color:#000; }
+.mini-chart-body { flex:1 1 0%; min-height:0; position:relative; }
+.mini-chart canvas { width:100%; height:100%; display:block; cursor:pointer; }
+
 .sec-group-label { background:#0d1117; padding:0 8px; display:flex; align-items:center; font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700; color:#6e7681; letter-spacing:0.8px; text-transform:uppercase; flex-shrink:0; writing-mode:vertical-rl; transform:rotate(180deg); padding:6px 4px; }
 
 
@@ -523,7 +537,14 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="chart-tool-btn" onclick="toggleIndicator('rsi')" data-ind="rsi" data-tip="Relative Strength Index (14): momentum oscillator 0-100. Above 70 = overbought (possibly due for a pullback). Below 30 = oversold (possibly due for a bounce).">RSI</span>
     <span class="chart-tool-btn" onclick="toggleIndicator('macd')" data-ind="macd" data-tip="MACD (12,26,9): trend-following momentum indicator. Histogram positive = upward momentum, negative = downward. MACD line crossing above signal = bullish.">MACD</span>
     <span class="chart-tool-sep"></span>
+    <span style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px">Draw</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('trend')" data-draw="trend" data-tip="Trend line: click two points on the chart to draw a diagonal line. Useful for marking support/resistance angles or trends.">📏 Trend</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('hline')" data-draw="hline" data-tip="Horizontal line: click once at a price level. Useful for marking key support, resistance, or alert levels.">— H-Line</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('fib')"   data-draw="fib"   data-tip="Fibonacci retracement: click two points (typically a swing high and a swing low). Auto-draws 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100% levels.">🔱 Fib</span>
+    <span class="chart-tool-btn" onclick="clearDrawings()" data-tip="Remove all drawings on this chart.">🗑</span>
+    <span class="chart-tool-sep"></span>
     <span class="chart-tool-btn" onclick="quickAlert()" title="Set alert for selected symbol">🔔 Alert</span>
+    <span class="chart-tool-btn" onclick="toggleSplitView()" data-tip="Toggle 2×2 split view — see 4 charts at once.">⊞ Split</span>
     <span style="flex:1"></span>
     <span style="font-size:10px;color:#6e7681" id="chart-range-info">Daily · 1Y</span>
   </div>
@@ -543,6 +564,7 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <canvas id="mainChart"></canvas>
     <div id="chart-hud"></div>
   </div>
+  <div id="chart-grid" style="display:none;flex:1 1 0%;min-height:0;padding:4px;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;background:#21262d"></div>
 </div>
 <div id="news-panel" class="panel">
   <div class="panel-head">
@@ -741,7 +763,12 @@ const WL_STORAGE_KEY = 'mtp_watchlists';
 // ==================== STATE ====================
 let selectedSym  = 'SPX';
 let selectedType = 'index';
-let chartState   = { symbol:'SPX', range:'1D', data:[], chartType:'line', indicators:{}, compare:[] };
+let chartState   = { symbol:'SPX', range:'1D', data:[], chartType:'line', indicators:{}, compare:[], activeDrawTool:null, drawingState:null };
+const DRAW_STORAGE_KEY = 'mtp_drawings';
+function loadDrawings(){ try { return JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)||'{}'); } catch(e){ return {}; } }
+function saveDrawings(d){ try { localStorage.setItem(DRAW_STORAGE_KEY, JSON.stringify(d)); } catch(e){} }
+function getDrawingsForSymbol(sym){ return loadDrawings()[sym] || []; }
+function setDrawingsForSymbol(sym, arr){ const all = loadDrawings(); all[sym] = arr; saveDrawings(all); }
 let _newsCatFilter = 'all';
 let _alerts = [];
 let _watchlistFocusIdx = -1;
@@ -2719,8 +2746,11 @@ function drawChart() {
     });
   }
 
-  // Cache draw state for crosshair
-  chartState._draw = { PAD, CW, priceH, priceTop, pts, xPos, yPos, fmt, W, H, sf };
+  // Cache draw state for crosshair + drawing tools
+  chartState._draw = { PAD, CW, priceH, priceTop, pts, xPos, yPos, fmt, W, H, sf, minP, maxP };
+
+  // Persistent drawings on this symbol's chart
+  drawDrawings(ctx, sf);
 }
 
 function drawCrosshair(mx, my) {
@@ -2781,6 +2811,320 @@ function toggleIndicator(name){
   chartState.indicators[name] = !chartState.indicators[name];
   document.querySelectorAll('.chart-tool-btn[data-ind="'+name+'"]').forEach(b=>b.classList.toggle('active', chartState.indicators[name]));
   drawChart();
+}
+
+// ==================== DRAWING TOOLS ====================
+function setDrawTool(tool){
+  // Toggle off if same tool clicked again
+  if (chartState.activeDrawTool === tool) {
+    chartState.activeDrawTool = null;
+    chartState.drawingState = null;
+  } else {
+    chartState.activeDrawTool = tool;
+    chartState.drawingState = null;
+  }
+  document.querySelectorAll('.chart-tool-btn[data-draw]').forEach(b => b.classList.toggle('active', b.dataset.draw === chartState.activeDrawTool));
+  const wrap = document.getElementById('chart-wrap');
+  if (wrap) wrap.style.cursor = chartState.activeDrawTool ? 'crosshair' : '';
+}
+function clearDrawings(){
+  const sym = chartState.symbol;
+  setDrawingsForSymbol(sym, []);
+  drawChart();
+  showToast('Drawings cleared', 'All drawings removed from ' + sym, 'ok');
+}
+
+// ==================== MULTI-CHART SPLIT VIEW ====================
+const SPLIT_STATE_KEY = 'mtp_split_slots';
+let _splitMode = false;
+function getSplitSlots(){
+  try { const s = JSON.parse(localStorage.getItem(SPLIT_STATE_KEY)); if (Array.isArray(s) && s.length === 4) return s; } catch(e){}
+  return [
+    { sym:'AAPL', range:'1D' },
+    { sym:'MSFT', range:'1D' },
+    { sym:'NVDA', range:'1D' },
+    { sym:'TSLA', range:'1D' }
+  ];
+}
+function saveSplitSlots(s){ try { localStorage.setItem(SPLIT_STATE_KEY, JSON.stringify(s)); } catch(e){} }
+function toggleSplitView(){
+  _splitMode = !_splitMode;
+  const single = document.getElementById('chart-wrap');
+  const grid   = document.getElementById('chart-grid');
+  const toolbar = document.getElementById('chart-toolbar');
+  const ranges = document.querySelector('.chart-tabs');
+  const meta   = document.querySelector('.chart-meta');
+  const fund   = document.getElementById('fundamentals-bar');
+  if (_splitMode) {
+    single.style.display = 'none';
+    if (ranges) ranges.style.display = 'none';
+    if (meta) meta.style.display = 'none';
+    if (fund) fund.style.display = 'none';
+    grid.classList.add('active');
+    renderSplitView();
+    document.querySelectorAll('.chart-tool-btn[data-tip*="Split"]').forEach(b => b.classList.add('active'));
+  } else {
+    single.style.display = '';
+    if (ranges) ranges.style.display = '';
+    if (meta) meta.style.display = '';
+    if (fund) fund.style.display = '';
+    grid.classList.remove('active');
+    document.querySelectorAll('.chart-tool-btn[data-tip*="Split"]').forEach(b => b.classList.remove('active'));
+    setTimeout(drawChart, 50);
+  }
+}
+function renderSplitView(){
+  const grid = document.getElementById('chart-grid');
+  if (!grid) return;
+  const slots = getSplitSlots();
+  grid.innerHTML = slots.map((s, i) => `
+    <div class="mini-chart" data-slot="${i}">
+      <div class="mini-chart-head">
+        <input type="text" value="${s.sym}" onchange="splitSymbolChange(${i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
+        <span class="m-sym" id="m-sym-${i}"></span>
+        <span class="m-range">
+          ${['1D','5D','1M','3M','1Y'].map(r => '<span class="' + (s.range===r?'active':'') + '" onclick="splitRangeChange(' + i + ',\'' + r + '\')">' + r + '</span>').join('')}
+        </span>
+        <span class="m-px"  id="m-px-${i}">—</span>
+        <span class="m-pct" id="m-pct-${i}">—</span>
+      </div>
+      <div class="mini-chart-body">
+        <canvas id="mini-canvas-${i}"></canvas>
+      </div>
+    </div>
+  `).join('');
+  // Load each slot
+  slots.forEach((s, i) => loadMiniChart(i));
+}
+function splitSymbolChange(slotIdx, sym){
+  sym = (sym || '').trim().toUpperCase();
+  if (!sym) return;
+  const slots = getSplitSlots();
+  slots[slotIdx].sym = sym;
+  saveSplitSlots(slots);
+  loadMiniChart(slotIdx);
+}
+function splitRangeChange(slotIdx, range){
+  const slots = getSplitSlots();
+  slots[slotIdx].range = range;
+  saveSplitSlots(slots);
+  // Update active state
+  const el = document.querySelector('[data-slot="' + slotIdx + '"]');
+  if (el) el.querySelectorAll('.m-range span').forEach(s => s.classList.toggle('active', s.textContent === range));
+  loadMiniChart(slotIdx);
+}
+async function loadMiniChart(slotIdx){
+  const slots = getSplitSlots();
+  const slot = slots[slotIdx];
+  if (!slot) return;
+  const sym = slot.sym;
+  const rk  = slot.range;
+  // Try cache + fetch (use existing flow)
+  let type = 'stock';
+  if (COINGECKO_IDS[sym]) type = 'crypto';
+  else if (INDEX_CONFIGS[sym]) type = 'index';
+  else if (COMMODITY_NAMES[sym]) type = 'commodity';
+  let result;
+  if (type === 'crypto') result = await fetchChartCoinGecko(sym, rk);
+  else if (type === 'index') result = await fetchIndexPrice(sym, rk);
+  else result = await fetchStockPrice(sym, rk);
+
+  let data;
+  if (result && result.timestamps && result.closes) {
+    data = [];
+    for (let i = 0; i < result.timestamps.length; i++) {
+      const c = result.closes[i]; if (c == null) continue;
+      const ts = result.timestamps[i] * 1000;
+      const dt = new Date(ts);
+      data.push({ t:i, ts, o: result.opens?.[i] ?? c, h: result.highs?.[i] ?? c, l: result.lows?.[i] ?? c, c, v: result.volumes?.[i] || 0, label: rk === '1D' ? dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0') : dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) });
+    }
+  } else {
+    const sim = simulateSeries(sym, rk);
+    if (sim) data = sim.data;
+  }
+  if (!data || !data.length) return;
+  // Quote info
+  const quote = result || LIVE.loaded[sym] || simulateQuote(sym);
+  const price = quote?.price ?? data[data.length-1].c;
+  const pct   = quote?.pct ?? 0;
+  document.getElementById('m-sym-' + slotIdx).textContent = symbolName(sym).slice(0, 16);
+  document.getElementById('m-px-' + slotIdx).textContent = price >= 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:2}) : price.toFixed(2);
+  const pctEl = document.getElementById('m-pct-' + slotIdx);
+  pctEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+  pctEl.style.color = pct >= 0 ? '#22c55e' : '#ef4444';
+  // Draw mini chart
+  drawMiniChart(slotIdx, data, pct);
+}
+function drawMiniChart(slotIdx, data, pct){
+  const canvas = document.getElementById('mini-canvas-' + slotIdx);
+  if (!canvas) return;
+  const par = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = par.clientWidth || 300, H = par.clientHeight || 200;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+  const closes = data.map(d => d.c).filter(p => isFinite(p));
+  if (closes.length < 2) return;
+  const minP = Math.min(...closes) * 0.998;
+  const maxP = Math.max(...closes) * 1.002;
+  const PAD = { top: 8, right: 50, bottom: 18, left: 8 };
+  const CW = W - PAD.left - PAD.right;
+  const CH = H - PAD.top - PAD.bottom;
+  const xPos = i => PAD.left + (i / Math.max(closes.length-1, 1)) * CW;
+  const yPos = p => PAD.top + CH - ((p - minP) / (maxP - minP)) * CH;
+  const color = pct >= 0 ? '#22c55e' : '#ef4444';
+  // Area fill
+  const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + CH);
+  grad.addColorStop(0, color + '30');
+  grad.addColorStop(1, color + '05');
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(closes[0]));
+  for (let i = 1; i < closes.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+  ctx.lineTo(xPos(closes.length-1), PAD.top + CH);
+  ctx.lineTo(xPos(0), PAD.top + CH);
+  ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(closes[0]));
+  for (let i = 1; i < closes.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+  // Last price label on right
+  const lastY = yPos(closes[closes.length-1]);
+  ctx.fillStyle = color;
+  ctx.fillRect(W - PAD.right + 2, lastY - 8, PAD.right - 4, 16);
+  ctx.fillStyle = '#0d1117'; ctx.font = 'bold 10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(closes[closes.length-1].toFixed(2), W - PAD.right + 5, lastY + 3);
+  // Click handler to load this symbol in main chart
+  canvas.onclick = () => {
+    toggleSplitView();
+    selectStock(getSplitSlots()[slotIdx].sym);
+  };
+}
+// Convert a canvas mouse pixel to a normalized (fractionX, price) anchor
+function _mouseToChartCoords(mx, my){
+  const d = chartState._draw;
+  if (!d) return null;
+  const fracX = Math.max(0, Math.min(1, (mx - d.PAD.left) / d.CW));
+  // Invert yPos
+  const yRel = (my - d.priceTop) / d.priceH;
+  // priceTop maps to maxP, priceTop+priceH to minP; so price = minP + (1 - yRel) * (maxP - minP)
+  const price = d.minP + (1 - yRel) * (d.maxP - d.minP);
+  return { fracX, price };
+}
+function _coordsToMouse(coords){
+  const d = chartState._draw;
+  if (!d || !coords) return null;
+  const x = d.PAD.left + coords.fracX * d.CW;
+  const y = d.priceTop + d.priceH - ((coords.price - d.minP) / (d.maxP - d.minP)) * d.priceH;
+  return { x, y };
+}
+function handleChartMouseDown(e){
+  if (!chartState.activeDrawTool) return;
+  const wrap = document.getElementById('chart-wrap');
+  const r = wrap.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const coords = _mouseToChartCoords(mx, my);
+  if (!coords) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const tool = chartState.activeDrawTool;
+  if (tool === 'hline') {
+    // Single-click commit
+    const arr = getDrawingsForSymbol(chartState.symbol);
+    arr.push({ type:'hline', price: coords.price, color:'#fbbf24' });
+    setDrawingsForSymbol(chartState.symbol, arr);
+    setDrawTool(tool); // toggle off
+    drawChart();
+    showToast('Horizontal line added', '@ ' + coords.price.toFixed(2), 'ok');
+    return;
+  }
+  // For trend & fib, capture first point; commit on next click
+  if (!chartState.drawingState) {
+    chartState.drawingState = { p1: coords };
+  } else {
+    const arr = getDrawingsForSymbol(chartState.symbol);
+    const p1 = chartState.drawingState.p1;
+    const p2 = coords;
+    arr.push({ type: tool, p1, p2, color: tool === 'fib' ? '#a78bfa' : '#58a6ff' });
+    setDrawingsForSymbol(chartState.symbol, arr);
+    chartState.drawingState = null;
+    setDrawTool(tool); // toggle off
+    drawChart();
+    showToast(tool === 'fib' ? 'Fibonacci added' : 'Trend line added', '', 'ok');
+  }
+}
+function drawDrawings(ctx, sf){
+  const arr = getDrawingsForSymbol(chartState.symbol);
+  if (!arr.length) return;
+  const d = chartState._draw;
+  if (!d) return;
+  arr.forEach(item => {
+    if (item.type === 'hline') {
+      const y = d.priceTop + d.priceH - ((item.price - d.minP) / (d.maxP - d.minP)) * d.priceH;
+      if (y < d.priceTop || y > d.priceTop + d.priceH) return;
+      ctx.strokeStyle = item.color || '#fbbf24';
+      ctx.setLineDash([6, 4]); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(d.PAD.left, y); ctx.lineTo(d.W - d.PAD.right, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = item.color || '#fbbf24';
+      ctx.font = 'bold 10px JetBrains Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(item.price.toFixed(2), d.PAD.left + 4, y - 4);
+    } else if (item.type === 'trend' && item.p1 && item.p2) {
+      const a = _coordsToMouse(item.p1);
+      const b = _coordsToMouse(item.p2);
+      if (!a || !b) return;
+      ctx.strokeStyle = item.color || '#58a6ff';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // Anchor dots
+      ctx.fillStyle = item.color || '#58a6ff';
+      [a, b].forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); });
+    } else if (item.type === 'fib' && item.p1 && item.p2) {
+      const a = _coordsToMouse(item.p1);
+      const b = _coordsToMouse(item.p2);
+      if (!a || !b) return;
+      const hi = Math.max(item.p1.price, item.p2.price);
+      const lo = Math.min(item.p1.price, item.p2.price);
+      const range = hi - lo;
+      const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+      const colors = ['#22c55e', '#84cc16', '#fbbf24', '#f97316', '#fbbf24', '#84cc16', '#ef4444'];
+      const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
+      levels.forEach((lvl, i) => {
+        const price = hi - range * lvl;
+        const y = d.priceTop + d.priceH - ((price - d.minP) / (d.maxP - d.minP)) * d.priceH;
+        ctx.strokeStyle = colors[i];
+        ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xL, y); ctx.lineTo(d.W - d.PAD.right, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = colors[i];
+        ctx.font = '9px JetBrains Mono, monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText((lvl*100).toFixed(1)+'% ' + price.toFixed(2), xL + 4, y - 3);
+      });
+      // Anchor dots
+      ctx.fillStyle = item.color || '#a78bfa';
+      [a, b].forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); });
+    }
+  });
+  // Preview while drawing (first click placed, waiting for second)
+  if (chartState.drawingState && chartState.drawingState.p1 && chartState._lastMouse) {
+    const a = _coordsToMouse(chartState.drawingState.p1);
+    const b = chartState._lastMouse;
+    if (a && b) {
+      ctx.strokeStyle = '#58a6ff80';
+      ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#58a6ff';
+      ctx.beginPath(); ctx.arc(a.x, a.y, 3, 0, Math.PI*2); ctx.fill();
+    }
+  }
 }
 const COMMODITY_NAMES = { XAU:'Gold', XAG:'Silver', WTI:'WTI Crude Oil', BRT:'Brent Crude Oil', NG:'Natural Gas', HG:'Copper' };
 const CRYPTO_NAMES = { BTC:'Bitcoin', ETH:'Ethereum', SOL:'Solana', BNB:'BNB', XRP:'Ripple', USDT:'Tether', USDC:'USD Coin', ADA:'Cardano', AVAX:'Avalanche', DOT:'Polkadot', MATIC:'Polygon', LINK:'Chainlink', UNI:'Uniswap', DOGE:'Dogecoin', SHIB:'Shiba Inu', LTC:'Litecoin' };
@@ -3412,6 +3756,8 @@ const COMMANDS = [
   { cmd: '/save',     desc: 'Save current layout as workspace — /save myname' },
   { cmd: '/load',     desc: 'Load a saved workspace — /load myname' },
   { cmd: '/workspaces', desc: 'List saved workspaces' },
+  { cmd: '/draw',     desc: 'Activate a drawing tool — /draw trend | hline | fib | clear' },
+  { cmd: '/split',    desc: 'Toggle 2×2 multi-chart split view' },
   { cmd: '/settings', desc: 'Open settings (beginner mode, tooltips, …)' },
   { cmd: '/tour',     desc: 'Re-show the welcome tour' },
   { cmd: '/apikey',   desc: 'Save API key for live data — /apikey twelvedata YOURKEY (free at twelvedata.com)' },
@@ -3655,6 +4001,14 @@ function runCommand(raw) {
       return;
     }
     case '/workspaces': listWorkspaces(); return;
+    case '/draw': {
+      const t = (args[0]||'').toLowerCase();
+      if (t === 'clear') { clearDrawings(); return; }
+      if (['trend','hline','fib'].includes(t)) { setDrawTool(t); showToast('Drawing tool: ' + t, 'Click on chart to place', 'ok'); return; }
+      showToast('Usage', '/draw trend | hline | fib | clear', 'alert');
+      return;
+    }
+    case '/split': toggleSplitView(); return;
     case '/settings': openSettings(); return;
     case '/tour': resetTour(); return;
   }
@@ -4491,13 +4845,22 @@ async function init() {
   if (wrap) {
     wrap.addEventListener('mousemove', e => {
       const r = wrap.getBoundingClientRect();
-      drawCrosshair(e.clientX - r.left, e.clientY - r.top);
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      // Track last mouse for drawing preview
+      chartState._lastMouse = { x: mx, y: my };
+      if (chartState.activeDrawTool && chartState.drawingState) {
+        drawChart(); // re-render preview
+      } else if (!chartState.activeDrawTool) {
+        drawCrosshair(mx, my);
+      }
     });
     wrap.addEventListener('mouseleave', () => {
       const hud = document.getElementById('chart-hud');
       if (hud) hud.style.display = 'none';
+      chartState._lastMouse = null;
       drawChart();
     });
+    wrap.addEventListener('mousedown', handleChartMouseDown);
   }
 
   // Step 4: load default chart from sim (instant) + try live in background
