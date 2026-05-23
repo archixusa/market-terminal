@@ -768,13 +768,15 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
   <div id="news-body" class="panel-body"></div>
 </div>
 <div id="indices-panel" class="panel">
-  <div class="panel-head">
-    <span class="panel-title"><span data-tip="Major stock indices around the world. Each represents a basket of stocks: SPX = top 500 US companies, Nikkei = top 225 Japanese, etc.">🌍 Global Indices</span></span>
-    <span class="panel-badge">WEI</span>
+  <div class="panel-head" style="gap:10px;flex-wrap:wrap">
+    <span class="panel-title" id="lp-tab-recent"   style="cursor:pointer;color:#f97316;border-bottom:2px solid #f97316;padding-bottom:2px" onclick="switchLowerLeftTab('recent')">⏱ Recent</span>
+    <span class="panel-title" id="lp-tab-indices"  style="cursor:pointer;padding-bottom:2px" onclick="switchLowerLeftTab('indices')">🌍 World</span>
+    <span class="panel-title" id="lp-tab-strength" style="cursor:pointer;padding-bottom:2px" onclick="switchLowerLeftTab('strength')">⚖ FX Strength</span>
   </div>
   <div class="panel-body">
-    <div id="strength-panel"></div>
-    <div class="idx-grid" id="idx-grid"></div>
+    <div id="lp-view-recent" style="padding:8px"><div style="padding:14px;color:#6e7681;font-size:11px;text-align:center">Click any symbol to see it appear here.</div></div>
+    <div id="lp-view-indices" style="display:none"><div class="idx-grid" id="idx-grid"></div></div>
+    <div id="lp-view-strength" style="display:none"><div id="strength-panel"></div></div>
   </div>
 </div>
 <div id="commodities-panel" class="panel">
@@ -2598,6 +2600,58 @@ function quickActivateWatchlist(id){
   renderWatchlist('');
 }
 
+// ==================== RECENT SYMBOLS HISTORY ====================
+const RECENT_KEY = 'mtp_recent_symbols';
+function _loadRecent(){ try{ return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]'); }catch(e){ return []; } }
+function _saveRecent(arr){ try{ localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); }catch(e){} }
+function pushRecent(sym){
+  if (!sym) return;
+  let r = _loadRecent().filter(s => s !== sym);
+  r.unshift(sym);
+  if (r.length > 12) r = r.slice(0, 12);
+  _saveRecent(r);
+  renderRecentView();
+}
+function renderRecentView(){
+  const el = document.getElementById('lp-view-recent');
+  if (!el) return;
+  const recent = _loadRecent();
+  if (!recent.length) {
+    el.innerHTML = '<div style="padding:14px;color:#6e7681;font-size:11px;text-align:center">Click any symbol — it appears here for quick re-access.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:1px">' + recent.map(sym => {
+    const d = LIVE.loaded[sym];
+    const live = LIVE.sourceFor[sym] === 'live';
+    const price = d?.price;
+    const pct = d?.pct || 0;
+    const isUp = pct >= 0;
+    const c = isUp ? '#22c55e' : '#ef4444';
+    const dot = live ? '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;margin-right:5px"></span>' : '';
+    const priceStr = price ? (price >= 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:2}) : price.toFixed(2)) : '—';
+    const name = STOCK_CONFIGS[sym]?.name || INDEX_CONFIGS[sym]?.name || symbolName(sym);
+    return '<div onclick="selectStock(\''+sym+'\')" style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:4px;transition:background 0.1s" onmouseover="this.style.background=\'#161b22\'" onmouseout="this.style.background=\'\'">' +
+      '<span style="font-family:JetBrains Mono,monospace;font-weight:700;color:#e6edf3;width:60px">' + dot + sym + '</span>' +
+      '<span style="color:#8b949e;font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (name||'').slice(0,20) + '</span>' +
+      '<span style="font-family:JetBrains Mono,monospace;color:#e6edf3;font-size:12px">' + priceStr + '</span>' +
+      '<span style="font-family:JetBrains Mono,monospace;color:' + c + ';font-size:11px;width:55px;text-align:right">' + (isUp?'+':'') + pct.toFixed(2) + '%</span>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+function switchLowerLeftTab(tab){
+  ['recent','indices','strength'].forEach(t => {
+    const v = document.getElementById('lp-view-'+t);
+    const lab = document.getElementById('lp-tab-'+t);
+    if (v) v.style.display = (t === tab) ? '' : 'none';
+    if (lab) {
+      if (t === tab) { lab.style.color = '#f97316'; lab.style.borderBottom = '2px solid #f97316'; }
+      else           { lab.style.color = ''; lab.style.borderBottom = ''; }
+    }
+  });
+  if (tab === 'recent') renderRecentView();
+  if (tab === 'strength') renderCurrencyStrength();
+}
+
 function switchWatchlistTab(tab){
   const watch = document.getElementById('wl-view-watch');
   const movers = document.getElementById('wl-view-movers');
@@ -3859,6 +3913,7 @@ function selectStock(sym){
   highlightWatchlistRow(sym);
   loadLiveChart(sym, selectedType);
   renderFundamentalsForSymbol(sym);
+  pushRecent(sym);
   // Update news button label
   const btn = document.getElementById('news-company-btn');
   if (btn && window._companyNewsSymbol !== sym) {
@@ -3880,6 +3935,7 @@ function selectIndex(sym){
   if(el)el.textContent=sym+' — '+(INDEX_CONFIGS[sym]?.name||sym);
   loadLiveChart(sym,'index');
   renderFundamentalsForSymbol(sym);
+  pushRecent(sym);
   // News button updates to show new index symbol
   const btn = document.getElementById('news-company-btn');
   if (btn && !window._companyNewsSymbol) updateCompanyNewsToggleUI(null);
@@ -5563,8 +5619,9 @@ async function renderInsiderRadar(){
   if (!body) return;
   body.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">' +
-      '<div style="color:#8b949e;font-size:12px;flex:1">Cross-market scan of ' + INSIDER_UNIVERSE.length + ' major US stocks for high-signal insider activity. Inspired by CEO Watcher — tracks SEC Form 4 filings via Finnhub. Cluster buys + executive open-market purchases + large-dollar transactions surface as opportunities.</div>' +
-      '<button onclick="runInsiderScan()" id="insider-scan-btn" style="background:#1f6feb;border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">⚡ Run Scan</button>' +
+      '<div style="color:#8b949e;font-size:12px;flex:1">Cross-market scan for high-signal insider activity. Inspired by CEO Watcher — tracks SEC Form 4 filings via Finnhub. Cluster buys + executive open-market purchases + large-dollar transactions surface as opportunities.</div>' +
+      '<button onclick="runInsiderScan(false)" id="insider-scan-btn" style="background:#1f6feb;border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">⚡ Scan All (' + INSIDER_UNIVERSE.length + ')</button>' +
+      '<button onclick="runInsiderScan(true)" id="insider-scan-wl-btn" style="background:#22c55e;border:none;color:#000;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">📌 Scan My Watchlist</button>' +
     '</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px;flex-wrap:wrap">' +
       '<span class="news-filter active" onclick="renderInsiderTab(\'all\')" id="ins-tab-all">All Signals</span>' +
@@ -5576,15 +5633,23 @@ async function renderInsiderRadar(){
     '<div id="insider-results"><div style="padding:30px;text-align:center;color:#6e7681;font-size:13px">Click <b style="color:#1f6feb">⚡ Run Scan</b> to fetch insider transactions for ' + INSIDER_UNIVERSE.length + ' symbols. Takes ~60-90 seconds (rate-limited by Finnhub 60/min).</div></div>';
 }
 
-async function runInsiderScan(){
-  const btn = document.getElementById('insider-scan-btn');
+async function runInsiderScan(watchlistOnly){
+  const btn  = document.getElementById('insider-scan-btn');
+  const btn2 = document.getElementById('insider-scan-wl-btn');
   const out = document.getElementById('insider-results');
-  if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
-  out.innerHTML = '<div style="padding:14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:12px">Scanning <b id="ins-progress">0</b> / ' + INSIDER_UNIVERSE.length + ' symbols…</div>';
+  let universe = INSIDER_UNIVERSE;
+  if (watchlistOnly) {
+    const lists = loadWatchlists();
+    const active = lists.find(l => l.active) || lists[0];
+    universe = (active?.symbols || []).filter(s => !s.includes('/') && s.length <= 5);
+    if (!universe.length) { out.innerHTML = '<div style="padding:30px;text-align:center;color:#6e7681">Active watchlist is empty.</div>'; return; }
+  }
+  if (btn)  { btn.disabled = true; }
+  if (btn2) { btn2.disabled = true; }
+  out.innerHTML = '<div style="padding:14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:12px">Scanning <b id="ins-progress">0</b> / ' + universe.length + ' symbols' + (watchlistOnly ? ' (watchlist only)' : '') + '…</div>';
   const results = [];
   let done = 0;
-  // Sequential with throttle (60/min = ~1/sec)
-  for (const sym of INSIDER_UNIVERSE) {
+  for (const sym of universe) {
     const tx = await fetchInsiderTransactions(sym);
     const analysis = analyzeInsiderActivity(tx);
     if (analysis && (analysis.totalTransactions > 0)) {
@@ -5593,11 +5658,11 @@ async function runInsiderScan(){
     done++;
     const prog = document.getElementById('ins-progress');
     if (prog) prog.textContent = done;
-    // Throttle: 1.1s between calls (allow some headroom under 60/min)
     await new Promise(r => setTimeout(r, 1100));
   }
   _insiderScanResults = results.sort((a, b) => b.score - a.score);
-  if (btn) { btn.disabled = false; btn.textContent = '⚡ Re-run Scan'; }
+  if (btn)  { btn.disabled = false; }
+  if (btn2) { btn2.disabled = false; }
   renderInsiderTab('all');
 }
 
@@ -5704,11 +5769,32 @@ async function renderScreenerView(view){
   if (view === '52w')     return renderScanner52Week(el);
 }
 
+const SCREENER_PRESETS = {
+  value:    { minMcap: 50e9,  maxPE: 18,  minPct: -100, label:'💎 Value',    desc:'Large caps with low P/E (< 18) — Buffett-style.' },
+  growth:   { minMcap: 20e9,  maxPE: 60,  minPct: -100, label:'🚀 Growth',   desc:'Mid+ caps allowing higher multiples (P/E up to 60).' },
+  dividend: { minMcap: 30e9,  maxPE: 30,  minPct: -100, label:'💰 Dividend', desc:'Quality dividend payers — filter then sort by yield.' },
+  momentum: { minMcap: 10e9,  maxPE: 1000,minPct: 1,    label:'⚡ Momentum', desc:'Stocks up >1% today — riding short-term strength.' },
+  oversold: { minMcap: 10e9,  maxPE: 1000,minPct: -100, label:'📉 Oversold', desc:'Stocks down >2% today — potential bounce.' }
+};
+function applyScreenerPreset(name){
+  const p = SCREENER_PRESETS[name];
+  if (!p) return;
+  document.getElementById('scrn-mcap').value = (p.minMcap/1e9).toFixed(0);
+  document.getElementById('scrn-pe').value = p.maxPE;
+  document.getElementById('scrn-pct').value = name === 'oversold' ? -2 : p.minPct;
+  runScreener();
+}
+
 async function renderScreenerFiltered(el){
   // Fundamental screener — need /stock/metric for each symbol (cached)
   el.innerHTML =
     '<div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:14px;margin-bottom:12px">' +
       '<h3 style="color:#f97316;font-size:13px;margin-bottom:10px">🔎 FUNDAMENTAL SCREENER</h3>' +
+      '<div style="margin-bottom:12px"><div style="color:#6e7681;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Quick presets</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          Object.entries(SCREENER_PRESETS).map(([k,p]) => '<button onclick="applyScreenerPreset(\''+k+'\')" data-tip="'+p.desc+'" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 11px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">'+p.label+'</button>').join('') +
+        '</div>' +
+      '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;font-size:11px">' +
         '<label style="color:#8b949e;display:flex;flex-direction:column;gap:4px">Min Market Cap ($B)<input id="scrn-mcap" type="number" value="' + (_screenerState.minMcap/1e9).toFixed(0) + '" min="0" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:4px;font-family:monospace;width:100%"/></label>' +
         '<label style="color:#8b949e;display:flex;flex-direction:column;gap:4px">Max P/E<input id="scrn-pe" type="number" value="' + _screenerState.maxPE + '" min="0" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:4px;font-family:monospace;width:100%"/></label>' +
@@ -5716,7 +5802,7 @@ async function renderScreenerFiltered(el){
         '<label style="color:#8b949e;display:flex;flex-direction:column;gap:4px;justify-content:flex-end"><button onclick="runScreener()" style="background:#1f6feb;border:none;color:#fff;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">Apply Filters</button></label>' +
       '</div>' +
     '</div>' +
-    '<div id="scrn-results"><div style="padding:20px;color:#6e7681;text-align:center;font-size:12px">Click <b>Apply Filters</b> to run the screener.</div></div>';
+    '<div id="scrn-results"><div style="padding:20px;color:#6e7681;text-align:center;font-size:12px">Click a <b style="color:#f97316">preset</b> above or set your own filters.</div></div>';
 }
 
 async function runScreener(){
@@ -6310,7 +6396,9 @@ async function init() {
   // Watchlist default
   if (!localStorage.getItem(WL_STORAGE_KEY)) {
     saveWatchlists([
-      {id:'wl_default',name:'My Watchlist',symbols:['AAPL','MSFT','GOOGL','NVDA','TSLA'],active:true}
+      {id:'wl_default',name:'Mega Caps',symbols:['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','JPM','V','UNH','LLY','WMT'],active:true},
+      {id:'wl_tech',   name:'Tech',     symbols:['NVDA','AMD','TSM','ASML','AVGO','QCOM','MU','INTC','ARM','MRVL'],active:false},
+      {id:'wl_fintech',name:'Fintech',  symbols:['V','MA','JPM','GS','MS','SCHW','PYPL','SQ','SOFI','COIN'],active:false}
     ]);
   }
 
