@@ -298,6 +298,98 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 .heat-cell-sym { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:14px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
 .heat-cell-pct { font-family:"JetBrains Mono",monospace; font-size:11px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
 
+/* ========== Theme variables ========== */
+:root {
+  --t-bg:        #0d1117;
+  --t-bg2:       #161b22;
+  --t-bg3:       #21262d;
+  --t-border:    #30363d;
+  --t-border-d:  #1a1f26;
+  --t-text:      #e6edf3;
+  --t-text-d:    #c9d1d9;
+  --t-muted:     #8b949e;
+  --t-muted-d:   #6e7681;
+  --t-accent:    #f97316;
+  --t-link:      #58a6ff;
+  --t-up:        #22c55e;
+  --t-down:      #ef4444;
+}
+body.theme-amber {
+  --t-bg:        #100a02;
+  --t-bg2:       #1a1108;
+  --t-bg3:       #2a1d0c;
+  --t-border:    #4a3618;
+  --t-border-d:  #2a1d0c;
+  --t-text:      #fbbf24;
+  --t-text-d:    #f59e0b;
+  --t-muted:     #92733d;
+  --t-muted-d:   #6b5226;
+  --t-accent:    #fbbf24;
+  --t-link:      #fcd34d;
+  --t-up:        #84cc16;
+  --t-down:      #ef4444;
+}
+body.theme-green {
+  --t-bg:        #001a00;
+  --t-bg2:       #002600;
+  --t-bg3:       #003a00;
+  --t-border:    #00591a;
+  --t-border-d:  #002b0d;
+  --t-text:      #4ade80;
+  --t-text-d:    #22c55e;
+  --t-muted:     #16a34a;
+  --t-muted-d:   #14803a;
+  --t-accent:    #4ade80;
+  --t-link:      #86efac;
+  --t-up:        #86efac;
+  --t-down:      #ef4444;
+}
+body.theme-light {
+  --t-bg:        #f5f7fa;
+  --t-bg2:       #ffffff;
+  --t-bg3:       #e9ecef;
+  --t-border:    #d0d7de;
+  --t-border-d:  #e9ecef;
+  --t-text:      #1f2328;
+  --t-text-d:    #424a53;
+  --t-muted:     #656d76;
+  --t-muted-d:   #8b949e;
+  --t-accent:    #d97706;
+  --t-link:      #0969da;
+  --t-up:        #1a7f37;
+  --t-down:      #cf222e;
+}
+body.theme-amber, body.theme-green, body.theme-light {
+  background: var(--t-bg) !important;
+  color: var(--t-text) !important;
+}
+body.theme-amber .panel, body.theme-green .panel, body.theme-light .panel { background: var(--t-bg) !important; }
+body.theme-amber #topbar, body.theme-green #topbar, body.theme-light #topbar { background: var(--t-bg2) !important; border-bottom-color: var(--t-border-d) !important; }
+body.theme-amber #tickerbar, body.theme-green #tickerbar, body.theme-light #tickerbar { background: var(--t-bg) !important; border-bottom-color: var(--t-border-d) !important; }
+body.theme-amber #cmdbar, body.theme-green #cmdbar { background: #000 !important; }
+body.theme-light #cmdbar { background: var(--t-bg2) !important; border-top: 2px solid var(--t-accent) !important; }
+body.theme-light #cmdbar input, body.theme-light #cmdbar .cmd-prompt { color: var(--t-accent) !important; }
+body.theme-amber .nav-tab, body.theme-green .nav-tab, body.theme-light .nav-tab { color: var(--t-muted) !important; }
+body.theme-amber .nav-tab.active, body.theme-green .nav-tab.active, body.theme-light .nav-tab.active { color: var(--t-accent) !important; border-color: var(--t-accent) !important; }
+body.theme-amber .panel-head, body.theme-green .panel-head, body.theme-light .panel-head { border-bottom-color: var(--t-border-d) !important; }
+body.theme-amber .wl-table th, body.theme-green .wl-table th, body.theme-light .wl-table th { background: var(--t-bg) !important; color: var(--t-muted) !important; }
+body.theme-amber .wl-sym, body.theme-green .wl-sym, body.theme-light .wl-sym { color: var(--t-text) !important; }
+body.theme-amber .wl-table td, body.theme-green .wl-table td, body.theme-light .wl-table td { color: var(--t-text-d) !important; }
+body.theme-amber .g, body.theme-green .g { color: var(--t-up) !important; }
+body.theme-amber .r, body.theme-green .r { color: var(--t-down) !important; }
+body.theme-light .g { color: var(--t-up) !important; }
+body.theme-light .r { color: var(--t-down) !important; }
+body.theme-light #sector-strip { background: var(--t-bg3) !important; }
+body.theme-light .sec-card { background: var(--t-bg2) !important; }
+body.theme-light .news-item { background: var(--t-bg2) !important; }
+
+/* Compact mode — hide ticker + sector strip + smaller panels */
+body.compact #tickerbar, body.compact #sector-strip { display: none !important; }
+body.compact .panel-head { padding: 6px 12px !important; }
+body.compact .chart-meta { display: none !important; }
+body.compact #fundamentals-bar { padding: 4px 12px !important; font-size: 10px !important; }
+body.compact .wl-table td, body.compact .wl-table th { padding: 5px 10px !important; }
+
 /* ========== Glossary tooltips (JS-positioned) ========== */
 /* No visual marker — the tooltip itself on hover is the affordance */
 [data-tip] { cursor:help; }
@@ -617,15 +709,15 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <div><div class="logo-text">Market Terminal</div><div class="logo-sub">Professional Edition</div></div>
   </div>
   <div class="nav-tabs">
-    <span class="nav-tab active" onclick="switchTab('markets')">Markets</span>
-    <span class="nav-tab" onclick="switchTab('crypto')">Crypto</span>
-    <span class="nav-tab" onclick="switchTab('fx')">FX</span>
-    <span class="nav-tab" onclick="switchTab('heatmap')">Heat Map</span>
-    <span class="nav-tab" onclick="switchTab('macro')">Macro</span>
-    <span class="nav-tab" onclick="switchTab('insider')">Insider</span>
-    <span class="nav-tab" onclick="switchTab('screener')">Screener</span>
-    <span class="nav-tab" onclick="switchTab('calendar')">Calendar</span>
-    <span class="nav-tab" onclick="switchTab('watchlist')">Watchlist</span>
+    <span class="nav-tab active" onclick="switchTab('markets')"  data-i18n="Markets">Markets</span>
+    <span class="nav-tab" onclick="switchTab('crypto')"   data-i18n="Crypto">Crypto</span>
+    <span class="nav-tab" onclick="switchTab('fx')"       data-i18n="FX">FX</span>
+    <span class="nav-tab" onclick="switchTab('heatmap')"  data-i18n="Heat Map">Heat Map</span>
+    <span class="nav-tab" onclick="switchTab('macro')"    data-i18n="Macro">Macro</span>
+    <span class="nav-tab" onclick="switchTab('insider')"  data-i18n="Insider">Insider</span>
+    <span class="nav-tab" onclick="switchTab('screener')" data-i18n="Screener">Screener</span>
+    <span class="nav-tab" onclick="switchTab('calendar')" data-i18n="Calendar">Calendar</span>
+    <span class="nav-tab" onclick="switchTab('watchlist')" data-i18n="Watchlist">Watchlist</span>
   </div>
   <div class="topbar-right">
     <div class="search-box">
@@ -860,6 +952,35 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
         <div class="s-desc">Hover any technical term (SMA, RSI, P/E, OHLC…) to see a plain-language explanation.</div>
       </div>
       <div class="toggle on" id="toggle-tips" onclick="toggleTips()"></div>
+    </div>
+    <div class="settings-row">
+      <div class="s-lbl">
+        <div class="s-name">Theme</div>
+        <div class="s-desc">Pick a color palette. Default = neutral dark, Amber = classic Bloomberg orange-on-black, Green = vintage terminal, Light = bright daylight mode.</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="setTheme('default')" id="theme-btn-default" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Dark</button>
+        <button onclick="setTheme('amber')"   id="theme-btn-amber"   style="background:#100a02;border:1px solid #4a3618;color:#fbbf24;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Amber</button>
+        <button onclick="setTheme('green')"   id="theme-btn-green"   style="background:#001a00;border:1px solid #00591a;color:#4ade80;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Green</button>
+        <button onclick="setTheme('light')"   id="theme-btn-light"   style="background:#fff;border:1px solid #d0d7de;color:#1f2328;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px">Light</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="s-lbl">
+        <div class="s-name">Compact mode</div>
+        <div class="s-desc">Hide the scrolling ticker and sector strip for a denser chart-focused layout.</div>
+      </div>
+      <div class="toggle" id="toggle-compact" onclick="toggleCompact()"></div>
+    </div>
+    <div class="settings-row">
+      <div class="s-lbl">
+        <div class="s-name">Language / Dil</div>
+        <div class="s-desc">Switch top-level interface labels. News + symbols stay in English (source data is English).</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="setLang('en')" id="lang-btn-en" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:11px">EN</button>
+        <button onclick="setLang('tr')" id="lang-btn-tr" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:11px">TR</button>
+      </div>
     </div>
     <div class="settings-row">
       <div class="s-lbl">
@@ -2569,13 +2690,46 @@ function renderWatchlist(filter) {
     });
   tbody.innerHTML = stocks.map(s => {
     const isUp = s.pct >= 0;
-    return `<tr data-sym="${s.sym}" style="cursor:pointer" onclick="selectStock('${s.sym}');setTimeout(()=>loadLiveChart('${s.sym}','stock'),200)">
-      <td><div class="wl-sym">${s.sym}</div><div class="wl-name">${s.name}</div></td>
+    return `<tr data-sym="${s.sym}" draggable="true" ondragstart="wlDragStart(event,'${s.sym}')" ondragover="wlDragOver(event)" ondrop="wlDrop(event,'${s.sym}')" ondragend="wlDragEnd(event)" style="cursor:pointer" onclick="selectStock('${s.sym}');setTimeout(()=>loadLiveChart('${s.sym}','stock'),200)">
+      <td><div class="wl-sym"><span style="color:#4a5158;font-size:11px;margin-right:4px;cursor:grab" title="drag to reorder">⋮⋮</span>${s.sym}</div><div class="wl-name">${s.name}</div></td>
       <td id="wl-price-${s.sym}">${s.price.toFixed(2)}</td>
       <td><span class="chg-pill ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(s.pct).toFixed(2)}%</span></td>
       <td>${s.vol}</td>
     </tr>`;
   }).join('');
+}
+
+// Watchlist drag/drop reorder
+function wlDragStart(e, sym){
+  e.dataTransfer.setData('text/plain', sym);
+  e.target.style.opacity = '0.4';
+}
+function wlDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const tr = e.target.closest('tr[data-sym]');
+  if (tr) tr.style.borderTop = '2px solid #f97316';
+}
+function wlDragEnd(e){
+  e.target.style.opacity = '';
+  document.querySelectorAll('.wl-table tr').forEach(r => r.style.borderTop = '');
+}
+function wlDrop(e, targetSym){
+  e.preventDefault();
+  const draggedSym = e.dataTransfer.getData('text/plain');
+  if (!draggedSym || draggedSym === targetSym) return;
+  const lists = loadWatchlists();
+  const active = lists.find(l => l.active);
+  if (!active) return;
+  // Reorder: remove dragged, insert before target
+  const newOrder = active.symbols.filter(s => s !== draggedSym);
+  const idx = newOrder.indexOf(targetSym);
+  newOrder.splice(idx, 0, draggedSym);
+  active.symbols = newOrder;
+  saveWatchlists(lists);
+  renderWatchlist('');
+  showToast('Reordered: ' + draggedSym + ' moved', '', 'ok');
+  document.querySelectorAll('.wl-table tr').forEach(r => r.style.borderTop = '');
 }
 
 // Render multi-watchlist quick-switch tabs above the table
@@ -4109,21 +4263,24 @@ function renderNews(cat)  {
     // Compact list item with thumbnail
     return `
     <div class="news-item${n.breaking?' breaking':''}${n.highlight?' highlight':''}"
-         style="border-left:3px solid ${n.breaking?'#ef5350':catBg};border-bottom:1px solid #21262d;padding:10px 12px;cursor:pointer;transition:background 0.15s;display:flex;gap:10px"
+         style="border-left:3px solid ${n.breaking?'#ef5350':catBg};border-bottom:1px solid #21262d;padding:10px 12px;cursor:pointer;transition:background 0.15s"
          onclick="${openInTab}"
          onmouseover="this.style.background='rgba(255,255,255,0.03)'"
          onmouseout="this.style.background=''">
-      ${n.image ? '<div style="flex-shrink:0;width:64px;height:64px;background:#21262d;border-radius:4px;overflow:hidden"><img src="' + n.image + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.display=\'none\'"/></div>' : ''}
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
-          <span style="background:${srcBg};color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
-          <span style="color:#8b949e;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace">${n.time}</span>
-          <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
-          ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
+      <div style="display:flex;gap:10px">
+        ${n.image ? '<div style="flex-shrink:0;width:64px;height:64px;background:#21262d;border-radius:4px;overflow:hidden"><img src="' + n.image + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.display=\'none\'"/></div>' : ''}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="background:${srcBg};color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
+            <span style="color:#8b949e;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace">${n.time}</span>
+            <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
+            ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
+            <button onclick="event.stopPropagation();summarizeNews(${idx}, this)" style="margin-left:auto;background:rgba(31,111,235,0.12);border:1px solid #1f6feb44;color:#58a6ff;padding:2px 7px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:600;font-family:Inter,sans-serif" data-tip="AI summary in your selected language (Pollinations, free)">🤖 TL;DR</button>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:#e6edf3;line-height:1.4;margin-bottom:3px">${n.headline}</div>
+          ${n.body ? '<div style="font-size:10px;color:#8b949e;line-height:1.5;margin-bottom:4px">' + n.body.slice(0, 100) + (n.body.length > 100 ? '…' : '') + '</div>' : ''}
+          ${relatedHtml ? '<div style="margin-top:2px">' + relatedHtml + '</div>' : ''}
         </div>
-        <div style="font-size:12px;font-weight:600;color:#e6edf3;line-height:1.4;margin-bottom:3px">${n.headline}</div>
-        ${n.body ? '<div style="font-size:10px;color:#8b949e;line-height:1.5;margin-bottom:4px">' + n.body.slice(0, 100) + (n.body.length > 100 ? '…' : '') + '</div>' : ''}
-        ${relatedHtml ? '<div style="margin-top:2px">' + relatedHtml + '</div>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -4141,6 +4298,38 @@ function searchNews(q){
   window._newsSearch = q || '';
   window.renderNews(window._newsCatFilter || 'all');
 }
+// AI news summary via Pollinations (free, no key)
+async function summarizeNews(idx, btn){
+  const item = (window.newsData || newsData)[idx];
+  if (!item) return;
+  const targetId = 'ai-summary-' + (item.id || idx);
+  let target = document.getElementById(targetId);
+  if (target && target.style.display !== 'none') { target.style.display = 'none'; return; }
+  const lang = getSettings().lang || 'en';
+  const langLabel = lang === 'tr' ? 'Turkish' : 'English';
+  if (btn) { btn.textContent = '… loading'; btn.disabled = true; }
+  const cacheKey = 'aisum_' + (item.id || idx) + '_' + lang;
+  let summary = cacheGet(cacheKey, 24 * 60 * 60 * 1000);
+  if (!summary) {
+    const prompt = 'Summarize this finance news article in 2-3 sentences in ' + langLabel + '. Mention key tickers and price impact if any. Headline: "' + item.headline + '". Body: ' + (item.body || '') + '. Output only the summary, no preamble.';
+    try {
+      const r = await fetch('https://text.pollinations.ai/' + encodeURIComponent(prompt), { signal: AbortSignal.timeout(20000) });
+      summary = await r.text();
+      cacheSet(cacheKey, summary);
+    } catch(e) { summary = '(AI summary unavailable: ' + e.message + ')'; }
+  }
+  if (btn) { btn.textContent = lang === 'tr' ? '🤖 TL;DR' : '🤖 TL;DR'; btn.disabled = false; }
+  // Find the news card and append summary
+  if (!target) {
+    target = document.createElement('div');
+    target.id = targetId;
+    target.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(31,111,235,0.08);border-left:3px solid #1f6feb;border-radius:0 4px 4px 0;font-size:11px;color:#c9d1d9;line-height:1.55';
+    btn.parentElement.parentElement.appendChild(target);
+  }
+  target.innerHTML = '<div style="font-size:9px;color:#58a6ff;font-weight:700;margin-bottom:4px;letter-spacing:0.5px">🤖 AI SUMMARY ' + (lang === 'tr' ? '(TR)' : '(EN)') + '</div>' + summary;
+  target.style.display = 'block';
+}
+
 // Smart click on a news symbol pill — figure out type, load chart
 function newsSymbolClick(sym){
   const found = _allSearchSymbols.find(s => s.sym === sym);
@@ -5260,9 +5449,72 @@ function applySettings(){
   document.body.classList.toggle('beginner', !!s.beginner);
   document.body.classList.toggle('no-flash', s.flash === false);
   document.body.classList.toggle('no-tips', s.tips === false);
+  document.body.classList.toggle('compact', !!s.compact);
+  document.body.classList.remove('theme-default','theme-amber','theme-green','theme-light');
+  const theme = s.theme || 'default';
+  document.body.classList.add('theme-' + theme);
   document.getElementById('toggle-beginner')?.classList.toggle('on', !!s.beginner);
   document.getElementById('toggle-flash')?.classList.toggle('on', s.flash !== false);
   document.getElementById('toggle-tips')?.classList.toggle('on', s.tips !== false);
+  document.getElementById('toggle-compact')?.classList.toggle('on', !!s.compact);
+  ['default','amber','green','light'].forEach(t => {
+    const btn = document.getElementById('theme-btn-'+t);
+    if (btn) btn.style.outline = (t === theme) ? '2px solid var(--t-accent, #f97316)' : 'none';
+  });
+  ['en','tr'].forEach(l => {
+    const btn = document.getElementById('lang-btn-'+l);
+    if (btn) {
+      const active = (s.lang || 'en') === l;
+      btn.style.background = active ? '#f97316' : '#21262d';
+      btn.style.color = active ? '#000' : '#e6edf3';
+    }
+  });
+  applyI18n();
+}
+function setTheme(theme){
+  const s = getSettings();
+  s.theme = theme;
+  saveSettings(s);
+  applySettings();
+  showToast('Theme: ' + theme, '', 'ok');
+}
+function toggleCompact(){
+  const s = getSettings();
+  s.compact = !s.compact;
+  saveSettings(s);
+  applySettings();
+  showToast(s.compact ? 'Compact mode on' : 'Compact mode off', '', 'ok');
+}
+function setLang(lang){
+  const s = getSettings();
+  s.lang = lang;
+  saveSettings(s);
+  applySettings();
+  showToast('Language: ' + (lang === 'tr' ? 'Türkçe' : 'English'), '', 'ok');
+}
+
+// ==================== i18n ====================
+const I18N = {
+  en: {
+    'Markets':'Markets','Crypto':'Crypto','FX':'FX','Heat Map':'Heat Map','Macro':'Macro','Insider':'Insider','Screener':'Screener','Calendar':'Calendar','Watchlist':'Watchlist',
+    'WATCHLIST':'WATCHLIST','TOP MOVERS':'TOP MOVERS','RECENT':'⏱ Recent','WORLD':'🌍 World','FX STRENGTH':'⚖ FX Strength',
+    'MARKET NEWS':'MARKET NEWS','All':'All','search…':'search…','Apply Filters':'Apply Filters','Run Scan':'Run Scan'
+  },
+  tr: {
+    'Markets':'Piyasalar','Crypto':'Kripto','FX':'Döviz','Heat Map':'Isı Haritası','Macro':'Makro','Insider':'İçeriden','Screener':'Tarayıcı','Calendar':'Takvim','Watchlist':'İzleme Listesi',
+    'WATCHLIST':'İZLEME','TOP MOVERS':'EN ÇOK HAREKET','RECENT':'⏱ Son Bakılan','WORLD':'🌍 Dünya','FX STRENGTH':'⚖ Para Gücü',
+    'MARKET NEWS':'PİYASA HABERLERİ','All':'Tümü','search…':'ara…','Apply Filters':'Filtreyi Uygula','Run Scan':'Tara'
+  }
+};
+function t(key){
+  const lang = (getSettings().lang || 'en');
+  return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+}
+function applyI18n(){
+  // Translate elements with data-i18n attribute
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
 }
 function openSettings(){ applySettings(); document.getElementById('settings-modal').classList.add('open'); }
 function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
