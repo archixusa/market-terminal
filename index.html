@@ -771,6 +771,8 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="nav-tab icon-btn" onclick="toggleBook()" data-tip="Order book — simulated bid/ask depth for the selected symbol">📕</span>
     <span class="nav-tab icon-btn" onclick="toggleAlerts()" data-tip="Price alerts (Alt+A) — get notified when a symbol hits your level">🔔<span id="alerts-count" style="background:#ef4444;color:#fff;border-radius:9px;padding:0 5px;font-size:10px;font-weight:700;display:none;margin-left:3px">0</span></span>
     <span class="nav-tab icon-btn" onclick="toggleKbHelp()" data-tip="Keyboard shortcuts (or press ?)">⌨</span>
+    <span class="nav-tab icon-btn" id="voice-btn" onclick="toggleVoice()" data-tip="Voice command (Web Speech API). Say a symbol or 'alert AAPL 200'.">🎤</span>
+    <span class="nav-tab icon-btn" onclick="shareWorkspaceURL()" data-tip="Copy a share URL — paste it to share your exact watchlist + chart setup.">🔗</span>
     <span class="nav-tab icon-btn" onclick="openSettings()" data-tip="Settings — beginner mode, tooltips, restart tour">⚙</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
     <div id="fng-widget-stocks" data-tip="Loading CNN Fear & Greed Index for US stocks…" style="display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;cursor:help">
@@ -867,6 +869,7 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="chart-tool-btn" onclick="toggleSplitView()" data-tip="Toggle 2×2 split view — see 4 charts at once.">Split</span>
     <span class="chart-tool-btn" onclick="toggleNoteEditor(chartState.symbol)" data-tip="Personal note for this symbol (saved in your browser).">📝 Note</span>
     <span class="chart-tool-btn" onclick="openPopupChart()" data-tip="Open the current chart in a new window — useful for multi-monitor setups.">⧉ Popup</span>
+    <span class="chart-tool-btn" onclick="openTradingView()" data-tip="Open TradingView's advanced chart for this symbol (powered by tradingview.com).">TV</span>
     <span style="flex:1"></span>
     <span id="chart-range-info" style="font-size:10px;color:#6e7681;white-space:nowrap;font-family:'JetBrains Mono',monospace">Daily · 1Y</span>
   </div>
@@ -4135,6 +4138,8 @@ function symbolName(sym){
   return STOCK_CONFIGS[sym]?.name || INDEX_CONFIGS[sym]?.name || COMMODITY_NAMES[sym] || CRYPTO_NAMES[sym] || sym;
 }
 function selectStock(sym){
+  // Unsubscribe previous WS symbol
+  if (chartState.symbol && chartState.symbol !== sym) wsUnsubscribe(chartState.symbol);
   selectedSym=sym;
   selectedType = COINGECKO_IDS[sym] ? 'crypto' : (COMMODITY_NAMES[sym] ? 'commodity' : 'stock');
   chartState.symbol=sym;
@@ -4144,6 +4149,10 @@ function selectStock(sym){
   loadLiveChart(sym, selectedType);
   renderFundamentalsForSymbol(sym);
   pushRecent(sym);
+  // Subscribe new symbol for tick stream (stocks + crypto)
+  if (selectedType === 'stock' || selectedType === 'crypto') {
+    wsSubscribe(selectedType === 'crypto' ? 'BINANCE:' + sym + 'USDT' : sym);
+  }
   // Update news button label
   const btn = document.getElementById('news-company-btn');
   if (btn && window._companyNewsSymbol !== sym) {
@@ -4971,6 +4980,10 @@ const COMMANDS = [
   { cmd: '/wei',      desc: 'World Equity Indices snapshot (Americas/Europe/Asia)' },
   { cmd: '/risk',     desc: 'Portfolio risk dashboard (beta, sector, concentration)' },
   { cmd: '/pdf',      desc: 'Print/export current view to PDF (use browser dialog)' },
+  { cmd: '/tv',       desc: 'Open TradingView advanced chart for current symbol' },
+  { cmd: '/csv',      desc: 'Export watchlist or portfolio to CSV — /csv portfolio' },
+  { cmd: '/share',    desc: 'Copy a share URL with your current chart + watchlist setup' },
+  { cmd: '/voice',    desc: 'Start voice command listening (mic)' },
   { cmd: '/q',        desc: 'Instant quote popup — /q AAPL (no chart switch)' },
   { cmd: '/settings', desc: 'Open settings (beginner mode, tooltips, …)' },
   { cmd: '/tour',     desc: 'Re-show the welcome tour' },
@@ -5242,6 +5255,15 @@ function runCommand(raw) {
     case '/wei':  openWEIView(); return;
     case '/risk': renderRiskDashboard(); return;
     case '/pdf':  document.body.setAttribute('data-print-date', new Date().toLocaleString('en-US')); setTimeout(() => window.print(), 200); return;
+    case '/tv': case '/tradingview': openTradingView(args[0]?.toUpperCase()); return;
+    case '/csv': {
+      const what = (args[0]||'').toLowerCase();
+      if (what === 'portfolio' || what === 'port') exportPortfolioCSV();
+      else exportWatchlistCSV();
+      return;
+    }
+    case '/share': shareWorkspaceURL(); return;
+    case '/voice': case '/mic': toggleVoice(); return;
     case '/book': toggleBook(); return;
     case '/save': {
       const name = args.join(' ').trim();
@@ -6237,6 +6259,272 @@ function _renderInsiderCard(r){
     (r.reasons.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + r.reasons.map(re => '<span style="background:'+r.verdict.color+'18;border:1px solid '+r.verdict.color+'44;color:#c9d1d9;padding:3px 8px;border-radius:3px;font-size:11px">'+re+'</span>').join('') + '</div>' : '') +
     (txRows ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr style="color:#6e7681;font-size:9px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Date</th><th style="text-align:left;padding:4px 8px">Insider</th><th style="text-align:right;padding:4px 8px">Action</th><th style="text-align:right;padding:4px 8px">Shares</th><th style="text-align:right;padding:4px 8px">Price</th><th style="text-align:right;padding:4px 8px">Value</th></tr></thead><tbody>'+txRows+'</tbody></table>' : '') +
   '</div>';
+}
+
+// ==================== REAL-TIME WEBSOCKET (Finnhub) ====================
+let _wsConn = null;
+let _wsSubscribed = new Set();
+function initWebSocket(){
+  const key = getApiKeys().finnhub;
+  if (!key) return;
+  if (_wsConn && _wsConn.readyState !== 3) return; // already connecting/open
+  try {
+    _wsConn = new WebSocket('wss://ws.finnhub.io?token=' + key);
+    _wsConn.onopen = () => {
+      // Resubscribe to current chart symbol
+      _wsSubscribed.forEach(sym => _wsConn.send(JSON.stringify({ type:'subscribe', symbol: sym })));
+      // Status bar live indicator
+      const sb = document.getElementById('sb-datamode');
+      if (sb) sb.innerHTML = '<span class="sb-dot sb-green"></span>WS: Connected';
+    };
+    _wsConn.onmessage = ev => {
+      try {
+        const j = JSON.parse(ev.data);
+        if (j.type === 'trade' && Array.isArray(j.data)) {
+          j.data.forEach(t => {
+            const sym = t.s;
+            if (!LIVE.loaded[sym]) return;
+            const prev = LIVE.loaded[sym].price;
+            LIVE.loaded[sym].price = t.p;
+            LIVE.loaded[sym].vol  = (LIVE.loaded[sym].vol || 0) + (t.v || 0);
+            LIVE.loaded[sym].ts = t.t;
+            LIVE.sourceFor[sym] = 'live';
+            updateWatchlistRow(sym, LIVE.loaded[sym]);
+            if (chartState.symbol === sym) {
+              updateChartHeader(LIVE.loaded[sym]);
+              // Flash chart price
+              const el = document.getElementById('chart-price');
+              if (el && prev !== t.p) {
+                el.style.color = (t.p > prev) ? '#22c55e' : '#ef4444';
+              }
+            }
+          });
+        }
+      } catch(e){}
+    };
+    _wsConn.onclose = () => { setTimeout(initWebSocket, 5000); }; // auto-reconnect
+    _wsConn.onerror = () => {};
+  } catch(e){}
+}
+function wsSubscribe(sym){
+  if (!_wsConn || _wsConn.readyState !== 1) { _wsSubscribed.add(sym); return; }
+  if (_wsSubscribed.has(sym)) return;
+  _wsConn.send(JSON.stringify({ type:'subscribe', symbol: sym }));
+  _wsSubscribed.add(sym);
+}
+function wsUnsubscribe(sym){
+  if (!_wsConn || _wsConn.readyState !== 1) { _wsSubscribed.delete(sym); return; }
+  _wsConn.send(JSON.stringify({ type:'unsubscribe', symbol: sym }));
+  _wsSubscribed.delete(sym);
+}
+
+// ==================== TRADINGVIEW WIDGET ====================
+function openTradingView(sym){
+  sym = sym || chartState.symbol;
+  // Map our sym to TradingView format (most US stocks: NASDAQ:SYM)
+  const NASDAQ_LIST = ['AAPL','MSFT','GOOGL','GOOG','AMZN','NVDA','META','TSLA','NFLX','ADBE','CSCO','PEP','COST','AVGO','QCOM','INTC','AMD','MU','ORCL','CRM','SNOW','DDOG','MDB','ZS','NET','OKTA','ARM','MRVL','MARA','RIOT','COIN','PLTR','SOFI','HOOD','UBER','LYFT','ABNB','SHOP','RBLX','SQ','PYPL','AFRM','LCID','RIVN','NIO','XPEV','TMUS','CMCSA','PDD','BIDU','JD'];
+  const tvSym = COINGECKO_IDS[sym] ? 'COINBASE:' + sym + 'USD' :
+                INDEX_CONFIGS[sym] ? ({SPX:'SP:SPX',DJI:'DJ:DJI',COMP:'NASDAQ:IXIC',RUT:'INDEX:RUT',VIX:'CBOE:VIX',DXY:'TVC:DXY'}[sym] || sym) :
+                NASDAQ_LIST.includes(sym) ? 'NASDAQ:' + sym :
+                'NYSE:' + sym;
+  let m = document.getElementById('fn-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'fn-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px';
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    document.body.appendChild(m);
+  }
+  const widgetId = 'tv_chart_' + Date.now();
+  m.innerHTML =
+    '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;width:96%;height:88vh;max-width:1300px;overflow:hidden;display:flex;flex-direction:column">' +
+      '<div style="padding:10px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800">TradingView · ' + tvSym + '</span><span style="color:#8b949e;font-size:11px">advanced charts powered by tradingview.com</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div>' +
+      '<div id="' + widgetId + '" style="flex:1"></div>' +
+    '</div>';
+  // Inject TradingView script if not loaded
+  if (!window.TradingView) {
+    const s = document.createElement('script');
+    s.src = 'https://s3.tradingview.com/tv.js';
+    s.onload = () => _createTVWidget(widgetId, tvSym);
+    document.head.appendChild(s);
+  } else {
+    _createTVWidget(widgetId, tvSym);
+  }
+}
+function _createTVWidget(containerId, sym){
+  try {
+    new TradingView.widget({
+      container_id: containerId,
+      autosize: true,
+      symbol: sym,
+      interval: 'D',
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#0d1117',
+      enable_publishing: false,
+      withdateranges: true,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      studies: ['MASimple@tv-basicstudies','Volume@tv-basicstudies']
+    });
+  } catch(e) {
+    document.getElementById(containerId).innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444">TradingView widget failed to load.</div>';
+  }
+}
+
+// ==================== CSV EXPORT ====================
+function exportCSV(filename, rows){
+  if (!rows || !rows.length) { showToast('Nothing to export', '', 'alert'); return; }
+  const headers = Object.keys(rows[0]);
+  const escape = v => {
+    if (v == null) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+  showToast('Exported', filename, 'ok');
+}
+function exportWatchlistCSV(){
+  const lists = loadWatchlists();
+  const active = lists.find(l => l.active) || lists[0];
+  if (!active) return;
+  const rows = active.symbols.map(sym => {
+    const d = LIVE.loaded[sym] || {};
+    return {
+      symbol: sym,
+      name: STOCK_CONFIGS[sym]?.name || symbolName(sym),
+      price: d.price?.toFixed(2) || '',
+      changePct: d.pct?.toFixed(2) || '',
+      volume: d.vol || '',
+      open: d.open?.toFixed(2) || '',
+      high: d.high?.toFixed(2) || '',
+      low: d.low?.toFixed(2) || ''
+    };
+  });
+  exportCSV('watchlist_' + active.name.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.csv', rows);
+}
+function exportPortfolioCSV(){
+  const positions = loadPortfolio();
+  const rows = positions.map(p => {
+    const live = LIVE.loaded[p.sym];
+    const price = live?.price || p.avgCost;
+    const value = p.shares * price;
+    const cost = p.shares * p.avgCost;
+    return {
+      symbol: p.sym,
+      shares: p.shares,
+      avgCost: p.avgCost.toFixed(2),
+      currentPrice: price.toFixed(2),
+      value: value.toFixed(2),
+      costBasis: cost.toFixed(2),
+      pnl: (value - cost).toFixed(2),
+      pnlPct: (((value - cost)/cost)*100).toFixed(2)
+    };
+  });
+  exportCSV('portfolio_' + new Date().toISOString().slice(0,10) + '.csv', rows);
+}
+
+// ==================== WORKSPACE SHARE VIA URL ====================
+function shareWorkspaceURL(){
+  const lists = loadWatchlists();
+  const active = lists.find(l => l.active) || lists[0];
+  const state = {
+    sym: chartState.symbol,
+    range: chartState.range,
+    type: chartState.chartType,
+    ind: Object.keys(chartState.indicators || {}).filter(k => chartState.indicators[k]),
+    wl: active?.symbols || []
+  };
+  const encoded = btoa(JSON.stringify(state));
+  const url = location.origin + location.pathname + '#ws=' + encoded;
+  try {
+    navigator.clipboard.writeText(url);
+    showToast('URL copied to clipboard', 'Anyone opening it sees your exact setup', 'ok');
+  } catch(e) {
+    showToast('URL', url.slice(0, 80) + '…', 'ok');
+  }
+  return url;
+}
+function loadFromShareURL(){
+  if (!location.hash || !location.hash.startsWith('#ws=')) return false;
+  try {
+    const state = JSON.parse(atob(location.hash.slice(4)));
+    if (state.wl?.length) {
+      const lists = loadWatchlists();
+      const shared = { id:'wl_shared', name:'Shared Workspace', symbols: state.wl, active: true };
+      lists.forEach(l => l.active = false);
+      // Avoid duplicate
+      const existing = lists.find(l => l.id === 'wl_shared');
+      if (existing) Object.assign(existing, shared);
+      else lists.unshift(shared);
+      saveWatchlists(lists);
+    }
+    if (state.sym) chartState.symbol = state.sym;
+    if (state.range) chartState.range = state.range;
+    if (state.type) chartState.chartType = state.type;
+    if (state.ind) { chartState.indicators = {}; state.ind.forEach(k => chartState.indicators[k] = true); }
+    return true;
+  } catch(e) { return false; }
+}
+
+// ==================== VOICE COMMANDS ====================
+let _voiceRec = null;
+function isVoiceSupported(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+function toggleVoice(){
+  if (!isVoiceSupported()) { showToast('Voice not supported', 'Try Chrome/Edge', 'alert'); return; }
+  const btn = document.getElementById('voice-btn');
+  if (_voiceRec) {
+    _voiceRec.stop(); _voiceRec = null;
+    if (btn) { btn.style.color = ''; btn.style.background = ''; }
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _voiceRec = new SR();
+  _voiceRec.continuous = false;
+  _voiceRec.interimResults = false;
+  _voiceRec.lang = (getSettings().lang === 'tr') ? 'tr-TR' : 'en-US';
+  _voiceRec.onresult = ev => {
+    const transcript = ev.results[0][0].transcript.trim();
+    handleVoiceTranscript(transcript);
+  };
+  _voiceRec.onerror = () => { _voiceRec = null; if (btn) { btn.style.color = ''; btn.style.background = ''; } };
+  _voiceRec.onend = () => { _voiceRec = null; if (btn) { btn.style.color = ''; btn.style.background = ''; } };
+  _voiceRec.start();
+  if (btn) { btn.style.color = '#fff'; btn.style.background = '#ef4444'; }
+  showToast('🎤 Listening', 'Say a symbol or command…', 'ok');
+}
+function handleVoiceTranscript(txt){
+  showToast('Heard', '"' + txt + '"', 'ok');
+  // Try to interpret
+  const lower = txt.toLowerCase();
+  // "show AAPL" / "load TSLA" / "AAPL"
+  const symMatch = txt.toUpperCase().match(/\b([A-Z]{1,5})\b/g);
+  // Special commands
+  if (/^(help|yard[ıi]m)/i.test(lower)) { toggleKbHelp(); return; }
+  if (/(alert|alarm)\s+(\w+)\s+(at|to|above|over)?\s*(\d+(?:\.\d+)?)/i.test(lower)) {
+    const m = lower.match(/(alert|alarm)\s+(\w+)\s+(?:at|to|above|over)?\s*(\d+(?:\.\d+)?)/i);
+    runCommand('/alert ' + m[2].toUpperCase() + ' > ' + m[3]);
+    return;
+  }
+  if (/(refresh|yenile)/i.test(lower)) { manualRefresh(); return; }
+  if (/(portfolio|portföy)/i.test(lower)) { switchTab('portfolio'); return; }
+  if (/(news|haber)/i.test(lower)) { toggleTopSort(); return; }
+  if (symMatch && symMatch.length) {
+    const sym = symMatch[symMatch.length - 1]; // pick the last word as symbol
+    runCommand(sym);
+    return;
+  }
+  showToast('Did not understand', 'Try "AAPL" or "alert AAPL 200"', 'alert');
 }
 
 // ==================== WEI — World Equities Snapshot ====================
@@ -7417,9 +7705,14 @@ async function init() {
     ]);
   }
 
+  // Step 0: try to load shared workspace from URL
+  loadFromShareURL();
+
   // Step 1: seed every symbol with sim (or cached live) so UI is alive instantly
   setDataMode('init');
   seedAllSimQuotes();
+  // Open WebSocket for tick stream
+  initWebSocket();
 
   // Dedupe the seed news array — keep most recent of each unique (source, headline)
   if (Array.isArray(newsData)) {
