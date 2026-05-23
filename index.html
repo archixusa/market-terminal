@@ -78,7 +78,6 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 .news-item { padding: 12px 14px; border-bottom: 1px solid rgb(22, 27, 34); cursor: pointer; transition: background 0.15s; position: relative; }
 .news-item:hover { background: rgb(22, 27, 34); }
 .news-item.breaking { border-left: 3px solid rgb(239, 68, 68); padding-left: 11px; }
-.news-item.breaking::before { content: "BREAKING"; position: absolute; top: 10px; right: 10px; font-size: 8px; font-weight: 700; color: rgb(239, 68, 68); background: rgba(239, 68, 68, 0.1); padding: 2px 5px; border-radius: 3px; border: 1px solid rgba(239, 68, 68, 0.3); }
 .news-item.highlight { border-left: 3px solid rgb(245, 158, 11); padding-left: 11px; }
 .news-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .news-source-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px; }
@@ -299,6 +298,15 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 .heat-cell-sym { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:14px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
 .heat-cell-pct { font-family:"JetBrains Mono",monospace; font-size:11px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
 
+#sector-strip { display:flex; gap:1px; background:#21262d; border-bottom:1px solid #21262d; height:42px; overflow-x:auto; flex-shrink:0; }
+#sector-strip::-webkit-scrollbar { height:3px; }
+.sec-card { background:#0d1117; padding:4px 10px; cursor:pointer; min-width:88px; display:flex; flex-direction:column; justify-content:center; transition:background 0.15s; flex-shrink:0; }
+.sec-card:hover { background:#161b22; }
+.sec-card .sec-sym { font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; color:#e6edf3; display:flex; align-items:center; gap:4px; }
+.sec-card .sec-name { font-size:8px; color:#6e7681; letter-spacing:0.3px; }
+.sec-card .sec-pct { font-family:"JetBrains Mono",monospace; font-size:10px; font-weight:600; margin-top:1px; }
+
+
 </style>
 </head>
 <body>
@@ -312,6 +320,7 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <span class="nav-tab" onclick="switchTab('crypto')">Crypto</span>
     <span class="nav-tab" onclick="switchTab('fx')">FX</span>
     <span class="nav-tab" onclick="switchTab('heatmap')">Heat Map</span>
+    <span class="nav-tab" onclick="switchTab('calendar')">Calendar</span>
     <span class="nav-tab" onclick="switchTab('watchlist')">Watchlist</span>
   </div>
   <div class="topbar-right">
@@ -323,6 +332,13 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <span class="nav-tab" onclick="toggleAlerts()" title="Alerts (Alt+A)" style="font-size:11px">🔔 <span id="alerts-count" style="background:#ef4444;color:#fff;border-radius:9px;padding:0 5px;font-size:9px;font-weight:700;display:none;margin-left:2px">0</span></span>
     <span class="nav-tab" onclick="toggleKbHelp()" title="Keyboard shortcuts (?)" style="font-size:11px">⌨</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <div id="fng-widget" title="Crypto Fear & Greed Index — alternative.me" style="display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;cursor:default">
+      <div style="font-size:9px;color:#6e7681;letter-spacing:0.5px;text-transform:uppercase">F&G</div>
+      <div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:1px">
+        <span id="fng-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#6e7681">—</span>
+        <span id="fng-lbl" style="font-size:8px;color:#6e7681;font-weight:600">—</span>
+      </div>
+    </div>
     <div class="market-status" id="market-status"><span class="status-dot" id="status-dot"></span><span id="market-status-text">NYSE OPEN</span></div>
     <div class="clock-box"><div class="clock-time" id="clock-time">—</div><div class="clock-date" id="clock-date">—</div></div>
   </div>
@@ -330,17 +346,27 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 <div id="tickerbar">
   <div class="ticker-scroll" id="ticker-scroll"></div>
 </div>
+<div id="sector-strip"></div>
 <div id="main">
 <div id="watchlist-panel" class="panel">
-  <div class="panel-head">
-    <span class="panel-title">📊 Watchlist</span>
-    <span class="panel-badge live-badge"><span class="live-dot"></span>Live</span>
+  <div class="panel-head" style="gap:8px">
+    <span class="panel-title" id="wl-tab-watch" style="cursor:pointer;color:#f97316;border-bottom:2px solid #f97316;padding-bottom:2px" onclick="switchWatchlistTab('watch')">📊 Watchlist</span>
+    <span class="panel-title" id="wl-tab-movers" style="cursor:pointer;padding-bottom:2px" onclick="switchWatchlistTab('movers')">🔥 Top Movers</span>
+    <span class="panel-badge live-badge" style="margin-left:auto"><span class="live-dot"></span>Live</span>
   </div>
   <div class="panel-body">
-    <table class="wl-table" id="wl-body">
-      <thead><tr><th>Symbol</th><th>Price</th><th>Chg%</th><th>Vol</th></tr></thead>
-      <tbody id="wl-tbody"></tbody>
-    </table>
+    <div id="wl-view-watch">
+      <table class="wl-table" id="wl-body">
+        <thead><tr><th>Symbol</th><th>Price</th><th>Chg%</th><th>Vol</th></tr></thead>
+        <tbody id="wl-tbody"></tbody>
+      </table>
+    </div>
+    <div id="wl-view-movers" style="display:none">
+      <div style="padding:6px 10px;font-size:9px;color:#6e7681;letter-spacing:0.5px;text-transform:uppercase">▲ Top Gainers</div>
+      <table class="wl-table"><tbody id="mover-gainers"></tbody></table>
+      <div style="padding:8px 10px 6px;font-size:9px;color:#6e7681;letter-spacing:0.5px;text-transform:uppercase;border-top:1px solid #21262d">▼ Top Losers</div>
+      <table class="wl-table"><tbody id="mover-losers"></tbody></table>
+    </div>
   </div>
 </div>
 <div id="chart-panel" class="panel">
@@ -400,6 +426,7 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <span class="news-filter" onclick="filterNews('crypto')">Crypto</span>
     <span class="news-filter" onclick="filterNews('fx')">FX</span>
     <span class="news-filter" onclick="filterNews('commodities')">Commodities</span>
+    <input id="news-search" type="text" placeholder="search…" oninput="searchNews(this.value)" style="margin-left:auto;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:3px;padding:2px 6px;font-size:10px;outline:none;width:90px;font-family:Inter,sans-serif"/>
   </div>
   <div id="news-body" class="panel-body"></div>
 </div>
@@ -501,7 +528,7 @@ const WL_STORAGE_KEY = 'mtp_watchlists';
 // ==================== STATE ====================
 let selectedSym  = 'SPX';
 let selectedType = 'index';
-let chartState   = { symbol:'SPX', range:'1D', data:[], chartType:'line', indicators:{} };
+let chartState   = { symbol:'SPX', range:'1D', data:[], chartType:'line', indicators:{}, compare:[] };
 let _newsCatFilter = 'all';
 let _alerts = [];
 let _watchlistFocusIdx = -1;
@@ -811,6 +838,35 @@ async function fetchStockPrice(sym, rangeKey){
   return td;
 }
 
+// Crypto Fear & Greed Index — alternative.me, free + CORS
+async function fetchFearGreed(){
+  try {
+    const cached = cacheGet('fng', 30 * 60 * 1000); // 30 min cache
+    let data = cached;
+    if (!data) {
+      const r = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) return;
+      const j = await r.json();
+      data = j?.data?.[0];
+      if (!data) return;
+      cacheSet('fng', data);
+    }
+    const val = parseInt(data.value, 10);
+    const lbl = data.value_classification;
+    const el = document.getElementById('fng-val');
+    const lblEl = document.getElementById('fng-lbl');
+    if (!el || !lblEl) return;
+    el.textContent = val;
+    lblEl.textContent = lbl.toUpperCase();
+    // Color: 0-25 extreme fear (red), 25-45 fear (orange), 45-55 neutral (gray), 55-75 greed (lime), 75-100 extreme greed (green)
+    const color = val < 25 ? '#ef4444' : val < 45 ? '#f97316' : val < 55 ? '#a3a3a3' : val < 75 ? '#84cc16' : '#22c55e';
+    el.style.color = color;
+    lblEl.style.color = color;
+    const widget = document.getElementById('fng-widget');
+    if (widget) widget.style.borderColor = color + '55';
+  } catch(e) {}
+}
+
 // CoinGecko historical chart for crypto symbols
 const COINGECKO_IDS = { BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin', XRP:'ripple', USDT:'tether', USDC:'usd-coin', ADA:'cardano', AVAX:'avalanche-2', DOT:'polkadot', MATIC:'matic-network', LINK:'chainlink', UNI:'uniswap', DOGE:'dogecoin', SHIB:'shiba-inu', LTC:'litecoin' };
 async function fetchChartCoinGecko(sym, rangeKey){
@@ -997,6 +1053,48 @@ function renderWatchlist(filter) {
   }).join('');
 }
 
+function switchWatchlistTab(tab){
+  const watch = document.getElementById('wl-view-watch');
+  const movers = document.getElementById('wl-view-movers');
+  const tWatch = document.getElementById('wl-tab-watch');
+  const tMovers = document.getElementById('wl-tab-movers');
+  if (tab === 'watch') {
+    watch.style.display = ''; movers.style.display = 'none';
+    tWatch.style.color = '#f97316'; tWatch.style.borderBottom = '2px solid #f97316';
+    tMovers.style.color = ''; tMovers.style.borderBottom = '';
+  } else {
+    watch.style.display = 'none'; movers.style.display = '';
+    tMovers.style.color = '#f97316'; tMovers.style.borderBottom = '2px solid #f97316';
+    tWatch.style.color = ''; tWatch.style.borderBottom = '';
+    renderTopMovers();
+  }
+}
+
+function renderTopMovers(){
+  const elG = document.getElementById('mover-gainers');
+  const elL = document.getElementById('mover-losers');
+  if (!elG || !elL) return;
+  // Consider stocks, sectors, indices, commodities, crypto — but skip stablecoins and FX
+  const skip = new Set(['USDT','USDC']);
+  const candidates = Object.entries(LIVE.loaded)
+    .filter(([sym, d]) => d && isFinite(d.pct) && !sym.includes('/') && !skip.has(sym))
+    .map(([sym, d]) => ({ sym, pct: d.pct, price: d.price, vol: d.vol, name: STOCK_CONFIGS[sym]?.name || INDEX_CONFIGS[sym]?.name || sym, live: LIVE.sourceFor[sym] === 'live' }));
+  const gainers = candidates.filter(c => c.pct > 0).sort((a,b) => b.pct - a.pct).slice(0, 6);
+  const losers  = candidates.filter(c => c.pct < 0).sort((a,b) => a.pct - b.pct).slice(0, 6);
+  const row = c => {
+    const isUp = c.pct >= 0;
+    const dot = c.live ? '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;margin-right:5px"></span>' : '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#6e7681;margin-right:5px"></span>';
+    const priceStr = c.price >= 1000 ? c.price.toLocaleString('en-US',{maximumFractionDigits:2}) : c.price.toFixed(2);
+    return `<tr data-sym="${c.sym}" style="cursor:pointer" onclick="selectStock('${c.sym}')">
+      <td><div class="wl-sym">${dot}${c.sym}</div><div class="wl-name">${(c.name||'').slice(0,18)}</div></td>
+      <td>${priceStr}</td>
+      <td><span class="chg-pill ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(c.pct).toFixed(2)}%</span></td>
+    </tr>`;
+  };
+  elG.innerHTML = gainers.map(row).join('') || '<tr><td colspan="3" style="padding:12px;color:#6e7681;font-size:11px">No data yet</td></tr>';
+  elL.innerHTML = losers.map(row).join('')  || '<tr><td colspan="3" style="padding:12px;color:#6e7681;font-size:11px">No data yet</td></tr>';
+}
+
 function renderIndices() {
   const grid = document.getElementById('idx-grid');
   if (!grid) return;
@@ -1057,6 +1155,40 @@ function renderCommodities() {
       <div class="cmd-price">${priceStr}</div>
       <div class="cmd-chg ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(2)}%</div>
       ${item.unit?'<div class="cmd-unit">'+item.unit+'</div>':''}
+    </div>`;
+  }).join('');
+}
+
+// 11 S&P sectors via SPDR sector ETFs
+const SECTOR_ETFS = [
+  { sym:'XLK',  name:'Technology',           base:248.50, vol:2.5, trend:0.012 },
+  { sym:'XLF',  name:'Financials',           base:54.20,  vol:0.7, trend:0.006 },
+  { sym:'XLE',  name:'Energy',               base:96.40,  vol:1.8, trend:-0.004 },
+  { sym:'XLV',  name:'Health Care',          base:158.30, vol:1.5, trend:0.003 },
+  { sym:'XLP',  name:'Staples',              data:73.80,  base:73.80, vol:0.5, trend:0.001 },
+  { sym:'XLY',  name:'Discretionary',        base:218.50, vol:2.0, trend:0.005 },
+  { sym:'XLI',  name:'Industrials',          base:142.30, vol:1.4, trend:0.005 },
+  { sym:'XLU',  name:'Utilities',            base:84.20,  vol:0.6, trend:0.002 },
+  { sym:'XLB',  name:'Materials',            base:96.50,  vol:1.2, trend:0.001 },
+  { sym:'XLRE', name:'Real Estate',          base:46.80,  vol:0.6, trend:0.003 },
+  { sym:'XLC',  name:'Communication',        base:108.20, vol:1.8, trend:0.008 }
+];
+SECTOR_ETFS.forEach(s => { if (!STOCK_CONFIGS[s.sym]) STOCK_CONFIGS[s.sym] = { base:s.base, vol:s.vol, trend:s.trend, name:s.name+' Sector SPDR' }; });
+
+function renderSectors(){
+  const el = document.getElementById('sector-strip');
+  if (!el) return;
+  el.innerHTML = SECTOR_ETFS.map(s => {
+    const d = LIVE.loaded[s.sym];
+    const pct = d?.pct ?? 0;
+    const isUp = pct >= 0;
+    const color = isUp ? '#22c55e' : '#ef4444';
+    const arrow = isUp ? '▲' : '▼';
+    const live = LIVE.sourceFor[s.sym] === 'live';
+    return `<div class="sec-card" onclick="selectStock('${s.sym}')" title="${s.name}">
+      <div class="sec-sym">${s.sym}${live?'<span style="width:4px;height:4px;border-radius:50%;background:#22c55e;display:inline-block" title="Live"></span>':''}</div>
+      <div class="sec-name">${s.name}</div>
+      <div class="sec-pct" style="color:${color}">${arrow} ${Math.abs(pct).toFixed(2)}%</div>
     </div>`;
   }).join('');
 }
@@ -1174,6 +1306,24 @@ const getDateLabels = function(range) {
   }
   return ['','','','','',''];
 };
+// Compare overlay: fetch chart data for each compare symbol, store on chartState
+async function loadCompareData(){
+  const out = {};
+  const rk = chartState.range || '1D';
+  for (const sym of chartState.compare) {
+    let series = null;
+    if (COINGECKO_IDS[sym]) series = await fetchChartCoinGecko(sym, rk);
+    if (!series) series = await fetchChartTwelve(sym, rk);
+    if (!series) series = simulateSeries(sym, rk)?.data;
+    if (series) {
+      const closes = (series.closes || series.map(d => d.c)).slice();
+      out[sym] = closes;
+    }
+  }
+  chartState.compareData = out;
+  drawChart();
+}
+
 function sma(values, period) {
   const out = new Array(values.length).fill(null);
   if (period > values.length) return out;
@@ -1468,11 +1618,75 @@ function drawChart() {
     }
   }
 
+  // Compare overlay — normalize each compare series to % change from start, draw with overlay scale
+  const compareColors = ['#fbbf24','#a78bfa','#06b6d4'];
+  const compareLegend = [];
+  if (chartState.compare && chartState.compare.length && chartState.compareData) {
+    // Compute base series % change for the main symbol
+    const baseStart = closes[0];
+    const basePctEnd = ((closes[closes.length-1] - baseStart) / baseStart) * 100;
+    // Find min/max pct across all compared series and base
+    let pctMin = 0, pctMax = 0;
+    closes.forEach(c => { const p = ((c-baseStart)/baseStart)*100; if (p<pctMin)pctMin=p; if (p>pctMax)pctMax=p; });
+    const compareSeriesPct = {};
+    chartState.compare.forEach(sym => {
+      const arr = chartState.compareData[sym];
+      if (!arr || !arr.length) return;
+      const s = arr[0];
+      const pctArr = arr.map(c => ((c-s)/s)*100);
+      compareSeriesPct[sym] = pctArr;
+      pctArr.forEach(p => { if (p<pctMin)pctMin=p; if (p>pctMax)pctMax=p; });
+    });
+    // Add a small padding
+    const pctRange = (pctMax - pctMin) || 2;
+    pctMin -= pctRange * 0.1; pctMax += pctRange * 0.1;
+    const yPosPct = p => priceTop + priceH - ((p - pctMin) / (pctMax - pctMin)) * priceH;
+    // Right-side % axis labels
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.fillStyle = 'rgba(160,172,190,0.5)';
+    ctx.textAlign = 'left';
+    for (let g = 0; g <= 4; g++) {
+      const p = pctMin + ((pctMax - pctMin) * (4-g) / 4);
+      const y = priceTop + (g/4) * priceH;
+      ctx.fillText((p>=0?'+':'')+p.toFixed(1)+'%', W - PAD.right + 30, y + 3);
+    }
+    // Draw the base symbol's % line in muted main color
+    ctx.beginPath();
+    closes.forEach((c, i) => {
+      const x = xPos(i);
+      const y = yPosPct(((c-baseStart)/baseStart)*100);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#ffffff60';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([2,3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    compareLegend.push({ label: chartState.symbol + ' (base)', color: '#ffffffaa' });
+    // Draw each compare line
+    Object.entries(compareSeriesPct).forEach(([sym, pctArr], idx) => {
+      const color = compareColors[idx % compareColors.length];
+      const n = pctArr.length;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = PAD.left + (i / Math.max(n-1,1)) * CW;
+        const y = yPosPct(pctArr[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      const endPct = pctArr[pctArr.length-1];
+      compareLegend.push({ label: sym + ' ' + (endPct>=0?'+':'') + endPct.toFixed(2) + '%', color });
+    });
+  }
+
   // Indicator legend top-left
   const legend = [];
   if (sma20) legend.push({ label: 'SMA(20)', color: '#f97316' });
   if (sma50) legend.push({ label: 'SMA(50)', color: '#a78bfa' });
   if (bbU)   legend.push({ label: 'BB(20,2)', color: '#58a6ff' });
+  compareLegend.forEach(l => legend.push(l));
   if (legend.length) {
     ctx.font = '10px JetBrains Mono, monospace';
     ctx.textAlign = 'left';
@@ -1634,12 +1848,28 @@ async function loadLiveChart(sym, type) {
   chartState.data = pts;
   drawChart();
 }
+// Dedupe news by headline+source — keep most recent occurrence (highest id)
+function dedupeNews(arr){
+  const seen = new Map();
+  // Sort by id desc, then take first occurrence per (source|headline)
+  const sorted = arr.slice().sort((a,b) => (b.id||0) - (a.id||0));
+  const out = [];
+  for (const n of sorted) {
+    const key = n.source + '|' + n.headline;
+    if (seen.has(key)) continue;
+    seen.set(key, true);
+    out.push(n);
+  }
+  return out;
+}
+
 function renderNews(cat)  {
   const body = document.getElementById('news-body');
   if (!body) return;
-  
+
   const filter = cat || window._newsCatFilter || 'all';
   window._newsCatFilter = filter;
+  const searchQuery = (window._newsSearch || '').toLowerCase();
 
   const srcColors = {
     BBG: '#f57c00', RTR: '#1565c0', WSJ: '#212121',
@@ -1647,13 +1877,21 @@ function renderNews(cat)  {
     AA: '#1b5e20', TRT: '#880e4f'
   };
 
-  const catLabel = {macro:'MACRO',equities:'EQUİTİES',crypto:'CRYPTO',fx:'FX',commodities:'CMDTY',turkey:'TÜRKİYE'};
+  const catLabel = {macro:'MACRO',equities:'EQUITIES',crypto:'CRYPTO',fx:'FX',commodities:'CMDTY',turkey:'TR'};
   const catColor = {macro:'#58a6ff',equities:'#00e676',crypto:'#ff9800',fx:'#ab47bc',commodities:'#8d6e63',turkey:'#ef5350'};
   const impactBg = {high:'rgba(239,83,80,0.12)',med:'rgba(255,152,0,0.1)',low:'rgba(88,166,255,0.08)'};
   const impactDot = {high:'#ef5350',med:'#ffa726',low:'#58a6ff'};
-  const impactLabel = {high:'HIGH IMPACT',med:'MED IMPACT',low:'LOW IMPACT'};
+  const impactLabel = {high:'HIGH',med:'MED',low:'LOW'};
 
-  const items = (window.newsData || newsData).filter(n => filter === 'all' || n.category === filter);
+  const all = dedupeNews(window.newsData || newsData);
+  const items = all.filter(n => {
+    if (filter !== 'all' && n.category !== filter) return false;
+    if (searchQuery && !((n.headline+' '+n.body+' '+(n.tags||[]).join(' ')+' '+(n.related||[]).join(' ')).toLowerCase().includes(searchQuery))) return false;
+    return true;
+  });
+  // Update count badge
+  const badge = document.getElementById('news-count-badge');
+  if (badge) badge.textContent = items.length;
 
   body.innerHTML = items.map(n => {
     const srcBg = srcColors[n.source] || '#333';
@@ -1664,7 +1902,7 @@ function renderNews(cat)  {
     const iLbl = impactLabel[n.impact] || '';
     const tagsHtml = (n.tags || []).map(t => `<span class="news-tag">#${t}</span>`).join('');
     const relatedHtml = (n.related || []).map(r =>
-      `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:3px;padding:1px 7px;font-size:11px;font-family:monospace;font-weight:700;color:#58a6ff;margin:2px 2px 0 0;cursor:pointer" onclick="window._searchSelect && window._searchSelect('${r}','stock')">${r}</span>`
+      `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:3px;padding:1px 7px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;color:#58a6ff;margin:2px 2px 0 0;cursor:pointer" onclick="event.stopPropagation();newsSymbolClick('${r}')" title="Load chart for ${r}">${r}</span>`
     ).join('');
 
     return `
@@ -1674,13 +1912,13 @@ function renderNews(cat)  {
          onmouseover="this.style.background='rgba(255,255,255,0.03)'"
          onmouseout="this.style.background=''">
       
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
-        <span style="background:${srcBg};color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
-        <span style="color:#8b949e;font-size:11px;font-weight:600">${n.time}</span>
-        <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
-        ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:3px;animation:none;letter-spacing:0.5px">🔴 BREAKING</span>' : ''}
-        <span style="display:flex;align-items:center;gap:3px;margin-left:auto;background:${iBg};border:1px solid ${iDot}33;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;color:${iDot}">
-          <span style="width:5px;height:5px;border-radius:50%;background:${iDot};display:inline-block"></span>${iLbl}
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap">
+        <span style="background:${srcBg};color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
+        <span style="color:#8b949e;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace">${n.time}</span>
+        <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
+        ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
+        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:${iBg};border:1px solid ${iDot}33;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${iDot}">
+          <span style="width:4px;height:4px;border-radius:50%;background:${iDot};display:inline-block"></span>${iLbl}
         </span>
       </div>
 
@@ -1717,6 +1955,19 @@ function filterNews(cat)  {
   });
   window.renderNews(cat);
 }
+function searchNews(q){
+  window._newsSearch = q || '';
+  window.renderNews(window._newsCatFilter || 'all');
+}
+// Smart click on a news symbol pill — figure out type, load chart
+function newsSymbolClick(sym){
+  const found = _allSearchSymbols.find(s => s.sym === sym);
+  if (found && found.type === 'index') selectIndex(sym);
+  else if (COINGECKO_IDS[sym]) { selectStock(sym); chartState.symbol=sym; }
+  else selectStock(sym);
+  switchTab('markets');
+  showToast('Loaded ' + sym, '', 'ok');
+}
 function filterWatchlist(v){renderWatchlist(v);}
 function switchTab(tab)  {
   const overlay = document.getElementById('tab-overlay');
@@ -1747,10 +1998,15 @@ function switchTab(tab)  {
     if (overlayTitle) overlayTitle.textContent = '🔥 Heat Map — Mega Cap Performance';
     navTabs[3] && navTabs[3].classList.add('active');
     window.renderHeatmap();
+  } else if (tab === 'calendar') {
+    if (overlay) overlay.classList.add('visible');
+    if (overlayTitle) overlayTitle.textContent = '📅 Economic Calendar — Upcoming Events';
+    navTabs[4] && navTabs[4].classList.add('active');
+    window.renderCalendar();
   } else if (tab === 'watchlist') {
     if (overlay) overlay.classList.add('visible');
     if (overlayTitle) overlayTitle.textContent = '📋 Watchlist Yönetimi';
-    navTabs[4] && navTabs[4].classList.add('active');
+    navTabs[5] && navTabs[5].classList.add('active');
     window.renderWatchlistManage();
   }
 }
@@ -2101,6 +2357,8 @@ const COMMANDS = [
   { cmd: '/bb',       desc: 'Toggle Bollinger Bands' },
   { cmd: '/vol',      desc: 'Toggle volume bars' },
   { cmd: '/heat',     desc: 'Open sector heat map' },
+  { cmd: '/compare',  desc: 'Overlay symbols on chart — /compare AAPL MSFT (up to 3)' },
+  { cmd: '/calendar', desc: 'Open economic calendar' },
   { cmd: '/apikey',   desc: 'Save API key for live data — /apikey twelvedata YOURKEY (free at twelvedata.com)' },
   { cmd: '/markets',  desc: 'Back to markets view' },
   { cmd: '/crypto',   desc: 'Open crypto view' },
@@ -2236,6 +2494,7 @@ function runCommand(raw) {
     case '/crypto': switchTab('crypto'); return;
     case '/fx': switchTab('fx'); return;
     case '/heat': case '/heatmap': switchTab('heatmap'); return;
+    case '/calendar': switchTab('calendar'); return;
     case '/alerts': toggleAlerts(true); return;
     case '/clear':
       _alerts = [];
@@ -2310,6 +2569,14 @@ function runCommand(raw) {
     }
     case '/bb': toggleIndicator('bb'); return;
     case '/vol': toggleIndicator('vol'); return;
+    case '/compare': {
+      const syms = args.map(s => s.toUpperCase()).filter(s => s.length);
+      if (!syms.length) { chartState.compare = []; drawChart(); showToast('Compare cleared', '', 'ok'); return; }
+      chartState.compare = syms.slice(0, 3);
+      loadCompareData();
+      showToast('Comparing', chartState.symbol + ' vs ' + syms.join(', '), 'ok');
+      return;
+    }
     case '/apikey': {
       const provider = (args[0]||'').toLowerCase();
       const key = args.slice(1).join(' ').trim();
@@ -2474,6 +2741,70 @@ document.addEventListener('keydown', e => {
 });
 
 // ==================== HEAT MAP ====================
+// ==================== ECONOMIC CALENDAR ====================
+const CALENDAR_EVENTS = [
+  // Format: dateISO, time(ET), country, flag, event, importance(1-3), forecast, prior, type
+  { date:'2026-05-26', time:'10:00', country:'US', flag:'🇺🇸', event:'Consumer Confidence (May)', imp:2, forecast:'103.2', prior:'97.0', type:'macro' },
+  { date:'2026-05-28', time:'08:30', country:'US', flag:'🇺🇸', event:'GDP Growth Q1 (Final)',     imp:2, forecast:'2.4%',  prior:'2.3%', type:'macro' },
+  { date:'2026-05-29', time:'08:30', country:'US', flag:'🇺🇸', event:'Core PCE Price Index (Apr)', imp:3, forecast:'2.4%',  prior:'2.5%', type:'macro' },
+  { date:'2026-05-30', time:'07:00', country:'DE', flag:'🇩🇪', event:'CPI (May Flash)',           imp:2, forecast:'2.1%',  prior:'2.2%', type:'macro' },
+  { date:'2026-06-03', time:'10:00', country:'US', flag:'🇺🇸', event:'ISM Services PMI (May)',    imp:2, forecast:'52.4',  prior:'51.6', type:'macro' },
+  { date:'2026-06-04', time:'08:15', country:'US', flag:'🇺🇸', event:'ADP Employment (May)',      imp:2, forecast:'+162K', prior:'+154K', type:'macro' },
+  { date:'2026-06-05', time:'07:45', country:'EU', flag:'🇪🇺', event:'ECB Rate Decision',         imp:3, forecast:'2.25%', prior:'2.50%', type:'central' },
+  { date:'2026-06-06', time:'08:30', country:'US', flag:'🇺🇸', event:'Nonfarm Payrolls (May)',    imp:3, forecast:'+185K', prior:'+177K', type:'macro' },
+  { date:'2026-06-06', time:'08:30', country:'US', flag:'🇺🇸', event:'Unemployment Rate (May)',   imp:3, forecast:'4.1%',  prior:'4.1%', type:'macro' },
+  { date:'2026-06-10', time:'02:00', country:'TR', flag:'🇹🇷', event:'TCMB Rate Decision',        imp:3, forecast:'45.00%',prior:'47.50%', type:'central' },
+  { date:'2026-06-11', time:'08:30', country:'US', flag:'🇺🇸', event:'CPI YoY (May)',             imp:3, forecast:'2.6%',  prior:'2.7%', type:'macro' },
+  { date:'2026-06-11', time:'08:30', country:'US', flag:'🇺🇸', event:'Core CPI YoY (May)',        imp:3, forecast:'3.0%',  prior:'3.1%', type:'macro' },
+  { date:'2026-06-12', time:'08:30', country:'US', flag:'🇺🇸', event:'PPI YoY (May)',             imp:2, forecast:'2.4%',  prior:'2.5%', type:'macro' },
+  { date:'2026-06-12', time:'09:00', country:'JP', flag:'🇯🇵', event:'BOJ Rate Decision',         imp:3, forecast:'0.50%', prior:'0.50%', type:'central' },
+  { date:'2026-06-17', time:'14:00', country:'US', flag:'🇺🇸', event:'FOMC Rate Decision',        imp:3, forecast:'5.00%', prior:'5.25%', type:'central' },
+  { date:'2026-06-17', time:'14:30', country:'US', flag:'🇺🇸', event:'Powell Press Conference',   imp:3, forecast:'—',     prior:'—', type:'central' },
+  { date:'2026-06-19', time:'10:00', country:'US', flag:'🇺🇸', event:'Apple WWDC Keynote',        imp:2, forecast:'—',     prior:'—', type:'earnings' },
+  { date:'2026-06-20', time:'07:00', country:'UK', flag:'🇬🇧', event:'BOE Rate Decision',         imp:3, forecast:'4.25%', prior:'4.50%', type:'central' },
+  { date:'2026-06-24', time:'10:00', country:'US', flag:'🇺🇸', event:'New Home Sales (May)',      imp:1, forecast:'705K',  prior:'696K', type:'macro' },
+  { date:'2026-06-26', time:'08:30', country:'US', flag:'🇺🇸', event:'Core PCE (May)',            imp:3, forecast:'2.6%',  prior:'2.4%', type:'macro' },
+  { date:'2026-06-27', time:'09:00', country:'US', flag:'🇺🇸', event:'Michigan Consumer Sentiment',imp:1, forecast:'71.2', prior:'70.4', type:'macro' },
+];
+
+function renderCalendar(){
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  const today = new Date();
+  const events = CALENDAR_EVENTS.slice().sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  // Group by date
+  const groups = {};
+  events.forEach(e => { (groups[e.date] = groups[e.date] || []).push(e); });
+  const impDot = i => '<span style="display:inline-flex;gap:2px">' + ['','●','●●','●●●'][i].split('').map(d => '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+(i===3?'#ef4444':i===2?'#f97316':'#22c55e')+'"></span>').join('') + '</span>';
+  const typeColor = { macro:'#58a6ff', central:'#f97316', earnings:'#22c55e' };
+  let html = '<div style="padding:0 4px 12px;color:#8b949e;font-size:12px">Schedule of high-impact macro events, central bank decisions, and major earnings. All times in US Eastern.</div>';
+  for (const [date, evts] of Object.entries(groups)) {
+    const d = new Date(date + 'T12:00:00Z');
+    const diffDays = Math.round((d - today) / (1000*60*60*24));
+    const dayLbl = diffDays === 0 ? 'TODAY' : diffDays === 1 ? 'TOMORROW' : (diffDays > 0 ? 'in ' + diffDays + 'd' : Math.abs(diffDays) + 'd ago');
+    const dayBg = diffDays === 0 ? '#1a3a5a' : diffDays < 7 ? '#21262d' : '#161b22';
+    html += '<div style="background:'+dayBg+';border:1px solid #30363d;border-radius:6px;padding:8px 12px;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">';
+    html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:#e6edf3">'+d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})+'</div>';
+    html += '<div style="font-size:10px;font-weight:700;letter-spacing:0.5px;color:'+(diffDays===0?'#22c55e':diffDays<7?'#f97316':'#6e7681')+'">'+dayLbl+'</div></div>';
+    html += '<table style="width:100%;border-collapse:collapse">';
+    evts.forEach(e => {
+      const color = typeColor[e.type] || '#8b949e';
+      html += '<tr style="border-top:1px solid #21262d">';
+      html += '<td style="padding:6px 8px 6px 0;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:#8b949e;width:60px">'+e.time+'</td>';
+      html += '<td style="padding:6px 8px;width:30px;font-size:16px">'+e.flag+'</td>';
+      html += '<td style="padding:6px 8px;width:40px;font-family:\'JetBrains Mono\',monospace;font-size:10px;color:'+color+';font-weight:700">'+e.country+'</td>';
+      html += '<td style="padding:6px 8px;font-size:12px;color:#e6edf3">'+e.event+'</td>';
+      html += '<td style="padding:6px 8px;width:80px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:11px"><span style="color:#6e7681">prior </span><span style="color:#e6edf3">'+e.prior+'</span></td>';
+      html += '<td style="padding:6px 8px;width:100px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:11px"><span style="color:#6e7681">est </span><span style="color:#58a6ff;font-weight:700">'+e.forecast+'</span></td>';
+      html += '<td style="padding:6px 8px;width:50px;text-align:right">'+impDot(e.imp)+'</td>';
+      html += '</tr>';
+    });
+    html += '</table></div>';
+  }
+  body.innerHTML = html;
+}
+
 function renderHeatmap() {
   const body = document.getElementById('overlay-body');
   if (!body) return;
@@ -2645,13 +2976,20 @@ async function init() {
   setDataMode('init');
   seedAllSimQuotes();
 
+  // Dedupe the seed news array — keep most recent of each unique (source, headline)
+  if (Array.isArray(newsData)) {
+    const deduped = dedupeNews(newsData).slice(0, 40);
+    newsData.length = 0;
+    deduped.forEach(n => newsData.push(n));
+  }
+
   // Step 2: render the shell
   renderWatchlist('');
   renderIndices();
   renderCommodities();
+  renderSectors();
   renderTicker();
   renderNews('all');
-  document.getElementById('news-count-badge').textContent = (window.newsData || newsData).length;
 
   // Step 3: bind input + chart listeners
   const cmdEl = document.getElementById('cmd-input');
@@ -2678,6 +3016,7 @@ async function init() {
 
   // Step 5: background live data — never blocks UI
   //   - CoinGecko crypto (free, batched, every 45s)
+  //   - Crypto Fear & Greed Index
   //   - Twelve Data: try one batch of indices first, then watchlist on idle
   (async () => {
     await fetchCryptoLive();
@@ -2685,6 +3024,8 @@ async function init() {
     updateTickerBar();
     updateDataModeBadge();
   })();
+  fetchFearGreed();
+  setInterval(fetchFearGreed, 30 * 60 * 1000); // refresh every 30 min
 
   // Initial Twelve Data batches — staggered to fit 8-credit/min budget
   if (getApiKeys().twelvedata) {
@@ -2710,9 +3051,13 @@ async function init() {
         }
       });
       updateTickerBar();
+      renderSectors();
+      renderTopMovers();
       checkAlerts();
     }, 8000);
   }
+  // Re-render sectors + movers periodically so live values flow through
+  setInterval(() => { renderSectors(); renderTopMovers(); }, 6000);
 
   // Crypto refresh (no API key needed)
   setInterval(async () => {
@@ -2738,13 +3083,38 @@ async function init() {
   }
   
   // Canlı haber akışı - 40 saniyede bir
-  const liveNewsPool = [{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain 'reasonable' if core PCE continues declining toward 2%. He emphasized the Fed is data-dependent, noting strong employment gives the FOMC flexibility.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"]},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta traded in positive territory. Breadth positive with 73% of components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE"]},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 — highest since February 2025","body":"The Conference Board Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus of 99.5. The Present Situation Index rose 8.1 points.","tags":["CONSUMER","MACRO","USD"],"impact":"med","impactText":"Retail ETF XRT +0.5%; XLY +0.4%","related":["XRT","XLY","AMZN","WMT"]},{"source":"BBG","category":"crypto","headline":"Bitcoin ETF inflows hit $620M — BlackRock IBIT leads institutional demand","body":"U.S. spot Bitcoin ETFs recorded $620M combined net inflows, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM crossed $65B. Options OI on IBIT hit a record $4.2B.","tags":["BTC","ETF","IBIT","BLACKROCK"],"impact":"high","impactText":"BTC +2.1%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR"]},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — AI workloads now $6B+ annual run rate","body":"AWS Q1 2026 revenue hit $29.3B, up 32% YoY, beating consensus by $900M. CEO Jassy said generative AI services exceeded $6B annualized run rate. Operating margin expanded to 38.7%.","tags":["AMZN","AWS","AI","CLOUD"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3%; GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA"]},{"source":"CNBC","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods beat consensus","body":"Durable goods orders rose 2.3% MoM in April, exceeding +0.8% forecast. Core capital goods shipments rose 0.4%, a proxy for business investment.","tags":["DURABLEGOODS","MACRO","CAPEX"],"impact":"med","impactText":"DXY +0.15%; XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON"]},{"source":"BBG","category":"equities","headline":"Meta AI assistant reaches 1B users — Zuckerberg announces open-source Llama 4","body":"Meta Platforms announced its AI assistant crossed 1 billion MAU across WhatsApp, Instagram, Facebook, and Messenger. Llama 4 open-source release benchmarks above GPT-4o on reasoning tasks.","tags":["META","AI","LLAMA"],"impact":"high","impactText":"META +2.8%; MSFT -0.4%; GOOGL -0.2%","related":["META","MSFT","GOOGL","NVDA"]}];
+  const liveNewsPool = [
+    {"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain 'reasonable' if core PCE continues declining toward 2%. He emphasized the Fed is data-dependent, noting strong employment gives the FOMC flexibility.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"]},
+    {"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta traded in positive territory. Breadth positive with 73% of components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE"]},
+    {"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 — highest since February 2025","body":"The Conference Board Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus of 99.5. The Present Situation Index rose 8.1 points.","tags":["CONSUMER","MACRO","USD"],"impact":"med","impactText":"Retail ETF XRT +0.5%; XLY +0.4%","related":["XRT","XLY","AMZN","WMT"]},
+    {"source":"BBG","category":"crypto","headline":"Bitcoin ETF inflows hit $620M — BlackRock IBIT leads institutional demand","body":"U.S. spot Bitcoin ETFs recorded $620M combined net inflows, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM crossed $65B. Options OI on IBIT hit a record $4.2B.","tags":["BTC","ETF","IBIT","BLACKROCK"],"impact":"high","impactText":"BTC +2.1%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR"]},
+    {"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — AI workloads now $6B+ annual run rate","body":"AWS Q1 2026 revenue hit $29.3B, up 32% YoY, beating consensus by $900M. CEO Jassy said generative AI services exceeded $6B annualized run rate. Operating margin expanded to 38.7%.","tags":["AMZN","AWS","AI","CLOUD"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3%; GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA"]},
+    {"source":"CNBC","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods beat consensus","body":"Durable goods orders rose 2.3% MoM in April, exceeding +0.8% forecast. Core capital goods shipments rose 0.4%, a proxy for business investment.","tags":["DURABLEGOODS","MACRO","CAPEX"],"impact":"med","impactText":"DXY +0.15%; XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON"]},
+    {"source":"BBG","category":"equities","headline":"Meta AI assistant reaches 1B users — Zuckerberg announces open-source Llama 4","body":"Meta Platforms announced its AI assistant crossed 1 billion MAU across WhatsApp, Instagram, Facebook, and Messenger. Llama 4 open-source release benchmarks above GPT-4o on reasoning tasks.","tags":["META","AI","LLAMA"],"impact":"high","impactText":"META +2.8%; MSFT -0.4%; GOOGL -0.2%","related":["META","MSFT","GOOGL","NVDA"]},
+    {"source":"RTR","category":"commodities","headline":"Gold futures break above $3,200/oz — strongest weekly gain since March","body":"Gold futures rose to a fresh high above $3,200/oz on safe-haven demand and softer dollar. Silver up 1.8% to $38.50. Central bank purchases continue to underpin bullion.","tags":["GOLD","SILVER","XAU","SAFEHAVEN"],"impact":"med","impactText":"GLD +1.6%; GDX +3.2%; SLV +1.8%","related":["GLD","GDX","SLV","XAU"]},
+    {"source":"BBG","category":"fx","headline":"USD/TRY hits 39.85 — TCMB intervenes verbally to slow depreciation","body":"Türkiye Cumhuriyet Merkez Bankası officials reiterated commitment to disinflation. CDS spreads narrowed 8bps to 245. Foreign inflows into TR bonds continue.","tags":["TRY","TCMB","TURKEY","FX"],"impact":"med","impactText":"USD/TRY +0.4%; XU100 -0.2%; TR 10Y +12bps","related":["XU100","TRY"]},
+    {"source":"DJN","category":"equities","headline":"NVIDIA Q1 data center revenue $42B, +89% YoY — Blackwell ramp ahead of schedule","body":"NVIDIA reported data center revenue of $42B in Q1, up 89% YoY. CEO Jensen Huang said Blackwell production is ahead of schedule with $11B in shipments expected in Q2. Gross margin held at 73.4%.","tags":["NVDA","AI","DATACENTER","BLACKWELL"],"impact":"high","impactText":"NVDA +5.4% AH; AMD +2.1%; AVGO +1.8%","related":["NVDA","AMD","AVGO","TSM"]},
+    {"source":"FT","category":"macro","headline":"ECB's Lagarde signals June rate hold — inflation 'still sticky' in services","body":"ECB President Christine Lagarde said the Governing Council will hold rates in June, citing persistent services inflation. Markets had priced 70% chance of a 25bp cut.","tags":["ECB","RATES","EUR","INFLATION"],"impact":"high","impactText":"EUR/USD +0.6%; German 10Y +6bps; DAX -0.4%","related":["DAX","EWG","TLT"]},
+    {"source":"CNBC","category":"equities","headline":"Tesla deliveries 472K Q1 — beats consensus, Cybertruck rate at 22K/month","body":"Tesla delivered 472,000 vehicles in Q1, ahead of 458K consensus. Cybertruck production rate hit 22,000/month. FSD subscriptions up 38% QoQ. Energy storage revenue +94%.","tags":["TSLA","EV","CYBERTRUCK","FSD"],"impact":"high","impactText":"TSLA +6.2%; RIVN -1.4%; F flat","related":["TSLA","RIVN","F","GM"]},
+    {"source":"BBG","category":"crypto","headline":"Ethereum staking yield drops to 2.7% as validator queue exits accelerate","body":"ETH staking yield fell to 2.7% — lowest since The Merge — as validator exits hit 18K queue. Net staked ETH down 1.2M from peak. Beacon chain finality remains strong.","tags":["ETH","STAKING","DEFI"],"impact":"med","impactText":"ETH -1.8%; LDO -3.5%; RPL -2.1%","related":["ETH","LDO","RPL"]},
+    {"source":"WSJ","category":"macro","headline":"April PCE prints 2.4% YoY — second straight month at Fed target","body":"Core PCE rose 0.18% MoM, 2.4% YoY — second consecutive print below 2.5%. Fed funds futures now imply 78% chance of July cut, up from 51% pre-data.","tags":["PCE","FED","INFLATION"],"impact":"high","impactText":"2Y -8bps; SPY +0.8%; TLT +1.2%; DXY -0.4%","related":["TLT","SPY","DXY","GLD"]},
+    {"source":"RTR","category":"commodities","headline":"OPEC+ extends voluntary cuts of 2.2M b/d through end of 2026","body":"OPEC+ agreed to extend voluntary production cuts of 2.2 million barrels per day through the end of 2026 in surprise virtual meeting. Saudi Arabia and Russia leading the alliance.","tags":["OIL","OPEC","WTI","BRENT"],"impact":"high","impactText":"WTI +3.4%; Brent +3.1%; XLE +1.8%; CVX +2.1%","related":["WTI","BRT","XLE","CVX","XOM"]},
+    {"source":"BBG","category":"equities","headline":"Apple Vision Pro 2 launches at $2,499 — 40% lighter, 4K per eye","body":"Apple unveiled Vision Pro 2 at $2,499 ($1,000 less than original), 40% lighter at 380g, dual M5 chips, 4K micro-OLED per eye. Pre-orders open Friday.","tags":["AAPL","VISIONPRO","HARDWARE"],"impact":"med","impactText":"AAPL +1.8%; META -0.6%; SONY +0.4%","related":["AAPL","META","SONY"]},
+    {"source":"DJN","category":"fx","headline":"BOJ holds rates, raises 2026 CPI forecast to 2.3%","body":"Bank of Japan held policy rate at 0.50% as expected. 2026 core CPI forecast revised up to 2.3% from 2.1%. Governor Ueda signaled rate hike likely in Q3.","tags":["BOJ","JPY","RATES"],"impact":"high","impactText":"USD/JPY -1.2%; Nikkei -0.8%; JGB 10Y +14bps","related":["NKY","FXY"]},
+    {"source":"CNBC","category":"macro","headline":"U.S. non-farm payrolls +185K in April, unemployment at 4.1%","body":"NFP came in at +185K vs +178K consensus. Unemployment rate ticked up to 4.1% from 4.0%. Average hourly earnings +0.3% MoM. Labor force participation stable at 62.7%.","tags":["NFP","JOBS","FED","USD"],"impact":"high","impactText":"DXY +0.3%; 10Y +4bps; SPY +0.2%","related":["SPY","TLT","DXY"]},
+    {"source":"BBG","category":"crypto","headline":"Solana DeFi TVL crosses $18B — Jupiter, Jito drive growth","body":"Solana DeFi TVL hit $18B, up 240% YoY, led by Jupiter ($4.2B) and Jito ($3.8B). Network throughput averages 4,200 TPS over the past week.","tags":["SOL","DEFI","TVL","JUPITER"],"impact":"med","impactText":"SOL +3.8%; JUP +6.4%; JTO +5.1%","related":["SOL","JUP","JTO"]},
+    {"source":"WSJ","category":"equities","headline":"JPMorgan beats on net interest income — raises 2026 NII guide to $94B","body":"JPMorgan beat Q1 EPS at $4.84 vs $4.51 consensus. NII of $23.4B beat by $700M. Bank raised full-year NII guide to $94B from $91B. CET1 ratio 15.4%.","tags":["JPM","BANKS","NII","EARNINGS"],"impact":"med","impactText":"JPM +3.2%; BAC +2.1%; C +1.8%; XLF +0.9%","related":["JPM","BAC","C","XLF"]}
+  ];
   let _liveId = 500;
   setInterval(() => {
-    const n = liveNewsPool[Math.floor(Math.random()*liveNewsPool.length)];
+    // Pick from pool, but avoid inserting a headline that's already in the top 8
+    const top = new Set(newsData.slice(0,8).map(x => x.source+'|'+x.headline));
+    const fresh = liveNewsPool.filter(x => !top.has(x.source+'|'+x.headline));
+    if (!fresh.length) return; // nothing new to add
+    const n = fresh[Math.floor(Math.random()*fresh.length)];
     const now = new Date();
     const t = now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
-    (window.newsData || newsData).unshift({...n, id:++_liveId, time:t, breaking:Math.random()<0.08, highlight:Math.random()<0.2});
+    newsData.unshift({...n, id:++_liveId, time:t, breaking:Math.random()<0.08, highlight:Math.random()<0.2});
     if (newsData.length > 40) newsData.pop();
     renderNews(_newsCatFilter||'all');
     const badge = document.getElementById('feed-badge');
