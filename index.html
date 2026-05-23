@@ -575,8 +575,6 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="news-filter active" onclick="filterNews('all')">All</span>
     <span class="news-filter" onclick="filterNews('macro')">Macro</span>
     <span class="news-filter" onclick="filterNews('equities')">Equities</span>
-    <span class="news-filter" onclick="filterNews('crypto')">Crypto</span>
-    <span class="news-filter" onclick="filterNews('fx')">FX</span>
     <span class="news-filter" onclick="filterNews('commodities')">Commodities</span>
     <input id="news-search" type="text" placeholder="search…" oninput="searchNews(this.value)" style="margin-left:auto;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:3px;padding:2px 6px;font-size:10px;outline:none;width:90px;font-family:Inter,sans-serif"/>
   </div>
@@ -1681,12 +1679,18 @@ function _formatNewsTime(unixSec){
   if (diff < 7*86400)    return Math.floor(diff/86400) + 'd ago';
   return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
 }
+// Sources / keywords to exclude (crypto-focused or off-topic)
+const NEWS_BLOCKED_SOURCES = new Set(['COINDESK','COINTELE','DECRYPT','CRYPTOCU','THE BLOCK','BITCOIN','CRYPTOSL','PROTOCOL']);
+const NEWS_BLOCKED_KEYWORDS = /\b(bitcoin|ethereum|crypto|blockchain|nft|altcoin|defi|web3|stablecoin|usdt|usdc|btc|eth|sol|solana|binance|coinbase|memecoin|token|wallet|tether)\b/i;
+const NEWS_PREFERRED_SOURCES = new Set(['CNBC','BLOOMBERG','REUTERS','WSJ','MARKETWATCH','SEEKING ALPHA','MOTLEY FOOL','BARRONS','BUSINESS INSIDER','THE WALL STREET JOURNAL','YAHOO','FORBES','AP','FORTUNE','ECONOMIST','FT','FINANCIAL TIMES']);
+
 async function fetchLiveNews(){
   const k = getApiKeys().finnhub;
   if (!k) return [];
-  const cached = cacheGet('live_news', 5 * 60 * 1000);
+  const cached = cacheGet('live_news_us', 5 * 60 * 1000);
   if (cached) return cached;
-  const cats = ['general', 'forex', 'crypto'];
+  // Only US business/economy: general + merger (M&A)
+  const cats = ['general', 'merger'];
   const all = [];
   await Promise.all(cats.map(async cat => {
     try {
@@ -1694,12 +1698,18 @@ async function fetchLiveNews(){
       if (!r.ok) return;
       const j = await r.json();
       if (!Array.isArray(j)) return;
-      j.slice(0, 20).forEach(n => {
+      j.forEach(n => {
         if (!n.headline || !n.url) return;
+        const source = (n.source || '').toUpperCase();
+        // Filter: skip crypto sources
+        if (NEWS_BLOCKED_SOURCES.has(source.slice(0, 8))) return;
+        // Filter: skip crypto-themed headlines
+        if (NEWS_BLOCKED_KEYWORDS.test(n.headline)) return;
+        if (n.summary && NEWS_BLOCKED_KEYWORDS.test(n.summary)) return;
         const related = n.related ? n.related.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6) : [];
         all.push({
           id: n.id,
-          source: (n.source || '').toUpperCase().slice(0, 8),
+          source: source.slice(0, 10),
           headline: n.headline,
           body: n.summary || '',
           image: n.image,
@@ -1720,9 +1730,10 @@ async function fetchLiveNews(){
   // Dedupe by URL
   const seen = new Set();
   const deduped = all.filter(n => { if (seen.has(n.url)) return false; seen.add(n.url); return true; });
+  // Sort by datetime desc
   deduped.sort((a, b) => b.datetime - a.datetime);
   const result = deduped.slice(0, 60);
-  cacheSet('live_news', result);
+  cacheSet('live_news_us', result);
   return result;
 }
 async function loadLiveNewsIntoFeed(){
