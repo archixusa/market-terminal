@@ -775,25 +775,13 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="nav-tab icon-btn" onclick="shareWorkspaceURL()" data-tip="Copy a share URL — paste it to share your exact watchlist + chart setup.">🔗</span>
     <span class="nav-tab icon-btn" onclick="openSettings()" data-tip="Settings — beginner mode, tooltips, restart tour">⚙</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
-    <div id="fng-widget-stocks" data-tip="Loading CNN Fear & Greed Index for US stocks…" style="display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;cursor:help">
-      <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1;gap:1px">
-        <span style="font-size:8px;color:#6e7681;letter-spacing:0.5px;text-transform:uppercase">F&G · STOCKS</span>
-        <span style="font-size:7px;color:#6e7681">CNN</span>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:1px">
-        <span id="fng-stocks-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#6e7681">—</span>
-        <span id="fng-stocks-lbl" style="font-size:8px;color:#6e7681;font-weight:600">—</span>
-      </div>
+    <div id="fng-widget-stocks" onclick="openFngChart('stocks')" data-tip="CNN Fear & Greed for US stocks. Click for historical chart." style="display:flex;flex-direction:column;align-items:center;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:2px 8px;cursor:pointer;line-height:1.1;min-width:42px">
+      <span style="font-size:8px;color:#6e7681;letter-spacing:0.4px">STK</span>
+      <span id="fng-stocks-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#6e7681">—</span>
     </div>
-    <div id="fng-widget" data-tip="Crypto Fear & Greed Index (0–100). Below 25 = Extreme Fear (often a buying opportunity historically). Above 75 = Extreme Greed (often a market top warning). Updated daily by alternative.me." style="display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;cursor:help">
-      <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1;gap:1px">
-        <span style="font-size:8px;color:#6e7681;letter-spacing:0.5px;text-transform:uppercase">F&G · CRYPTO</span>
-        <span style="font-size:7px;color:#6e7681">alt.me</span>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:1px">
-        <span id="fng-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#6e7681">—</span>
-        <span id="fng-lbl" style="font-size:8px;color:#6e7681;font-weight:600">—</span>
-      </div>
+    <div id="fng-widget" onclick="openFngChart('crypto')" data-tip="Crypto Fear & Greed (alternative.me). Click for historical chart." style="display:flex;flex-direction:column;align-items:center;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:2px 8px;cursor:pointer;line-height:1.1;min-width:42px">
+      <span style="font-size:8px;color:#6e7681;letter-spacing:0.4px">CRY</span>
+      <span id="fng-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#6e7681">—</span>
     </div>
     <div class="market-status" id="market-status"><span class="status-dot" id="status-dot"></span><span id="market-status-text">NYSE OPEN</span></div>
     <div class="clock-box"><div class="clock-time" id="clock-time">—</div><div class="clock-date" id="clock-date">—</div></div>
@@ -2045,6 +2033,145 @@ async function renderFundamentalsForSymbol(sym){
       '</span>'
     );
   }
+}
+
+// ==================== F&G HISTORICAL CHART ====================
+let _fngHistCache = {};
+async function fetchFngHistory(which){
+  if (_fngHistCache[which]) return _fngHistCache[which];
+  if (which === 'stocks') {
+    const r = await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata');
+    const j = await r.json();
+    const series = (j.fear_and_greed_historical?.data || []).map(d => ({ t: d.x, v: d.y, rating: d.rating }));
+    _fngHistCache.stocks = series;
+    return series;
+  } else {
+    const r = await fetch('https://api.alternative.me/fng/?limit=365');
+    const j = await r.json();
+    const series = (j.data || []).reverse().map(d => ({ t: d.timestamp * 1000, v: parseInt(d.value, 10), rating: d.value_classification }));
+    _fngHistCache.crypto = series;
+    return series;
+  }
+}
+
+async function openFngChart(which){
+  let m = document.getElementById('fn-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'fn-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px';
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    document.body.appendChild(m);
+  }
+  const title = which === 'stocks' ? 'CNN Fear & Greed Index (US Stocks)' : 'Crypto Fear & Greed Index (alternative.me)';
+  m.innerHTML =
+    '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;width:96%;max-width:1100px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column">' +
+      '<div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">F&G · ' + (which==='stocks'?'STOCKS':'CRYPTO') + '</span><span style="color:#8b949e;font-size:11px">' + title + '</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div>' +
+      '<div style="padding:18px;overflow:auto"><div id="fng-loading" style="color:#6e7681;padding:30px;text-align:center">Loading historical data…</div><canvas id="fng-canvas" width="1040" height="380" style="display:none;width:100%;height:380px"></canvas><div id="fng-meta" style="margin-top:14px"></div></div>' +
+    '</div>';
+  const series = await fetchFngHistory(which);
+  if (!series || !series.length) { document.getElementById('fng-loading').textContent = 'No data.'; return; }
+  document.getElementById('fng-loading').style.display = 'none';
+  document.getElementById('fng-canvas').style.display = 'block';
+  drawFngChart(series, which);
+  renderFngMeta(series, which);
+}
+
+function drawFngChart(series, which){
+  const canvas = document.getElementById('fng-canvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 1040, H = 380;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  // bg
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,W,H);
+  // Filter: last 180 days for stocks, all for crypto (already 365)
+  const PAD = { top: 20, right: 60, bottom: 30, left: 50 };
+  const CW = W - PAD.left - PAD.right;
+  const CH = H - PAD.top - PAD.bottom;
+  const n = series.length;
+  const xPos = i => PAD.left + (i / Math.max(n-1,1)) * CW;
+  const yPos = v => PAD.top + CH - (v / 100) * CH;
+  // Background zones — color bands
+  const zones = [
+    { from:0, to:25, color:'rgba(239,68,68,0.10)', label:'Extreme Fear' },
+    { from:25, to:45, color:'rgba(249,115,22,0.08)', label:'Fear' },
+    { from:45, to:55, color:'rgba(163,163,163,0.06)', label:'Neutral' },
+    { from:55, to:75, color:'rgba(132,204,22,0.08)', label:'Greed' },
+    { from:75, to:100,color:'rgba(34,197,94,0.10)', label:'Extreme Greed' }
+  ];
+  zones.forEach(z => {
+    const y1 = yPos(z.to), y2 = yPos(z.from);
+    ctx.fillStyle = z.color;
+    ctx.fillRect(PAD.left, y1, CW, y2 - y1);
+    ctx.fillStyle = 'rgba(160,172,190,0.4)';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText(z.label, PAD.left + 6, (y1+y2)/2 + 3);
+  });
+  // Y axis labels (0..100)
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = 'right';
+  [0,25,50,75,100].forEach(v => { ctx.fillText(v.toString(), PAD.left-6, yPos(v)+3); });
+  // X axis time labels
+  ctx.fillStyle = '#6e7681';
+  ctx.textAlign = 'center';
+  const labelCount = 6;
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.floor(i * (n-1) / (labelCount-1));
+    const d = new Date(series[idx].t);
+    ctx.fillText(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}), xPos(idx), H - 12);
+  }
+  // Line — color segments by value
+  for (let i = 1; i < n; i++) {
+    const v1 = series[i-1].v, v2 = series[i].v;
+    const c = (v1+v2)/2 < 25 ? '#ef4444' : (v1+v2)/2 < 45 ? '#f97316' : (v1+v2)/2 < 55 ? '#a3a3a3' : (v1+v2)/2 < 75 ? '#84cc16' : '#22c55e';
+    ctx.strokeStyle = c; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(xPos(i-1), yPos(v1));
+    ctx.lineTo(xPos(i), yPos(v2));
+    ctx.stroke();
+  }
+  // Current value marker
+  const last = series[n-1];
+  const lc = last.v < 25 ? '#ef4444' : last.v < 45 ? '#f97316' : last.v < 55 ? '#a3a3a3' : last.v < 75 ? '#84cc16' : '#22c55e';
+  ctx.fillStyle = lc;
+  ctx.beginPath(); ctx.arc(xPos(n-1), yPos(last.v), 4, 0, Math.PI*2); ctx.fill();
+  // Badge with current value
+  ctx.fillStyle = lc;
+  ctx.fillRect(W - PAD.right + 4, yPos(last.v) - 9, 36, 18);
+  ctx.fillStyle = '#0d1117'; ctx.font = 'bold 11px JetBrains Mono'; ctx.textAlign = 'center';
+  ctx.fillText(Math.round(last.v), W - PAD.right + 22, yPos(last.v) + 4);
+}
+
+function renderFngMeta(series, which){
+  const el = document.getElementById('fng-meta');
+  if (!el) return;
+  const now = series[series.length-1];
+  const dayAgo = series[series.length-2];
+  const wkAgo = series[Math.max(0, series.length-8)];
+  const moAgo = series[Math.max(0, series.length-31)];
+  const yearAgo = series[0];
+  const min = series.reduce((a,b)=> a.v < b.v ? a : b);
+  const max = series.reduce((a,b)=> a.v > b.v ? a : b);
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">' +
+      ['Now','1d ago','1w ago','1mo ago','1y ago'].map((lbl, i) => {
+        const v = [now, dayAgo, wkAgo, moAgo, yearAgo][i];
+        if (!v) return '';
+        const c = v.v < 25 ? '#ef4444' : v.v < 45 ? '#f97316' : v.v < 55 ? '#a3a3a3' : v.v < 75 ? '#84cc16' : '#22c55e';
+        return '<div style="background:#0d1117;border:1px solid #30363d;border-left:3px solid '+c+';border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">'+lbl+'</div><div style="font-family:JetBrains Mono,monospace;font-size:20px;font-weight:700;color:'+c+'">'+Math.round(v.v)+'</div><div style="font-size:10px;color:'+c+';font-weight:600">'+v.rating.toUpperCase()+'</div></div>';
+      }).join('') +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;color:#8b949e;font-size:11px;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:4px">' +
+      '<span>📉 ' + (which==='stocks'?'1yr':'1yr') + ' low: <b style="color:#ef4444;font-family:JetBrains Mono,monospace">' + Math.round(min.v) + '</b> ' + new Date(min.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + '</span>' +
+      '<span>📈 ' + (which==='stocks'?'1yr':'1yr') + ' high: <b style="color:#22c55e;font-family:JetBrains Mono,monospace">' + Math.round(max.v) + '</b> ' + new Date(max.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + '</span>' +
+      '<span>📊 Data: ' + series.length + ' days</span>' +
+    '</div>' +
+    '<div style="margin-top:12px;color:#6e7681;font-size:11px;line-height:1.6">💡 <b style="color:#c9d1d9">Contrarian guide:</b> Extreme Fear (< 25) often marks buy opportunities. Extreme Greed (> 75) often warns of corrections ahead. Warren Buffett: "Be fearful when others are greedy, greedy when others are fearful."</div>';
 }
 
 // CNN Fear & Greed Index for US stocks — public dataviz endpoint, CORS-friendly
