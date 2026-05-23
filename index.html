@@ -247,7 +247,9 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 #cmd-suggest .cs-cmd { color:#f97316; font-weight:700; min-width:90px; }
 #cmd-suggest .cs-desc { color:#8b949e; font-size:11px; }
 
-#chart-toolbar { display:flex; gap:6px; padding:6px 14px; border-bottom:1px solid #21262d; align-items:center; background:#0d1117; }
+#chart-toolbar { display:flex; gap:6px; padding:6px 14px; border-bottom:1px solid #21262d; align-items:center; background:#0d1117; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; }
+#chart-toolbar::-webkit-scrollbar { height:3px; background:#0d1117; }
+#chart-toolbar::-webkit-scrollbar-thumb { background:#30363d; border-radius:2px; }
 .chart-tool-btn { padding:3px 8px; font-size:11px; cursor:pointer; color:#8b949e; background:#161b22; border:1px solid #30363d; border-radius:4px; font-family:inherit; font-weight:500; }
 .chart-tool-btn:hover { color:#fff; border-color:#58a6ff; }
 .chart-tool-btn.active { color:#f97316; border-color:#f97316; background:rgba(249,115,22,0.08); }
@@ -2056,6 +2058,12 @@ async function renderFundamentalsForSymbol(sym){
       '</span>'
     );
   }
+  // ⚡ EDGE button — always visible in fundamentals bar
+  aEl.insertAdjacentHTML('beforeend',
+    '<span onclick="openEdgeScore(\''+sym+'\')" data-tip="Open EdgeScore — multi-factor bullish/bearish scorecard for ' + sym + '." style="display:flex;align-items:center;gap:6px;margin-left:12px;border-left:1px solid #30363d;padding-left:12px;cursor:pointer;color:#f97316;font-weight:700;background:rgba(249,115,22,0.12);border:1px solid #f97316;padding:3px 10px;border-radius:5px;transition:background 0.12s" onmouseover="this.style.background=\'rgba(249,115,22,0.22)\'" onmouseout="this.style.background=\'rgba(249,115,22,0.12)\'">' +
+      '<span style="font-size:14px">⚡</span><span style="letter-spacing:0.5px">EDGE SCORE</span>' +
+    '</span>'
+  );
 }
 
 // ==================== F&G HISTORICAL CHART ====================
