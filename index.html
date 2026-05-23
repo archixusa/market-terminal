@@ -4367,30 +4367,132 @@ function _searchSelect(sym,type)  {
   }
 }
 
+// Popular US tickers users typically search — kept local for instant suggestions
+const POPULAR_US_STOCKS = [
+  // Tech
+  ['AAPL','Apple Inc.'],['MSFT','Microsoft Corp.'],['GOOGL','Alphabet Class A'],['GOOG','Alphabet Class C'],['AMZN','Amazon.com Inc.'],['META','Meta Platforms'],['NVDA','NVIDIA Corp.'],['TSLA','Tesla Inc.'],['NFLX','Netflix Inc.'],['ADBE','Adobe Inc.'],['CRM','Salesforce'],['ORCL','Oracle Corp.'],['INTC','Intel Corp.'],['AMD','Advanced Micro Devices'],['QCOM','Qualcomm'],['AVGO','Broadcom Inc.'],['TXN','Texas Instruments'],['MU','Micron Technology'],['CSCO','Cisco Systems'],['IBM','IBM Corp.'],['NOW','ServiceNow'],['PANW','Palo Alto Networks'],['CRWD','CrowdStrike'],['SNOW','Snowflake'],['DDOG','Datadog'],['MDB','MongoDB'],['ZS','Zscaler'],['NET','Cloudflare'],['ASML','ASML Holding'],['TSM','Taiwan Semiconductor'],['MRVL','Marvell Technology'],['ARM','Arm Holdings'],['SHOP','Shopify'],['UBER','Uber Technologies'],['LYFT','Lyft Inc.'],['ABNB','Airbnb Inc.'],['SQ','Block Inc.'],['PYPL','PayPal Holdings'],['RBLX','Roblox Corp.'],['SPOT','Spotify'],['SNAP','Snap Inc.'],['PINS','Pinterest'],['TTD','Trade Desk'],['ROKU','Roku Inc.'],['ZM','Zoom Video'],['DOCU','DocuSign'],['TEAM','Atlassian'],['OKTA','Okta Inc.'],['COIN','Coinbase'],['MARA','Marathon Digital'],['RIOT','Riot Platforms'],['MSTR','MicroStrategy'],['PLTR','Palantir'],['SOFI','SoFi Technologies'],['HOOD','Robinhood'],['AFRM','Affirm Holdings'],['U','Unity Software'],
+  // Finance
+  ['JPM','JPMorgan Chase'],['BAC','Bank of America'],['WFC','Wells Fargo'],['C','Citigroup'],['GS','Goldman Sachs'],['MS','Morgan Stanley'],['BLK','BlackRock'],['SCHW','Charles Schwab'],['AXP','American Express'],['V','Visa Inc.'],['MA','Mastercard'],['BRK.A','Berkshire Hathaway A'],['BRK.B','Berkshire Hathaway B'],['BRKB','Berkshire Hath. B'],
+  // Healthcare
+  ['UNH','UnitedHealth Group'],['JNJ','Johnson & Johnson'],['LLY','Eli Lilly'],['ABBV','AbbVie Inc.'],['MRK','Merck & Co.'],['TMO','Thermo Fisher'],['DHR','Danaher Corp.'],['ABT','Abbott Labs'],['PFE','Pfizer Inc.'],['BMY','Bristol-Myers Squibb'],['AMGN','Amgen Inc.'],['GILD','Gilead Sciences'],['BIIB','Biogen Inc.'],['MRNA','Moderna'],['REGN','Regeneron'],['VRTX','Vertex Pharma'],
+  // Consumer
+  ['WMT','Walmart Inc.'],['HD','Home Depot'],['LOW','Lowe\'s Companies'],['TGT','Target Corp.'],['COST','Costco Wholesale'],['MCD','McDonald\'s'],['SBUX','Starbucks'],['NKE','Nike Inc.'],['LULU','Lululemon Athletica'],['DIS','Walt Disney'],['PG','Procter & Gamble'],['KO','Coca-Cola'],['PEP','PepsiCo'],['CL','Colgate-Palmolive'],['KMB','Kimberly-Clark'],['MO','Altria Group'],['PM','Philip Morris'],['MDLZ','Mondelez'],['EL','Estée Lauder'],
+  // Industrials
+  ['BA','Boeing Co.'],['CAT','Caterpillar'],['HON','Honeywell'],['DE','Deere & Co.'],['LMT','Lockheed Martin'],['RTX','RTX Corporation'],['UPS','United Parcel Service'],['FDX','FedEx Corp.'],['GE','GE Aerospace'],['NOC','Northrop Grumman'],['MMM','3M Company'],
+  // Energy
+  ['XOM','ExxonMobil'],['CVX','Chevron Corp.'],['COP','ConocoPhillips'],['SLB','Schlumberger'],['EOG','EOG Resources'],['PSX','Phillips 66'],['OXY','Occidental Petroleum'],['MPC','Marathon Petroleum'],
+  // Auto
+  ['F','Ford Motor'],['GM','General Motors'],['RIVN','Rivian Automotive'],['LCID','Lucid Group'],['NIO','NIO Inc.'],['XPEV','XPeng Inc.'],['LI','Li Auto'],['TM','Toyota Motor'],
+  // Comms / Media
+  ['T','AT&T Inc.'],['VZ','Verizon Communications'],['TMUS','T-Mobile US'],['CMCSA','Comcast'],['CHTR','Charter Communications'],['NFLX','Netflix Inc.'],['WBD','Warner Bros Discovery'],['PARA','Paramount Global'],
+  // China ADRs
+  ['BABA','Alibaba Group'],['JD','JD.com'],['PDD','PDD Holdings'],['BIDU','Baidu Inc.'],['TCEHY','Tencent ADR'],
+  // ETFs (popular)
+  ['SPY','SPDR S&P 500'],['QQQ','Invesco QQQ'],['DIA','SPDR Dow Jones'],['IWM','iShares Russell 2000'],['VOO','Vanguard S&P 500'],['VTI','Vanguard Total Market'],['VEA','Vanguard FTSE Dev'],['VWO','Vanguard Emerging Mkts'],['EEM','iShares MSCI EM'],['EFA','iShares MSCI EAFE'],['GLD','SPDR Gold Shares'],['SLV','iShares Silver'],['USO','US Oil Fund'],['BNO','US Brent Oil'],['UNG','US Natural Gas'],['TLT','iShares 20+ Year Treasury'],['HYG','iShares HY Corp Bond'],['VXX','iPath VIX ST Futures'],['UUP','Invesco Dollar Bull'],['ARKK','ARK Innovation ETF'],['XLK','Tech Select Sector'],['XLF','Financial Select Sector'],['XLE','Energy Select Sector'],['XLV','Health Care Select'],['XLP','Staples Select'],['XLY','Discretionary Select'],['XLI','Industrials Select'],['XLU','Utilities Select'],['XLB','Materials Select'],['XLRE','Real Estate Select'],['XLC','Communication Select']
+];
+const _stockSearchSet = new Set();
 const _allSearchSymbols = [
+  // Add stocks from STOCK_CONFIGS first (these have live data)
   ...Object.entries(STOCK_CONFIGS).map(([sym,conf])=>({sym,name:conf.name,type:'stock'})),
+  // Then popular tickers (skip duplicates)
+  ...POPULAR_US_STOCKS.map(([sym,name])=>({sym,name,type:'stock'})),
+  // Indices
   ...Object.entries(INDEX_CONFIGS).map(([sym,conf])=>({sym,name:conf.name,type:'index'})),
+  // Crypto
   ...[{sym:'BTC',name:'Bitcoin'},{sym:'ETH',name:'Ethereum'},{sym:'SOL',name:'Solana'},
       {sym:'BNB',name:'BNB'},{sym:'XRP',name:'Ripple'},{sym:'DOGE',name:'Dogecoin'},
-      {sym:'ADA',name:'Cardano'},{sym:'AVAX',name:'Avalanche'}].map(c=>({...c,type:'crypto'}))
-];
+      {sym:'ADA',name:'Cardano'},{sym:'AVAX',name:'Avalanche'},{sym:'DOT','name':'Polkadot'},
+      {sym:'LINK',name:'Chainlink'},{sym:'MATIC',name:'Polygon'},{sym:'UNI',name:'Uniswap'},
+      {sym:'LTC',name:'Litecoin'},{sym:'SHIB',name:'Shiba Inu'},{sym:'USDT',name:'Tether'},{sym:'USDC',name:'USD Coin'}].map(c=>({...c,type:'crypto'})),
+  // FX pairs
+  ...['EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/TRY','USD/CAD','AUD/USD','NZD/USD','EUR/GBP','EUR/JPY','GBP/JPY','EUR/CHF','USD/CNY','USD/BRL','USD/INR','USD/MXN'].map(p=>({sym:p,name:p+' Forex',type:'fx'})),
+  // Commodities
+  ...[{sym:'XAU',name:'Gold'},{sym:'XAG',name:'Silver'},{sym:'XPT',name:'Platinum'},{sym:'XPD',name:'Palladium'},{sym:'WTI',name:'WTI Crude Oil'},{sym:'BRT',name:'Brent Crude Oil'},{sym:'NG',name:'Natural Gas'},{sym:'HG',name:'Copper'}].map(c=>({...c,type:'commodity'}))
+].filter(s => {
+  if (_stockSearchSet.has(s.sym)) return false;
+  _stockSearchSet.add(s.sym);
+  return true;
+});
 
+// Finnhub /search for symbols not in our local list
+const _finnhubSearchCache = {};
+async function searchFinnhubSymbol(q){
+  const k = getApiKeys().finnhub;
+  if (!k || q.length < 2) return [];
+  const key = q.toUpperCase();
+  if (_finnhubSearchCache[key]) return _finnhubSearchCache[key];
+  try {
+    const r = await fetch('https://finnhub.io/api/v1/search?q='+encodeURIComponent(q)+'&token='+k, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    if (!j.result || !Array.isArray(j.result)) return [];
+    const results = j.result
+      .filter(r => r.symbol && r.symbol.indexOf('.') === -1 && r.type && (r.type.includes('Common Stock') || r.type === 'ETP' || r.type === 'ADR'))
+      .slice(0, 8)
+      .map(r => ({ sym: r.symbol, name: r.description || r.symbol, type: 'stock', _remote: true }));
+    _finnhubSearchCache[key] = results;
+    return results;
+  } catch(e) { return []; }
+}
+
+let _searchDebounce;
 function handleSearch(val) {
   filterWatchlist(val.toUpperCase());
   const dropdown = document.getElementById('search-dropdown');
   if (!val || val.length < 1) { dropdown.style.display='none'; return; }
-  const matches = _allSearchSymbols.filter(s=>s.sym.toLowerCase().includes(val.toLowerCase())||s.name.toLowerCase().includes(val.toLowerCase())).slice(0,8);
-  if (!matches.length) { dropdown.style.display='none'; return; }
+  // 1) Instant local results
+  const q = val.toLowerCase();
+  const local = _allSearchSymbols.filter(s => s.sym.toLowerCase().includes(q) || (s.name||'').toLowerCase().includes(q));
+  renderSearchDropdown(local.slice(0, 10), val);
+  // 2) Async Finnhub search for broader coverage (debounced)
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(async () => {
+    const remote = await searchFinnhubSymbol(val);
+    // Merge: local first, then remote that aren't already in local
+    const localSyms = new Set(local.map(l => l.sym));
+    const merged = [...local.slice(0, 6), ...remote.filter(r => !localSyms.has(r.sym))].slice(0, 12);
+    renderSearchDropdown(merged, val);
+  }, 220);
+}
+function renderSearchDropdown(matches, query){
+  const dropdown = document.getElementById('search-dropdown');
   const inp = document.getElementById('search-input');
+  if (!matches.length) {
+    // Show "press Enter to try {query}" — Finnhub may know it even if /search didn't return
+    dropdown.innerHTML = '<div style="padding:10px 14px;color:#6e7681;font-size:12px">No local match. Press <b style="color:#f97316">Enter</b> to try <b style="color:#e6edf3;font-family:monospace">' + query.toUpperCase() + '</b> directly.</div>';
+    const box = inp ? inp.getBoundingClientRect() : null;
+    if (box) { dropdown.style.left=box.left+'px'; dropdown.style.top=(box.bottom+4)+'px'; dropdown.style.width=Math.max(260,box.width)+'px'; }
+    dropdown.style.display='block';
+    return;
+  }
   const box = inp ? inp.getBoundingClientRect() : null;
-  if (box) { dropdown.style.left=box.left+'px'; dropdown.style.top=(box.bottom+4)+'px'; dropdown.style.width=Math.max(220,box.width)+'px'; }
-  const typeIcon = {stock:'📈',index:'📊',crypto:'₿'};
-  dropdown.innerHTML = matches.map(m=>`<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background=''" onclick="_searchSelect('${m.sym}','${m.type}')"><span>${typeIcon[m.type]||'📈'}</span><span style="font-weight:700;color:#e6edf3;font-family:monospace">${m.sym}</span><span style="color:#8b949e;font-size:12px;flex:1">${m.name}</span><span style="font-size:10px;color:#8b949e;background:#21262d;padding:1px 5px;border-radius:3px">${m.type}</span></div>`).join('');
+  if (box) { dropdown.style.left=box.left+'px'; dropdown.style.top=(box.bottom+4)+'px'; dropdown.style.width=Math.max(260,box.width)+'px'; }
+  const typeIcon = {stock:'📈',index:'📊',crypto:'₿',fx:'💱',commodity:'⛏'};
+  dropdown.innerHTML = matches.map(m =>
+    `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background=''" onclick="_searchSelect('${m.sym}','${m.type}')">` +
+      '<span>'+(typeIcon[m.type]||'📈')+'</span>' +
+      '<span style="font-weight:700;color:#e6edf3;font-family:JetBrains Mono,monospace">'+m.sym+'</span>' +
+      '<span style="color:#8b949e;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.name||'')+'</span>' +
+      (m._remote ? '<span style="font-size:9px;color:#58a6ff;background:rgba(31,111,235,0.12);padding:1px 5px;border-radius:3px">FINNHUB</span>' : '') +
+      '<span style="font-size:10px;color:#8b949e;background:#21262d;padding:1px 5px;border-radius:3px">'+m.type+'</span>' +
+    '</div>'
+  ).join('');
   dropdown.style.display='block';
 }
 
 function handleSearchKey(e) {
-  if (e.key==='Escape') { document.getElementById('search-dropdown').style.display='none'; e.target.value=''; filterWatchlist(''); }
+  if (e.key==='Escape') { document.getElementById('search-dropdown').style.display='none'; e.target.value=''; filterWatchlist(''); return; }
+  if (e.key==='Enter') {
+    const v = (e.target.value || '').trim().toUpperCase();
+    if (!v) return;
+    e.preventDefault();
+    // Try local match first
+    const found = _allSearchSymbols.find(s => s.sym === v);
+    if (found) _searchSelect(v, found.type);
+    else _searchSelect(v, 'stock'); // assume stock, Finnhub will try to fetch
+    e.target.value = '';
+    document.getElementById('search-dropdown').style.display='none';
+  }
 }
 document.addEventListener('click',e=>{const d=document.getElementById('search-dropdown');const i=document.getElementById('search-input');if(d&&i&&!i.contains(e.target)&&!d.contains(e.target))d.style.display='none';});
 
@@ -4465,6 +4567,7 @@ function cmdRunSuggest(idx) {
     renderCmdSuggest([]);
   }
 }
+let _cmdDebounce;
 function cmdInput(e) {
   const val = e.target.value.trim();
   if (!val) { renderCmdSuggest([]); return; }
@@ -4473,14 +4576,26 @@ function cmdInput(e) {
     const matches = COMMANDS.filter(c => c.cmd.startsWith(v)).slice(0, 8);
     _cmdSuggestIdx = 0;
     renderCmdSuggest(matches);
-  } else {
-    const matches = _allSearchSymbols
-      .filter(s => s.sym.toLowerCase().includes(v) || s.name.toLowerCase().includes(v))
-      .slice(0, 8)
-      .map(s => ({ cmd: s.sym, desc: s.name + '  ·  ' + s.type, symbol: s.sym }));
-    _cmdSuggestIdx = 0;
-    renderCmdSuggest(matches);
+    return;
   }
+  // Local matches first
+  const local = _allSearchSymbols
+    .filter(s => s.sym.toLowerCase().includes(v) || (s.name||'').toLowerCase().includes(v))
+    .slice(0, 8)
+    .map(s => ({ cmd: s.sym, desc: (s.name||'') + '  ·  ' + s.type, symbol: s.sym }));
+  _cmdSuggestIdx = 0;
+  renderCmdSuggest(local);
+  // Then async Finnhub
+  clearTimeout(_cmdDebounce);
+  _cmdDebounce = setTimeout(async () => {
+    const remote = await searchFinnhubSymbol(val);
+    const localSyms = new Set(local.map(l => l.cmd));
+    const remoteAsItems = remote
+      .filter(r => !localSyms.has(r.sym))
+      .map(r => ({ cmd: r.sym, desc: r.name + '  ·  stock  ·  finnhub', symbol: r.sym }));
+    const merged = [...local.slice(0, 5), ...remoteAsItems].slice(0, 10);
+    renderCmdSuggest(merged);
+  }, 220);
 }
 function cmdKey(e) {
   const box = document.getElementById('cmd-suggest');
