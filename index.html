@@ -398,7 +398,7 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 /* Chart toolbar groups */
 #chart-toolbar { padding: 8px 16px !important; gap: 4px; background: #0d1117 !important; }
 #chart-toolbar > span:not(.chart-tool-btn):not(.chart-tool-sep) { color: #6e7681; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-right: 6px; opacity: 0.8; }
-.chart-tool-btn { padding: 4px 9px !important; border-radius: 5px !important; font-weight: 500 !important; transition: all 0.12s; }
+.chart-tool-btn { padding: 4px 10px !important; border-radius: 5px !important; font-weight: 500 !important; transition: all 0.12s; white-space: nowrap !important; font-size: 11px !important; }
 .chart-tool-btn:hover { background: #21262d !important; border-color: #58a6ff !important; color: #fff !important; }
 .chart-tool-btn.active { background: rgba(249,115,22,0.10) !important; border-color: #f97316 !important; color: #f97316 !important; }
 .chart-tool-sep { width: 1px; height: 20px; background: #21262d; margin: 0 6px; }
@@ -722,15 +722,15 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="chart-tool-btn" onclick="toggleIndicator('macd')" data-ind="macd" data-tip="MACD (12,26,9): trend-following momentum indicator. Histogram positive = upward momentum, negative = downward. MACD line crossing above signal = bullish.">MACD</span>
     <span class="chart-tool-sep"></span>
     <span style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px">Draw</span>
-    <span class="chart-tool-btn" onclick="setDrawTool('trend')" data-draw="trend" data-tip="Trend line: click two points on the chart to draw a diagonal line. Useful for marking support/resistance angles or trends.">📏 Trend</span>
-    <span class="chart-tool-btn" onclick="setDrawTool('hline')" data-draw="hline" data-tip="Horizontal line: click once at a price level. Useful for marking key support, resistance, or alert levels.">— H-Line</span>
-    <span class="chart-tool-btn" onclick="setDrawTool('fib')"   data-draw="fib"   data-tip="Fibonacci retracement: click two points (typically a swing high and a swing low). Auto-draws 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100% levels.">🔱 Fib</span>
-    <span class="chart-tool-btn" onclick="clearDrawings()" data-tip="Remove all drawings on this chart.">🗑</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('trend')" data-draw="trend" data-tip="Trend line: click two points on the chart to draw a diagonal line.">Trend</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('hline')" data-draw="hline" data-tip="Horizontal line: click once at a price level.">Horizontal</span>
+    <span class="chart-tool-btn" onclick="setDrawTool('fib')"   data-draw="fib"   data-tip="Fibonacci retracement: click two points (swing high/low).">Fibonacci</span>
+    <span class="chart-tool-btn" onclick="clearDrawings()" data-tip="Remove all drawings on this chart.">Clear</span>
     <span class="chart-tool-sep"></span>
-    <span class="chart-tool-btn" onclick="quickAlert()" title="Set alert for selected symbol">🔔 Alert</span>
-    <span class="chart-tool-btn" onclick="toggleSplitView()" data-tip="Toggle 2×2 split view — see 4 charts at once.">⊞ Split</span>
+    <span class="chart-tool-btn" onclick="quickAlert()" data-tip="Set a price alert for the selected symbol.">Alert</span>
+    <span class="chart-tool-btn" onclick="toggleSplitView()" data-tip="Toggle 2×2 split view — see 4 charts at once.">Split</span>
     <span style="flex:1"></span>
-    <span style="font-size:10px;color:#6e7681" id="chart-range-info">Daily · 1Y</span>
+    <span id="chart-range-info" style="font-size:10px;color:#6e7681;white-space:nowrap;font-family:'JetBrains Mono',monospace">Daily · 1Y</span>
   </div>
   <div class="chart-meta">
     <div class="chart-stat"><div class="chart-stat-lbl" data-tip="The price at which the market opened today.">Open</div><div class="chart-stat-val" id="cs-open">—</div></div>
