@@ -299,7 +299,8 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 .heat-cell-pct { font-family:"JetBrains Mono",monospace; font-size:11px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
 
 /* ========== Glossary tooltips (JS-positioned) ========== */
-[data-tip] { cursor:help; border-bottom:1px dotted rgba(255,255,255,0.15); }
+/* No visual marker — the tooltip itself on hover is the affordance */
+[data-tip] { cursor:help; }
 #gtt {
   position:fixed; background:#000; color:#e6edf3;
   font-family:Inter,sans-serif; font-weight:400; font-size:11px;
@@ -382,6 +383,84 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 
 /* ========== Hint badges ========== */
 .hint-badge { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; background:#1f6feb; color:#fff; font-size:9px; font-weight:700; margin-left:4px; cursor:help; vertical-align:middle; }
+
+/* ========== Visual cleanup: subtler dividers, consistent radii ========== */
+.panel-head { padding: 12px 16px !important; }
+.panel-title { font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.6px !important; }
+.panel { border-radius: 0 !important; }
+#main { gap: 1px !important; background: rgb(13,17,23) !important; }
+.panel { background: #0d1117 !important; }
+.panel + .panel, .panel:not(:last-child) { box-shadow: inset -1px 0 0 #1a1f26, inset 0 -1px 0 #1a1f26; }
+.wl-table tr:hover td { background: #161b22 !important; }
+.wl-table td { border-bottom: 1px solid #1a1f26 !important; }
+.wl-table th { background: #0d1117 !important; border-bottom: 1px solid #21262d !important; padding: 8px 12px !important; }
+
+/* Chart toolbar groups */
+#chart-toolbar { padding: 8px 16px !important; gap: 4px; background: #0d1117 !important; }
+#chart-toolbar > span:not(.chart-tool-btn):not(.chart-tool-sep) { color: #6e7681; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; margin-right: 6px; opacity: 0.8; }
+.chart-tool-btn { padding: 4px 9px !important; border-radius: 5px !important; font-weight: 500 !important; transition: all 0.12s; }
+.chart-tool-btn:hover { background: #21262d !important; border-color: #58a6ff !important; color: #fff !important; }
+.chart-tool-btn.active { background: rgba(249,115,22,0.10) !important; border-color: #f97316 !important; color: #f97316 !important; }
+.chart-tool-sep { width: 1px; height: 20px; background: #21262d; margin: 0 6px; }
+
+/* Range tabs */
+.chart-tabs { padding: 6px 16px 0 !important; gap: 6px !important; background: #0d1117 !important; }
+.chart-tab { padding: 5px 12px !important; font-size: 11px !important; border-radius: 4px 4px 0 0 !important; font-weight: 600 !important; }
+.chart-tab.active { background: #1f6feb !important; color: #fff !important; border-bottom-color: #1f6feb !important; }
+
+/* Sector strip — quieter dividers, hide rotated group labels */
+.sec-divider { background: #21262d !important; opacity: 0.4; width: 2px !important; }
+.sec-group-label { display: none !important; }
+.sec-card { border-top-width: 2px !important; transition: background 0.12s; min-width: 100px !important; }
+.sec-card:hover { background: #161b22 !important; }
+.sec-card .sec-pct { font-size: 10px !important; }
+
+/* Topbar — quieter background */
+#topbar { background: linear-gradient(180deg, #161b22 0%, #131820 100%) !important; border-bottom: 1px solid #21262d !important; }
+
+/* Ticker bar — subtle */
+#tickerbar { background: #0a0d12 !important; border-bottom: 1px solid #1a1f26 !important; }
+.tick-item { border-right-color: #1a1f26 !important; }
+
+/* Status bar — consistent */
+#statusbar { background: #0a0d12 !important; border-top: 1px solid #1a1f26 !important; }
+.sb-item { font-size: 10px !important; }
+
+/* News filter bar — quieter */
+.news-filter-bar { padding: 10px 12px !important; gap: 5px !important; border-bottom: 1px solid #1a1f26 !important; }
+.news-filter { padding: 4px 10px !important; font-size: 10px !important; font-weight: 600 !important; border-radius: 4px !important; transition: all 0.12s; }
+.news-filter.active { background: rgba(31,111,235,0.12) !important; border-color: #1f6feb !important; color: #58a6ff !important; }
+
+/* Watchlist — cleaner header */
+#wl-listbar { padding: 6px 12px !important; gap: 4px !important; }
+#wl-listbar > span { transition: all 0.12s; }
+
+/* Indices cards — softer */
+.idx-card { transition: background 0.12s, border-color 0.12s; }
+.idx-card:hover { background: #161b22 !important; }
+
+/* Commodity cards — softer */
+.cmd-card { transition: background 0.12s; }
+.cmd-card:hover { background: #161b22 !important; }
+
+/* Chart meta — subtler */
+.chart-meta { background: #0d1117 !important; gap: 1px !important; }
+.chart-stat { background: #0d1117 !important; padding: 10px 14px !important; border-bottom: 1px solid transparent; }
+.chart-stat-lbl { color: #6e7681 !important; font-size: 9px !important; letter-spacing: 0.6px !important; }
+.chart-stat-val { font-size: 14px !important; color: #e6edf3 !important; }
+
+/* Fundamentals bar — quieter */
+#fundamentals-bar { background: #0d1117 !important; border-top: 1px solid #1a1f26 !important; border-bottom: 1px solid #1a1f26 !important; padding: 8px 16px !important; font-size: 11px !important; gap: 16px !important; }
+
+/* Currency strength — neater */
+#strength-panel { padding: 10px 14px !important; border-bottom: 1px solid #1a1f26 !important; }
+.str-row { margin-bottom: 5px !important; }
+
+/* Cmd bar — subtler glow */
+#cmdbar { border-top: 2px solid #f97316 !important; background: #000 !important; }
+
+/* General — consistent border colors */
+.panel-head { border-bottom-color: #1a1f26 !important; }
 
 /* ========== Topbar icon buttons (refresh, calc, book, bell, kb, settings) ========== */
 .nav-tab.icon-btn {
