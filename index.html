@@ -681,7 +681,8 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
     <span class="news-filter" onclick="filterNews('macro')">Macro</span>
     <span class="news-filter" onclick="filterNews('equities')">Equities</span>
     <span class="news-filter" onclick="filterNews('commodities')">Commodities</span>
-    <input id="news-search" type="text" placeholder="search…" oninput="searchNews(this.value)" style="margin-left:auto;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:3px;padding:2px 6px;font-size:10px;outline:none;width:90px;font-family:Inter,sans-serif"/>
+    <span id="news-company-btn" class="news-filter" onclick="toggleCompanyNews(chartState.symbol)" data-tip="Toggle company-specific news for the currently selected chart symbol — fetches headlines from the last 30 days that mention this company.">📈 SPX</span>
+    <input id="news-search" type="text" placeholder="search…" oninput="searchNews(this.value)" style="margin-left:auto;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:3px;padding:2px 6px;font-size:10px;outline:none;width:80px;font-family:Inter,sans-serif"/>
   </div>
   <div id="news-body" class="panel-body"></div>
 </div>
@@ -1842,6 +1843,10 @@ async function fetchLiveNews(){
   return result;
 }
 async function loadLiveNewsIntoFeed(){
+  // If user is viewing company-specific news, refresh that instead
+  if (window._companyNewsSymbol) {
+    return loadCompanyNewsIntoFeed(window._companyNewsSymbol);
+  }
   const news = await fetchLiveNews();
   if (!news.length) return;
   // Replace the global newsData with live news
@@ -1850,6 +1855,94 @@ async function loadLiveNewsIntoFeed(){
   renderNews(_newsCatFilter || 'all');
   const badge = document.getElementById('feed-badge');
   if (badge) { badge.style.background='#22c55e'; badge.style.color='#0d1117'; badge.textContent='● LIVE'; }
+}
+
+// Fetch news for a specific company ticker
+async function fetchCompanyNews(symbol){
+  const k = getApiKeys().finnhub;
+  if (!k) return [];
+  const cached = cacheGet('co_news_'+symbol, 5 * 60 * 1000);
+  if (cached) return cached;
+  // Last 30 days
+  const today = new Date();
+  const from  = new Date(today.getTime() - 30 * 24 * 3600 * 1000);
+  const fmt = d => d.toISOString().slice(0, 10);
+  try {
+    const url = 'https://finnhub.io/api/v1/company-news?symbol='+symbol+'&from='+fmt(from)+'&to='+fmt(today)+'&token='+k;
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    if (!Array.isArray(j)) return [];
+    const items = j.slice(0, 40).filter(n => n.headline && n.url).map(n => ({
+      id: n.id,
+      source: (n.source || '').toUpperCase().slice(0, 10),
+      headline: n.headline,
+      body: n.summary || '',
+      image: n.image,
+      url: n.url,
+      datetime: n.datetime,
+      category: 'equities',
+      related: n.related ? n.related.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6) : [symbol],
+      tags: [symbol],
+      impact: 'med',
+      impactText: '',
+      time: _formatNewsTime(n.datetime),
+      breaking: false,
+      highlight: false
+    }));
+    // Dedupe by URL
+    const seen = new Set();
+    const deduped = items.filter(n => { if (seen.has(n.url)) return false; seen.add(n.url); return true; });
+    deduped.sort((a, b) => b.datetime - a.datetime);
+    cacheSet('co_news_'+symbol, deduped);
+    return deduped;
+  } catch(e) { return []; }
+}
+
+async function loadCompanyNewsIntoFeed(symbol){
+  const news = await fetchCompanyNews(symbol);
+  newsData.length = 0;
+  news.forEach(n => newsData.push(n));
+  renderNews('all'); // ignore category filter for company news
+  const badge = document.getElementById('feed-badge');
+  if (badge) {
+    if (news.length) {
+      badge.style.background='#1f6feb'; badge.style.color='#fff';
+      badge.textContent='● '+symbol;
+    } else {
+      badge.style.background='#6e7681'; badge.style.color='#fff';
+      badge.textContent='● NO NEWS';
+    }
+  }
+}
+
+// Toggle between company-specific news and general feed
+function toggleCompanyNews(symbol){
+  if (window._companyNewsSymbol === symbol) {
+    // Switch back to general feed
+    window._companyNewsSymbol = null;
+    loadLiveNewsIntoFeed();
+    updateCompanyNewsToggleUI(null);
+  } else {
+    window._companyNewsSymbol = symbol;
+    loadCompanyNewsIntoFeed(symbol);
+    updateCompanyNewsToggleUI(symbol);
+  }
+}
+function updateCompanyNewsToggleUI(activeSymbol){
+  const btn = document.getElementById('news-company-btn');
+  if (!btn) return;
+  if (activeSymbol) {
+    btn.innerHTML = '<span style="color:#fbbf24">●</span> ' + activeSymbol;
+    btn.style.background = 'rgba(31,111,235,0.15)';
+    btn.style.borderColor = '#1f6feb';
+    btn.style.color = '#58a6ff';
+  } else {
+    btn.innerHTML = '📈 ' + (chartState.symbol || 'Symbol');
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#30363d';
+    btn.style.color = '#8b949e';
+  }
 }
 
 // Crypto Fear & Greed Index — alternative.me, free + CORS
@@ -3617,6 +3710,18 @@ function selectStock(sym){
   highlightWatchlistRow(sym);
   loadLiveChart(sym, selectedType);
   renderFundamentalsForSymbol(sym);
+  // Update news button label
+  const btn = document.getElementById('news-company-btn');
+  if (btn && window._companyNewsSymbol !== sym) {
+    if (window._companyNewsSymbol) {
+      // Already viewing company news — switch to the new symbol's news automatically
+      window._companyNewsSymbol = sym;
+      loadCompanyNewsIntoFeed(sym);
+      updateCompanyNewsToggleUI(sym);
+    } else {
+      updateCompanyNewsToggleUI(null);
+    }
+  }
 }
 function selectIndex(sym){
   selectedSym=sym;
@@ -3626,6 +3731,9 @@ function selectIndex(sym){
   if(el)el.textContent=sym+' — '+(INDEX_CONFIGS[sym]?.name||sym);
   loadLiveChart(sym,'index');
   renderFundamentalsForSymbol(sym);
+  // News button updates to show new index symbol
+  const btn = document.getElementById('news-company-btn');
+  if (btn && !window._companyNewsSymbol) updateCompanyNewsToggleUI(null);
 }
 function highlightWatchlistRow(sym){
   document.querySelectorAll('.wl-table tbody tr').forEach(tr=>tr.classList.toggle('wl-row-selected', tr.dataset.sym===sym));
