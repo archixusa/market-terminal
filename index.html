@@ -854,7 +854,7 @@ function renderNews(cat)  {
   const impactDot = {high:'#ef5350',med:'#ffa726',low:'#58a6ff'};
   const impactLabel = {high:'HIGH IMPACT',med:'MED IMPACT',low:'LOW IMPACT'};
 
-  const items = window.newsData.filter(n => filter === 'all' || n.category === filter);
+  const items = (window.newsData || newsData).filter(n => filter === 'all' || n.category === filter);
 
   body.innerHTML = items.map(n => {
     const srcBg = srcColors[n.source] || '#333';
@@ -1305,7 +1305,7 @@ async function init() {
   renderNews('all');
   
   // News count badge
-  document.getElementById('news-count-badge').textContent = newsData.length;
+  document.getElementById('news-count-badge').textContent = (window.newsData || newsData).length;
   
   // Crypto fiyatlarını al
   await fetchCryptoLive();
@@ -1363,7 +1363,7 @@ async function init() {
     const n = liveNewsPool[Math.floor(Math.random()*liveNewsPool.length)];
     const now = new Date();
     const t = now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
-    newsData.unshift({...n, id:++_liveId, time:t, breaking:Math.random()<0.08, highlight:Math.random()<0.2});
+    (window.newsData || newsData).unshift({...n, id:++_liveId, time:t, breaking:Math.random()<0.08, highlight:Math.random()<0.2});
     if (newsData.length > 40) newsData.pop();
     renderNews(_newsCatFilter||'all');
     const badge = document.getElementById('feed-badge');
