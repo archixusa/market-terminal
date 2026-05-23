@@ -319,6 +319,7 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
       <span class="search-icon">🔍</span>
       <input class="search-input" id="search-input" type="text" placeholder="Search symbol..." oninput="handleSearch(this.value)" onkeydown="handleSearchKey(event)" />
     </div>
+    <span class="nav-tab" onclick="manualRefresh()" title="Refresh live data (R)" style="font-size:11px">⟳</span>
     <span class="nav-tab" onclick="toggleAlerts()" title="Alerts (Alt+A)" style="font-size:11px">🔔 <span id="alerts-count" style="background:#ef4444;color:#fff;border-radius:9px;padding:0 5px;font-size:9px;font-weight:700;display:none;margin-left:2px">0</span></span>
     <span class="nav-tab" onclick="toggleKbHelp()" title="Keyboard shortcuts (?)" style="font-size:11px">⌨</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
@@ -428,12 +429,13 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 </div>
 <div id="statusbar">
   <div class="sb-item" id="sb-datamode"><span class="sb-dot sb-blue"></span>Data: INIT</div>
-  <div class="sb-item"><span class="sb-dot sb-blue"></span>CoinGecko API: Connected</div>
+  <div class="sb-item" id="sb-budget"><span class="sb-dot sb-blue"></span>API: —</div>
+  <div class="sb-item"><span class="sb-dot sb-blue"></span>CoinGecko: Live</div>
   <div class="sb-item" id="sb-nyse"><span class="sb-dot sb-green"></span>NYSE: OPEN</div>
   <div class="sb-item" id="sb-lse"><span class="sb-dot sb-yellow"></span>LSE: CLOSED</div>
   <div class="sb-item" id="sb-tse"><span class="sb-dot sb-yellow"></span>TSE: CLOSED</div>
   <div class="sb-item" id="sb-lastupdate">Last update: —</div>
-  <div class="sb-item" style="margin-left:auto"><span id="sb-symcount">0</span> symbols loaded</div>
+  <div class="sb-item" style="margin-left:auto"><span id="sb-symcount">0</span> symbols</div>
 </div>
 <div id="cmd-suggest"></div>
 <div id="alerts-panel">
@@ -513,27 +515,50 @@ let DATA_MODE = 'init'; // 'live' | 'sim' | 'mixed' | 'init'
 function setDataMode(m){ DATA_MODE = m; const el=document.getElementById('sb-datamode'); if(el){ const cls = m==='live'?'sb-green':m==='sim'?'sb-yellow':'sb-blue'; el.innerHTML = '<span class="sb-dot '+cls+'"></span>Data: '+(m==='live'?'LIVE':m==='sim'?'SIMULATED':m==='mixed'?'PARTIAL LIVE':'INIT'); } }
 
 // ==================== APIS ====================
-const YAHOO_PROXIES = [
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
-];
-let _proxyIdx = 0;
-async function yahooFetch(url) {
-  let lastErr;
-  for (let attempt = 0; attempt < YAHOO_PROXIES.length; attempt++) {
-    const proxy = YAHOO_PROXIES[(_proxyIdx + attempt) % YAHOO_PROXIES.length];
-    try {
-      const r = await fetch(proxy(url), { signal: AbortSignal.timeout(3500) });
-      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
-      const data = await r.json();
-      if (data?.chart?.result?.[0]) {
-        _proxyIdx = (_proxyIdx + attempt) % YAHOO_PROXIES.length;
-        return data;
-      }
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('all proxies failed');
+// Yahoo direct + proxies are dead/unreliable. Strategy:
+//   - Twelve Data (with user API key, free tier 8 credits/min, 800/day)
+//   - CoinGecko for crypto (free, no key)
+//   - High-quality simulation fallback for everything else
+// Aggressive caching via sessionStorage so reloads don't waste API credits.
+const SESSION_CACHE_KEY = 'mtp_session_cache_v2';
+let _sessionCache;
+function loadSessionCache(){ if (_sessionCache) return _sessionCache; try { _sessionCache = JSON.parse(sessionStorage.getItem(SESSION_CACHE_KEY)||'{}'); } catch(e){ _sessionCache = {}; } return _sessionCache; }
+function saveSessionCache(){ try { sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(_sessionCache||{})); } catch(e){} }
+function cacheGet(key, maxAgeMs){
+  const c = loadSessionCache()[key];
+  if (!c || (Date.now() - c.ts) > maxAgeMs) return null;
+  return c.value;
+}
+function cacheSet(key, value){
+  loadSessionCache()[key] = { ts: Date.now(), value };
+  saveSessionCache();
+}
+
+// Twelve Data rate-limit aware fetch: tracks credits spent in the last minute.
+let _tdCreditsUsed = [];
+function _tdBudgetLeft(){
+  const now = Date.now();
+  _tdCreditsUsed = _tdCreditsUsed.filter(t => now - t < 60000);
+  return Math.max(0, 8 - _tdCreditsUsed.length);
+}
+function _tdSpend(n){
+  const now = Date.now();
+  for (let i = 0; i < n; i++) _tdCreditsUsed.push(now);
+}
+async function tdFetch(path, params, cost){
+  cost = cost || 1;
+  const keys = getApiKeys();
+  if (!keys.twelvedata) return null;
+  if (_tdBudgetLeft() < cost) return null;
+  const qs = new URLSearchParams({ ...params, apikey: keys.twelvedata }).toString();
+  try {
+    _tdSpend(cost);
+    const r = await fetch('https://api.twelvedata.com/'+path+'?'+qs, { signal: AbortSignal.timeout(7000) });
+    const j = await r.json();
+    if (j && j.code === 429) { _tdCreditsUsed = Array(8).fill(Date.now()); return null; }
+    if (j && j.status === 'error') return null;
+    return j;
+  } catch(e) { return null; }
 }
 
 // ==================== SIMULATION ENGINE ====================
@@ -687,82 +712,150 @@ async function fetchCryptoLive(){
   return success;
 }
 
-async function fetchStockPriceTwelve(sym, rangeKey){
-  const keys = getApiKeys();
-  if (!keys.twelvedata) return null;
-  // Twelve Data uses different symbol conventions; pass through but strip ^ for indices
-  const td = sym.replace(/^\^/, '');
+// Twelve Data: map our internal symbols to Twelve Data's
+const TD_INDEX_MAP = { SPX:'SPX', DJI:'DJI', COMP:'IXIC', RUT:'RUT', UKX:'UKX', DAX:'DAX', CAC:'CAC', NKY:'N225', HSI:'HSI', SHCOMP:'SSEC', IBOV:'IBOV', XU100:'XU100' };
+const TD_COMMODITY_MAP = { XAU:'XAU/USD', XAG:'XAG/USD', WTI:'WTI/USD', BRT:'BRENT/USD' };
+
+// Time series for chart — 1 credit per call
+async function fetchChartTwelve(sym, rangeKey){
   const intMap = {'1D':'5min','5D':'30min','1M':'1h','3M':'1day','6M':'1day','YTD':'1day','1Y':'1day','5Y':'1week'};
   const outMap = {'1D':78,'5D':130,'1M':130,'3M':65,'6M':130,'YTD':110,'1Y':260,'5Y':260};
-  const interval = intMap[rangeKey] || '5min';
-  const outputsize = outMap[rangeKey] || 100;
-  try{
-    const url = 'https://api.twelvedata.com/time_series?symbol='+encodeURIComponent(td)+'&interval='+interval+'&outputsize='+outputsize+'&apikey='+keys.twelvedata;
-    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
-    const j = await r.json();
-    if (j.status === 'error' || !j.values) return null;
-    const vals = j.values.slice().reverse();
-    const closes = vals.map(v => parseFloat(v.close));
-    const opens  = vals.map(v => parseFloat(v.open));
-    const highs  = vals.map(v => parseFloat(v.high));
-    const lows   = vals.map(v => parseFloat(v.low));
-    const volumes = vals.map(v => parseFloat(v.volume||0));
-    const ts = vals.map(v => Math.floor(new Date(v.datetime).getTime()/1000));
-    const price = closes[closes.length-1];
-    const prev = closes[closes.length-2] || price;
-    return {
-      sym, price, chg: price-prev, pct: ((price-prev)/prev)*100,
-      open: opens[opens.length-1], high: highs[highs.length-1], low: lows[lows.length-1],
-      prevClose: prev, vol: volumes[volumes.length-1], ts: Date.now(),
-      timestamps: ts, opens, highs, lows, closes, volumes,
-      _source: 'twelvedata'
-    };
-  }catch(e){ return null; }
+  const cacheKey = 'td_chart_'+sym+'_'+rangeKey;
+  const cached = cacheGet(cacheKey, rangeKey === '1D' ? 60000 : 5 * 60000);
+  if (cached) return cached;
+  const j = await tdFetch('time_series', {
+    symbol: TD_INDEX_MAP[sym] || TD_COMMODITY_MAP[sym] || sym,
+    interval: intMap[rangeKey] || '5min',
+    outputsize: outMap[rangeKey] || 100
+  }, 1);
+  if (!j || !j.values) return null;
+  const vals = j.values.slice().reverse();
+  const closes = vals.map(v => parseFloat(v.close));
+  const opens  = vals.map(v => parseFloat(v.open));
+  const highs  = vals.map(v => parseFloat(v.high));
+  const lows   = vals.map(v => parseFloat(v.low));
+  const volumes = vals.map(v => parseFloat(v.volume||0));
+  const ts = vals.map(v => Math.floor(new Date(v.datetime).getTime()/1000));
+  const price = closes[closes.length-1];
+  const prev = closes[closes.length-2] || price;
+  const result = {
+    sym, price, chg: price-prev, pct: ((price-prev)/prev)*100,
+    open: opens[opens.length-1], high: highs[highs.length-1], low: lows[lows.length-1],
+    prevClose: prev, vol: volumes[volumes.length-1], ts: Date.now(),
+    timestamps: ts, opens, highs, lows, closes, volumes,
+    _source: 'twelvedata'
+  };
+  cacheSet(cacheKey, result);
+  return result;
 }
 
+// Batch quotes — multiple symbols at once. Each symbol = 1 credit.
+// Returns map { sym: quoteData }
+async function fetchBatchQuotesTwelve(symbols){
+  if (!symbols.length) return {};
+  // Check cache first - keep symbols not in cache
+  const result = {};
+  const need = [];
+  for (const sym of symbols) {
+    const tdSym = TD_INDEX_MAP[sym] || TD_COMMODITY_MAP[sym] || sym;
+    const c = cacheGet('td_quote_'+sym, 90000);
+    if (c) result[sym] = c;
+    else need.push({ sym, tdSym });
+  }
+  if (!need.length) return result;
+  // Budget check
+  const budget = _tdBudgetLeft();
+  if (budget === 0) return result;
+  const batchSize = Math.min(need.length, budget);
+  const batch = need.slice(0, batchSize);
+  const tdSyms = batch.map(b => b.tdSym).join(',');
+  const j = await tdFetch('quote', { symbol: tdSyms }, batchSize);
+  if (!j) return result;
+  // Response shape: if single → object; if multi → keyed object
+  const items = batch.length === 1
+    ? { [batch[0].tdSym]: j }
+    : j;
+  for (const b of batch) {
+    const data = items[b.tdSym];
+    if (!data || data.code) continue;
+    const price = parseFloat(data.close);
+    const prev  = parseFloat(data.previous_close);
+    const pct   = parseFloat(data.percent_change);
+    if (!isFinite(price)) continue;
+    const q = {
+      sym: b.sym,
+      price,
+      chg: price - prev,
+      pct,
+      open: parseFloat(data.open),
+      high: parseFloat(data.high),
+      low: parseFloat(data.low),
+      prevClose: prev,
+      vol: parseFloat(data.volume) || 0,
+      week52High: data.fifty_two_week?.high ? parseFloat(data.fifty_two_week.high) : undefined,
+      week52Low:  data.fifty_two_week?.low  ? parseFloat(data.fifty_two_week.low)  : undefined,
+      ts: Date.now(),
+      _source: 'twelvedata'
+    };
+    result[b.sym] = q;
+    cacheSet('td_quote_'+b.sym, q);
+  }
+  return result;
+}
+
+// Main fetch — Twelve Data with sim fallback
 async function fetchStockPrice(sym, rangeKey){
   rangeKey = rangeKey || '1D';
-  // Try Twelve Data first if user has key
-  const td = await fetchStockPriceTwelve(sym, rangeKey);
-  if (td) return td;
+  // For chart calls (with rangeKey), use time series
+  const td = await fetchChartTwelve(sym, rangeKey);
+  return td;
+}
 
-  const cfg = RANGE_API[rangeKey] || RANGE_API['1D'];
-  try{
-    const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval='+cfg.interval+'&range='+cfg.range;
-    const data = await yahooFetch(url);
-    const q=data?.chart?.result?.[0];
-    if(!q)return null;
-    const meta=q.meta;
-    const price=meta.regularMarketPrice;
-    const prev=meta.previousClose||meta.chartPreviousClose;
-    const chg=price-prev;
-    const pct=(chg/prev)*100;
-    const quote = q.indicators?.quote?.[0] || {};
-    return{
-      sym,price,chg,pct,
-      open:meta.regularMarketOpen||prev,
-      high:meta.regularMarketDayHigh||price,
-      low:meta.regularMarketDayLow||price,
-      prevClose:prev,
-      vol:meta.regularMarketVolume||0,
-      week52High: meta.fiftyTwoWeekHigh,
-      week52Low: meta.fiftyTwoWeekLow,
-      ts:Date.now(),
-      timestamps:q.timestamp,
-      opens: quote.open,
-      highs: quote.high,
-      lows: quote.low,
-      closes: quote.close,
-      volumes: quote.volume,
-      currency: meta.currency
+// CoinGecko historical chart for crypto symbols
+const COINGECKO_IDS = { BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin', XRP:'ripple', USDT:'tether', USDC:'usd-coin', ADA:'cardano', AVAX:'avalanche-2', DOT:'polkadot', MATIC:'matic-network', LINK:'chainlink', UNI:'uniswap', DOGE:'dogecoin', SHIB:'shiba-inu', LTC:'litecoin' };
+async function fetchChartCoinGecko(sym, rangeKey){
+  const id = COINGECKO_IDS[sym];
+  if (!id) return null;
+  const cacheKey = 'cg_chart_'+sym+'_'+rangeKey;
+  const cached = cacheGet(cacheKey, rangeKey === '1D' ? 60000 : 5 * 60000);
+  if (cached) return cached;
+  const daysMap = { '1D':1, '5D':7, '1M':30, '3M':90, '6M':180, 'YTD':180, '1Y':365, '5Y':1825 };
+  const days = daysMap[rangeKey] || 1;
+  try {
+    const url = 'https://api.coingecko.com/api/v3/coins/'+id+'/market_chart?vs_currency=usd&days='+days;
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j.prices || !j.prices.length) return null;
+    // CoinGecko returns [[ts, price], ...] – approximate OHLC from close-only
+    const prices = j.prices;
+    const vols = j.total_volumes || [];
+    const closes = prices.map(p => p[1]);
+    const ts = prices.map(p => Math.floor(p[0]/1000));
+    const volumes = vols.map(v => v[1]);
+    const price = closes[closes.length-1];
+    const prev  = closes[0];
+    const result = {
+      sym, price, chg: price - prev, pct: ((price-prev)/prev)*100,
+      open: prev, high: Math.max(...closes), low: Math.min(...closes),
+      prevClose: prev, vol: volumes[volumes.length-1] || 0,
+      ts: Date.now(),
+      timestamps: ts,
+      opens: closes.map((c,i)=> i ? closes[i-1] : c),
+      highs: closes.map(c => c*1.002),
+      lows:  closes.map(c => c*0.998),
+      closes, volumes,
+      _source: 'coingecko'
     };
-  }catch(e){return null;}
+    cacheSet(cacheKey, result);
+    return result;
+  } catch(e) { return null; }
 }
 
 const INDEX_YAHOO = {SPX:'^GSPC',DJI:'^DJI',COMP:'^IXIC',RUT:'^RUT',UKX:'^FTSE',DAX:'^GDAXI',CAC:'^FCHI',NKY:'^N225',HSI:'^HSI',SHCOMP:'000001.SS',IBOV:'^BVSP',XU100:'XU100.IS'};
 async function fetchIndexPrice(sym, rangeKey){
-  const y=INDEX_YAHOO[sym]||sym;
-  return fetchStockPrice(y, rangeKey);
+  // Twelve Data expects symbol per TD_INDEX_MAP; fetchChartTwelve handles the mapping
+  return fetchChartTwelve(sym, rangeKey || '1D');
 }
 
 // Commodities futures via Yahoo (fallback to sim)
@@ -835,7 +928,31 @@ async function refreshNextStock(){
   }
 }
 
-function updateWatchlistRow(sym,d){const row=document.querySelector('.wl-table tr[data-sym="'+sym+'"]');if(!row)return;const cells=row.querySelectorAll('td');if(cells.length<2)return;const isUp=d.pct>=0;cells[1].textContent=d.price.toFixed(2);if(cells[2])cells[2].innerHTML='<span class="chg-pill '+(isUp?'g':'r')+'">'+(isUp?'▲':'▼')+' '+Math.abs(d.pct).toFixed(2)+'%</span>';}
+function updateWatchlistRow(sym,d){
+  const row=document.querySelector('.wl-table tr[data-sym="'+sym+'"]');
+  if(!row)return;
+  const cells=row.querySelectorAll('td');
+  if(cells.length<2)return;
+  const isUp=d.pct>=0;
+  // Tiny price-change flash
+  const prevPriceTxt = cells[1].textContent;
+  const prevPrice = parseFloat(prevPriceTxt.replace(/,/g,''));
+  const newPrice = d.price;
+  if (isFinite(prevPrice) && isFinite(newPrice) && prevPrice !== newPrice) {
+    cells[1].classList.remove('flash-g','flash-r');
+    void cells[1].offsetWidth; // restart animation
+    cells[1].classList.add(newPrice > prevPrice ? 'flash-g' : 'flash-r');
+  }
+  cells[1].textContent = newPrice >= 1000 ? newPrice.toLocaleString('en-US',{maximumFractionDigits:2}) : newPrice.toFixed(2);
+  if(cells[2]){
+    const src = LIVE.sourceFor[sym] === 'live' ? '<span title="Live data" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;margin-right:4px;vertical-align:middle"></span>' : '<span title="Simulated" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#6e7681;margin-right:4px;vertical-align:middle"></span>';
+    cells[2].innerHTML = src + '<span class="chg-pill '+(isUp?'g':'r')+'">'+(isUp?'▲':'▼')+' '+Math.abs(d.pct).toFixed(2)+'%</span>';
+  }
+  if (cells[3] && d.vol) {
+    const v = d.vol;
+    cells[3].textContent = v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
+  }
+}
 
 function updateChartHeader(d){
   const pe=document.getElementById('chart-price');
@@ -866,7 +983,7 @@ function renderWatchlist(filter) {
       const live = LIVE.loaded[sym];
       const price = live?.price || conf.base;
       const pct = live?.pct || 0;
-      const vol = live?.vol ? (live.vol>1e9?(live.vol/1e9).toFixed(1)+'B':live.vol>1e6?(live.vol/1e6).toFixed(1)+'M':live.vol+'') : '—';
+      const vol = live?.vol ? (live.vol>=1e9?(live.vol/1e9).toFixed(2)+'B':live.vol>=1e6?(live.vol/1e6).toFixed(1)+'M':live.vol>=1e3?(live.vol/1e3).toFixed(0)+'K':live.vol+'') : '—';
       return {sym, name:conf.name, price, pct, vol};
     });
   tbody.innerHTML = stocks.map(s => {
@@ -1452,7 +1569,10 @@ async function loadLiveChart(sym, type) {
   }
 
   let result = null;
-  if (type === 'stock' || type === 'crypto') {
+  if (type === 'crypto' || COINGECKO_IDS[sym]) {
+    result = await fetchChartCoinGecko(sym, rk);
+    if (!result) result = await fetchStockPrice(sym, rk);
+  } else if (type === 'stock') {
     result = await fetchStockPrice(sym, rk);
   } else if (type === 'index') {
     result = await fetchIndexPrice(sym, rk);
@@ -2333,6 +2453,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'k' || e.key === 'K') { setChartType('candle'); return; }
   if (e.key === 'v' || e.key === 'V') { toggleIndicator('vol'); return; }
   if (e.key === 'm' || e.key === 'M') { toggleIndicator('sma20'); return; }
+  if (e.key === 'r' || e.key === 'R') { manualRefresh(); return; }
 
   // Watchlist nav
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -2387,6 +2508,123 @@ function renderHeatmap() {
 }
 
 // ==================== INIT ====================
+// Strategy: render INSTANTLY with simulation + cached values. Never await
+// network in the critical path. Background fetches upgrade data as they
+// arrive. Watch the Twelve Data 8-credit/minute budget carefully.
+
+function seedAllSimQuotes(){
+  // Seed sim quotes for every known symbol so the UI is alive immediately
+  const all = [
+    ...Object.keys(STOCK_CONFIGS),
+    ...Object.keys(INDEX_CONFIGS),
+    ...Object.keys(COMMODITY_BASES),
+    ...Object.keys(FX_BASES),
+    ...Object.keys(CRYPTO_BASE)
+  ];
+  // Also restore from cache where available
+  const cache = loadSessionCache();
+  all.forEach(sym => {
+    const tdCached = cache['td_quote_'+sym];
+    if (tdCached && tdCached.value && Date.now() - tdCached.ts < 120000) {
+      LIVE.loaded[sym] = tdCached.value;
+      LIVE.sourceFor[sym] = 'live';
+      return;
+    }
+    if (!LIVE.loaded[sym]) {
+      const q = simulateQuote(sym);
+      if (q) { LIVE.loaded[sym] = q; LIVE.sourceFor[sym] = 'sim'; }
+    }
+  });
+  // FX needs LIVE.fx array form for the FX view
+  LIVE.fx = LIVE.fx || [];
+  Object.keys(FX_BASES).forEach(k => {
+    if (LIVE.loaded[k] && !LIVE.fx.find(f => f.pair === k)) {
+      LIVE.fx.push({ pair: k, rate: LIVE.loaded[k].price, pct: LIVE.loaded[k].pct });
+    }
+  });
+  document.getElementById('sb-symcount').textContent = Object.keys(LIVE.loaded).length;
+}
+
+// Smarter watchlist refresh: only refresh symbols the user actually sees
+async function refreshWatchlistLive(){
+  const lists = loadWatchlists();
+  const active = lists.find(w => w.active) || lists[0];
+  if (!active) return 0;
+  const syms = active.symbols.slice(0, 8); // respect budget
+  const fresh = await fetchBatchQuotesTwelve(syms);
+  let hits = 0;
+  for (const [sym, q] of Object.entries(fresh)) {
+    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+    LIVE.sourceFor[sym] = 'live';
+    updateWatchlistRow(sym, q);
+    if (chartState.symbol === sym) updateChartHeader(q);
+    hits++;
+  }
+  if (hits > 0) { updateTickerBar(); checkAlerts(); updateDataModeBadge(); }
+  return hits;
+}
+
+async function refreshIndicesLive(){
+  const syms = Object.keys(INDEX_CONFIGS).slice(0, 6); // budget-conscious
+  const fresh = await fetchBatchQuotesTwelve(syms);
+  for (const [sym, q] of Object.entries(fresh)) {
+    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+    LIVE.sourceFor[sym] = 'live';
+  }
+  if (Object.keys(fresh).length) { renderIndices(); updateTickerBar(); updateDataModeBadge(); }
+  return Object.keys(fresh).length;
+}
+
+async function refreshFXLive(){
+  const syms = ['EUR/USD','GBP/USD','USD/JPY','USD/TRY'];
+  const fresh = await fetchBatchQuotesTwelve(syms);
+  for (const [sym, q] of Object.entries(fresh)) {
+    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+    LIVE.sourceFor[sym] = 'live';
+    const f = LIVE.fx.find(x => x.pair === sym);
+    if (f) { f.rate = q.price; f.pct = q.pct; }
+    else LIVE.fx.push({ pair: sym, rate: q.price, pct: q.pct });
+  }
+  if (Object.keys(fresh).length) { updateTickerBar(); updateDataModeBadge(); }
+  return Object.keys(fresh).length;
+}
+
+async function refreshCommoditiesLive(){
+  const syms = ['XAU','XAG','WTI','BRT'];
+  const fresh = await fetchBatchQuotesTwelve(syms);
+  for (const [sym, q] of Object.entries(fresh)) {
+    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+    LIVE.sourceFor[sym] = 'live';
+  }
+  if (Object.keys(fresh).length) { renderCommodities(); updateTickerBar(); updateDataModeBadge(); }
+  return Object.keys(fresh).length;
+}
+
+function updateDataModeBadge(){
+  const total = Object.keys(LIVE.sourceFor).length;
+  if (total === 0) return;
+  const liveN = Object.values(LIVE.sourceFor).filter(x => x === 'live').length;
+  setDataMode(liveN >= total * 0.6 ? 'live' : liveN > 0 ? 'mixed' : 'sim');
+  const budget = _tdBudgetLeft();
+  const el = document.getElementById('sb-budget');
+  if (el) el.innerHTML = '<span class="sb-dot ' + (budget > 3 ? 'sb-green' : budget > 0 ? 'sb-yellow' : 'sb-yellow') + '"></span>API: ' + budget + '/8 credits/min · ' + liveN + '/' + total + ' live';
+}
+
+async function manualRefresh(){
+  showToast('Refreshing live data', 'Fetching watchlist + indices + FX', 'ok');
+  const wl = await refreshWatchlistLive();
+  const idx = await refreshIndicesLive();
+  const fx  = await refreshFXLive();
+  const cm  = await refreshCommoditiesLive();
+  await fetchCryptoLive();
+  if (chartState.symbol) {
+    // Drop cache for current chart and reload
+    delete LIVE.chartCache[chartState.symbol + '_' + chartState.range];
+    loadLiveChart(chartState.symbol, selectedType);
+  }
+  showToast('Refresh complete', (wl+idx+fx+cm)+' live updates', 'ok');
+}
+
 async function init() {
   updateClock();
   setInterval(updateClock, 1000);
@@ -2403,24 +2641,25 @@ async function init() {
     ]);
   }
 
-  // First render
+  // Step 1: seed every symbol with sim (or cached live) so UI is alive instantly
+  setDataMode('init');
+  seedAllSimQuotes();
+
+  // Step 2: render the shell
   renderWatchlist('');
   renderIndices();
   renderCommodities();
   renderTicker();
   renderNews('all');
-
   document.getElementById('news-count-badge').textContent = (window.newsData || newsData).length;
 
-  // Command line listeners
+  // Step 3: bind input + chart listeners
   const cmdEl = document.getElementById('cmd-input');
   if (cmdEl) {
     cmdEl.addEventListener('input', cmdInput);
     cmdEl.addEventListener('keydown', cmdKey);
     cmdEl.addEventListener('blur', () => setTimeout(() => renderCmdSuggest([]), 150));
   }
-
-  // Chart crosshair listeners
   const wrap = document.getElementById('chart-wrap');
   if (wrap) {
     wrap.addEventListener('mousemove', e => {
@@ -2434,80 +2673,66 @@ async function init() {
     });
   }
 
-  // Live data — fire all in parallel, sim falls back automatically
-  setDataMode('init');
-  const results = await Promise.all([
-    fetchCryptoLive().then(() => { renderCommodities(); return 1; }).catch(()=>0),
-    fetchIndicesLive().catch(()=>0),
-    fetchCommoditiesLive().catch(()=>0),
-    fetchFXLive().catch(()=>0)
-  ]);
-  const liveTotal = results.reduce((a,b)=>a+(b||0),0);
-  // Crypto via CoinGecko is reliable → at minimum 'mixed'
-  setDataMode(liveTotal > 6 ? 'live' : liveTotal > 0 ? 'mixed' : 'sim');
-  updateTickerBar();
-  renderTicker();
+  // Step 4: load default chart from sim (instant) + try live in background
+  selectIndex('SPX');
 
-  // Load SPX initial chart
-  await loadLiveChart('SPX', 'index');
-  document.getElementById('chart-symbol').textContent = 'SPX — S&P 500 Index';
-
-  // Stocks loaded over time (rate limit friendly) with sim fallback
+  // Step 5: background live data — never blocks UI
+  //   - CoinGecko crypto (free, batched, every 45s)
+  //   - Twelve Data: try one batch of indices first, then watchlist on idle
   (async () => {
-    const allSyms = Object.keys(STOCK_CONFIGS).filter(s => s !== 'SPX');
-    // First pass: seed every symbol with simulation so the watchlist is alive immediately
-    allSyms.forEach(sym => {
-      if (!LIVE.loaded[sym]) {
-        const q = simulateQuote(sym);
-        if (q) { LIVE.loaded[sym] = q; LIVE.sourceFor[sym]='sim'; updateWatchlistRow(sym, q); }
-      }
-    });
+    await fetchCryptoLive();
+    renderCommodities();
     updateTickerBar();
-    document.getElementById('sb-symcount').textContent = Object.keys(LIVE.loaded).length;
-    // Second pass: attempt to upgrade to real-time
-    for (let i = 0; i < allSyms.length; i++) {
-      const sym = allSyms[i];
-      fetchStockPrice(sym).then(d => {
-        if (d && d.price) {
-          LIVE.loaded[sym] = d;
-          LIVE.sourceFor[sym] = 'live';
-          updateWatchlistRow(sym, d);
-          if (chartState.symbol === sym) updateChartHeader(d);
-          updateTickerBar();
-          checkAlerts();
-          // Promote DATA_MODE
-          const total = Object.keys(LIVE.sourceFor).length;
-          const liveN = Object.values(LIVE.sourceFor).filter(x => x==='live').length;
-          setDataMode(liveN === total ? 'live' : liveN > 0 ? 'mixed' : 'sim');
-        }
-      });
-      await new Promise(r => setTimeout(r, 350));
-    }
+    updateDataModeBadge();
   })();
 
-  // Periodic refreshers
-  setInterval(refreshNextStock, 4000);
+  // Initial Twelve Data batches — staggered to fit 8-credit/min budget
+  if (getApiKeys().twelvedata) {
+    setTimeout(async () => { await refreshIndicesLive(); }, 200);
+    setTimeout(async () => { await refreshFXLive(); }, 8500);          // next minute window
+    setTimeout(async () => { await refreshWatchlistLive(); }, 17000);  // third minute window
+    setTimeout(async () => { await refreshCommoditiesLive(); }, 25000);
+    // Periodic refresh — staggered, far less frequent than before
+    setInterval(refreshIndicesLive, 5 * 60 * 1000);     // 5 min
+    setInterval(refreshFXLive,      6 * 60 * 1000);     // 6 min
+    setInterval(refreshWatchlistLive, 4 * 60 * 1000);   // 4 min
+    setInterval(refreshCommoditiesLive, 8 * 60 * 1000); // 8 min
+  } else {
+    // Without key, gently animate sim values every 8s so UI feels alive
+    setInterval(() => {
+      Object.keys(LIVE.loaded).forEach(sym => {
+        if (LIVE.sourceFor[sym] !== 'sim') return;
+        const q = simulateQuote(sym);
+        if (q) {
+          LIVE.loaded[sym].price = q.price;
+          LIVE.loaded[sym].pct = q.pct;
+          updateWatchlistRow(sym, q);
+        }
+      });
+      updateTickerBar();
+      checkAlerts();
+    }, 8000);
+  }
+
+  // Crypto refresh (no API key needed)
   setInterval(async () => {
     await fetchCryptoLive();
     renderCommodities();
     updateTickerBar();
-  }, 45000);
-  setInterval(async () => {
-    await fetchIndicesLive();
-    updateTickerBar();
-  }, 30000);
-  setInterval(async () => {
-    await fetchCommoditiesLive();
-  }, 60000);
-  setInterval(async () => {
-    await fetchFXLive();
-  }, 60000);
+    updateDataModeBadge();
+  }, 60 * 1000);
+
+  // Refresh chart for currently-viewed symbol (cached aggressively in fetchChartTwelve)
   setInterval(() => {
     if (document.getElementById('tab-overlay')?.classList.contains('visible')) return;
-    if (chartState.data?.length > 0) drawChart();
-  }, 5000);
+    if (chartState.data?.length > 0) loadLiveChart(chartState.symbol, selectedType);
+  }, 90 * 1000);
 
-  // Notification permission (only when first alert is added, but ask gently up-front)
+  // Budget badge tick
+  setInterval(updateDataModeBadge, 5000);
+  updateDataModeBadge();
+
+  // Notification permission
   if ('Notification' in window && Notification.permission === 'default') {
     setTimeout(() => { try { Notification.requestPermission(); } catch(e){} }, 4000);
   }
