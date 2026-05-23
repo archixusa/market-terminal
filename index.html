@@ -1655,6 +1655,100 @@ async function fetchIndexPrice(sym, rangeKey){
   return fetchChartTwelve(sym, rangeKey || '1D');
 }
 
+// US Treasury daily yield curve — free, no key, CORS-friendly
+// CSV columns: Date,"1 Mo","1.5 Month","2 Mo","3 Mo","4 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"
+const TREASURY_COL_MAP = {
+  'US1M':  '1 Mo',
+  'US3M':  '3 Mo',
+  'US6M':  '6 Mo',
+  'US1Y':  '1 Yr',
+  'US2Y':  '2 Yr',
+  'US3Y':  '3 Yr',
+  'US5Y':  '5 Yr',
+  'US7Y':  '7 Yr',
+  'US10Y': '10 Yr',
+  'US20Y': '20 Yr',
+  'US30Y': '30 Yr'
+};
+// Register missing yield symbols in STOCK_CONFIGS so simulation has bases if API fails
+Object.entries({US1Y:4.02, US3Y:4.18, US7Y:4.41, US20Y:5.06}).forEach(([sym, base]) => {
+  if (!STOCK_CONFIGS[sym]) STOCK_CONFIGS[sym] = { base, vol: 0.04, trend: 0, name: 'US ' + sym.slice(2) + ' Treasury Yield' };
+});
+
+let _treasuryCache = null;
+async function fetchTreasuryYields(){
+  // 1h cache (daily data anyway)
+  if (_treasuryCache && Date.now() - _treasuryCache.ts < 60 * 60 * 1000) return _treasuryCache.data;
+  const cached = cacheGet('treasury_csv', 60 * 60 * 1000);
+  if (cached) { _treasuryCache = { data: cached, ts: Date.now() }; return cached; }
+  try {
+    const year = new Date().getFullYear();
+    const url = 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/' + year + '/all?type=daily_treasury_yield_curve&field_tdr_date_value=' + year;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return null;
+    // Split CSV header (handles quoted columns)
+    const headerRaw = lines[0];
+    const headers = [];
+    let curr = '', inQ = false;
+    for (const ch of headerRaw) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { headers.push(curr); curr = ''; }
+      else curr += ch;
+    }
+    headers.push(curr);
+    const row = (lineIdx) => {
+      const r2 = [];
+      let c = '', q = false;
+      for (const ch of lines[lineIdx]) {
+        if (ch === '"') q = !q;
+        else if (ch === ',' && !q) { r2.push(c); c = ''; }
+        else c += ch;
+      }
+      r2.push(c);
+      return r2;
+    };
+    const latest = row(1);
+    const prev   = lines.length > 2 ? row(2) : latest;
+    const data = {};
+    Object.entries(TREASURY_COL_MAP).forEach(([sym, colName]) => {
+      const idx = headers.indexOf(colName);
+      if (idx === -1) return;
+      const last = parseFloat(latest[idx]);
+      const previousVal = parseFloat(prev[idx]);
+      if (!isFinite(last)) return;
+      const chg = last - previousVal;
+      const pct = previousVal ? (chg / previousVal) * 100 : 0;
+      const dateStr = latest[0]; // e.g. "05/22/2026"
+      const [mo, da, yr] = dateStr.split('/');
+      const ts = new Date(yr + '-' + mo + '-' + da + 'T16:00:00Z').getTime();
+      data[sym] = {
+        sym, price: last, chg, pct,
+        open: previousVal, high: Math.max(last, previousVal), low: Math.min(last, previousVal),
+        prevClose: previousVal, regularClose: last, regularCloseTs: ts,
+        regularOpen: previousVal, regularOpenTs: ts - 6.5*3600*1000,
+        session: 'regular', vol: 0, ts, _source: 'treasury.gov'
+      };
+    });
+    _treasuryCache = { data, ts: Date.now() };
+    cacheSet('treasury_csv', data);
+    return data;
+  } catch(e) { return null; }
+}
+async function refreshTreasuryYields(){
+  const data = await fetchTreasuryYields();
+  if (!data) return 0;
+  let hits = 0;
+  Object.entries(data).forEach(([sym, q]) => {
+    LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q };
+    LIVE.sourceFor[sym] = 'live';
+    hits++;
+  });
+  return hits;
+}
+
 // US Energy Information Administration — free WTI/Brent/Natural Gas spot prices
 // DEMO_KEY works for low volume; cache 1h since data is daily-frequency anyway
 const EIA_CONFIG = {
@@ -1665,15 +1759,21 @@ const EIA_CONFIG = {
 async function fetchEIAPrice(sym){
   const cfg = EIA_CONFIG[sym];
   if (!cfg) return null;
-  const cached = cacheGet('eia_'+sym, 60 * 60 * 1000); // 1h cache (daily-frequency data)
+  // 24h cache — EIA spot prices update daily anyway, and DEMO_KEY is rate-limited
+  const cached = cacheGet('eia_'+sym, 24 * 60 * 60 * 1000);
   if (cached) return cached;
+  const apiKey = getApiKeys().eia || 'DEMO_KEY';
   try {
     const url = 'https://api.eia.gov/v2/' + cfg.endpoint +
-      '/data/?api_key=DEMO_KEY&frequency=daily&data[0]=value&facets[series][]=' + cfg.series +
+      '/data/?api_key=' + apiKey + '&frequency=daily&data[0]=value&facets[series][]=' + cfg.series +
       '&sort[0][column]=period&sort[0][direction]=desc&offset=0&length=2';
     const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
     if (!r.ok) return null;
     const j = await r.json();
+    if (j.error?.code === 'OVER_RATE_LIMIT') {
+      console.warn('[EIA] DEMO_KEY rate-limited. Add your own key with /apikey eia YOURKEY (free at eia.gov/opendata).');
+      return null;
+    }
     const rows = j.response?.data;
     if (!rows || rows.length < 1) return null;
     const last = parseFloat(rows[0].value);
@@ -4982,14 +5082,16 @@ async function init() {
     updateDataModeBadge();
   })();
   (async () => {
-    await fetchCommoditiesLive(); // metals always live via gold-api; oil/gas sim unless API key
+    await fetchCommoditiesLive(); // metals always live via gold-api; oil/gas via EIA
     updateDataModeBadge();
   })();
-  // Refresh metals every 60s
-  setInterval(async () => {
-    await fetchCommoditiesLive();
+  (async () => {
+    await refreshTreasuryYields(); // US Treasury yields, no key
     updateDataModeBadge();
-  }, 60 * 1000);
+  })();
+  // Refresh metals every 60s; treasury every 1h (daily data anyway)
+  setInterval(async () => { await fetchCommoditiesLive(); updateDataModeBadge(); }, 60 * 1000);
+  setInterval(async () => { await refreshTreasuryYields(); updateDataModeBadge(); }, 60 * 60 * 1000);
   fetchFearGreed();
   fetchStockFearGreed();
   fetchCryptoGlobal();
