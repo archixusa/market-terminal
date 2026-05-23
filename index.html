@@ -796,7 +796,7 @@ async function loadLiveChart(sym, type) {
   } else {
     // crypto veya diğerleri: genChartData kullan
     const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
-    const n = RANGE_CONFIGS[chartState.range] || 78;
+    const n = (RANGE_CONFIGS[chartState.range] && RANGE_CONFIGS[chartState.range].points) || 120;
     chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
     drawChart();
     return;
@@ -831,7 +831,7 @@ async function loadLiveChart(sym, type) {
   
   // Fallback: simüle veri
   const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
-  const n = RANGE_CONFIGS[chartState.range] || 78;
+  const n = (RANGE_CONFIGS[chartState.range] && RANGE_CONFIGS[chartState.range].points) || 120;
   chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
   drawChart();
 }
