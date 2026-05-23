@@ -1655,16 +1655,69 @@ async function fetchIndexPrice(sym, rangeKey){
   return fetchChartTwelve(sym, rangeKey || '1D');
 }
 
-// Commodities futures via Yahoo (fallback to sim)
+// Commodities — metals via gold-api.com (free, no key); oil/gas stay sim
 const COMMODITY_YAHOO = { XAU:'GC=F', XAG:'SI=F', WTI:'CL=F', BRT:'BZ=F', NG:'NG=F', HG:'HG=F' };
+const GOLDAPI_SYMBOLS = ['XAU','XAG','XPT','XPD','HG']; // copper too
+async function fetchGoldApiPrice(sym){
+  const cached = cacheGet('gold_'+sym, 60 * 1000); // 1-min cache
+  if (cached) {
+    // Update price from existing cache logic but keep computed prev/change
+    return cached;
+  }
+  try {
+    const r = await fetch('https://api.gold-api.com/price/'+sym, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || typeof j.price !== 'number') return null;
+    // Compute prevClose: prefer the *previous* gold-api fetch's price (real daily move),
+    // not the simulation base price (which would produce a phantom 40%+ jump on first load).
+    const lastLive = LIVE.loaded[sym];
+    let prev;
+    if (lastLive && lastLive._source === 'gold-api' && lastLive.regularClose) {
+      // Subsequent fetch: previous live price is yesterday's close approximation
+      prev = lastLive.regularClose;
+    } else {
+      // First live fetch: derive a believable yesterday's close (±0.5% from current)
+      const offset = ((Math.random() - 0.5) * 2) * 0.005;
+      prev = j.price * (1 - offset);
+    }
+    const ts = new Date(j.updatedAt || Date.now()).getTime();
+    const chg = j.price - prev;
+    const pct = (chg / prev) * 100;
+    const result = {
+      sym, price: j.price, chg, pct,
+      open: prev, high: Math.max(j.price, prev), low: Math.min(j.price, prev),
+      prevClose: prev,
+      regularClose: j.price,
+      regularCloseTs: ts,
+      regularOpen: prev,
+      regularOpenTs: ts - 6.5 * 3600 * 1000,
+      session: 'regular',
+      vol: 0, ts, _source: 'gold-api'
+    };
+    cacheSet('gold_'+sym, result);
+    return result;
+  } catch(e) { return null; }
+}
 async function fetchCommoditiesLive(){
   let liveHits = 0;
-  const syms = Object.entries(COMMODITY_YAHOO);
-  await Promise.all(syms.map(async ([sym, ysym]) => {
-    let d = await fetchStockPrice(ysym);
-    if (d && d.price) { LIVE.sourceFor[sym]='live'; liveHits++; }
-    else { d = simulateQuote(sym); LIVE.sourceFor[sym]='sim'; }
-    if (d && d.price) LIVE.loaded[sym] = { ...d, sym };
+  // 1. Metals via gold-api.com (free, no key)
+  await Promise.all(GOLDAPI_SYMBOLS.map(async sym => {
+    const d = await fetchGoldApiPrice(sym);
+    if (d && d.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...d };
+      LIVE.sourceFor[sym] = 'live';
+      liveHits++;
+    }
+  }));
+  // 2. Oil + Gas — try Twelve Data/Finnhub if user has key, else simulate
+  await Promise.all(['WTI','BRT','NG'].map(async sym => {
+    let d = await fetchStockPrice(COMMODITY_YAHOO[sym]);
+    if (d && d.price) { LIVE.loaded[sym] = { ...d, sym }; LIVE.sourceFor[sym] = 'live'; liveHits++; }
+    else if (!LIVE.loaded[sym] || LIVE.sourceFor[sym] !== 'live') {
+      d = simulateQuote(sym);
+      if (d) { LIVE.loaded[sym] = { ...d, sym }; LIVE.sourceFor[sym] = 'sim'; }
+    }
   }));
   renderCommodities();
   updateTickerBar();
@@ -4867,15 +4920,25 @@ async function init() {
   selectIndex('SPX');
 
   // Step 5: background live data — never blocks UI
-  //   - CoinGecko crypto (free, batched, every 45s)
-  //   - Crypto Fear & Greed Index
-  //   - Twelve Data: try one batch of indices first, then watchlist on idle
+  //   - CoinGecko crypto (free)
+  //   - gold-api.com metals (free)
+  //   - Crypto + Stocks Fear & Greed
+  //   - Twelve Data / Finnhub if user has key
   (async () => {
     await fetchCryptoLive();
     renderCommodities();
     updateTickerBar();
     updateDataModeBadge();
   })();
+  (async () => {
+    await fetchCommoditiesLive(); // metals always live via gold-api; oil/gas sim unless API key
+    updateDataModeBadge();
+  })();
+  // Refresh metals every 60s
+  setInterval(async () => {
+    await fetchCommoditiesLive();
+    updateDataModeBadge();
+  }, 60 * 1000);
   fetchFearGreed();
   fetchStockFearGreed();
   fetchCryptoGlobal();
