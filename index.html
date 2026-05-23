@@ -1660,6 +1660,82 @@ async function fetchStockFearGreed(){
   } catch(e) {}
 }
 
+// ==================== LIVE NEWS (Finnhub) ====================
+function _mapNewsCategory(rawCat, queryCat){
+  if (queryCat === 'crypto') return 'crypto';
+  if (queryCat === 'forex')  return 'fx';
+  if (queryCat === 'merger') return 'equities';
+  const c = (rawCat || '').toLowerCase();
+  if (c.includes('crypto')) return 'crypto';
+  if (c.includes('forex') || c.includes('currency')) return 'fx';
+  if (c.includes('commod') || c.includes('oil') || c.includes('gold')) return 'commodities';
+  if (c.includes('fed') || c.includes('econ') || c.includes('macro')) return 'macro';
+  return 'equities';
+}
+function _formatNewsTime(unixSec){
+  const d = new Date(unixSec * 1000);
+  const now = new Date();
+  const diff = (now - d) / 1000; // seconds
+  if (diff < 3600)       return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400)      return Math.floor(diff/3600) + 'h ago';
+  if (diff < 7*86400)    return Math.floor(diff/86400) + 'd ago';
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+async function fetchLiveNews(){
+  const k = getApiKeys().finnhub;
+  if (!k) return [];
+  const cached = cacheGet('live_news', 5 * 60 * 1000);
+  if (cached) return cached;
+  const cats = ['general', 'forex', 'crypto'];
+  const all = [];
+  await Promise.all(cats.map(async cat => {
+    try {
+      const r = await fetch('https://finnhub.io/api/v1/news?category='+cat+'&token='+k, { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (!Array.isArray(j)) return;
+      j.slice(0, 20).forEach(n => {
+        if (!n.headline || !n.url) return;
+        const related = n.related ? n.related.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6) : [];
+        all.push({
+          id: n.id,
+          source: (n.source || '').toUpperCase().slice(0, 8),
+          headline: n.headline,
+          body: n.summary || '',
+          image: n.image,
+          url: n.url,
+          datetime: n.datetime,
+          category: _mapNewsCategory(n.category, cat),
+          related,
+          tags: related,
+          impact: 'med',
+          impactText: '',
+          time: _formatNewsTime(n.datetime),
+          breaking: false,
+          highlight: false
+        });
+      });
+    } catch(e){}
+  }));
+  // Dedupe by URL
+  const seen = new Set();
+  const deduped = all.filter(n => { if (seen.has(n.url)) return false; seen.add(n.url); return true; });
+  deduped.sort((a, b) => b.datetime - a.datetime);
+  const result = deduped.slice(0, 60);
+  cacheSet('live_news', result);
+  return result;
+}
+async function loadLiveNewsIntoFeed(){
+  const news = await fetchLiveNews();
+  if (!news.length) return;
+  // Replace the global newsData with live news
+  newsData.length = 0;
+  news.forEach(n => newsData.push(n));
+  renderNews(_newsCatFilter || 'all');
+  const badge = document.getElementById('feed-badge');
+  if (badge) { badge.style.background='#22c55e'; badge.style.color='#0d1117'; badge.textContent='● LIVE'; }
+}
+
 // Crypto Fear & Greed Index — alternative.me, free + CORS
 async function fetchFearGreed(){
   try {
@@ -3565,55 +3641,60 @@ function renderNews(cat)  {
   const badge = document.getElementById('news-count-badge');
   if (badge) badge.textContent = items.length;
 
-  body.innerHTML = items.map(n => {
+  body.innerHTML = items.map((n, idx) => {
     const srcBg = srcColors[n.source] || '#333';
     const catBg = catColor[n.category] || '#666';
     const catTxt = catLabel[n.category] || n.category.toUpperCase();
-    const iBg = impactBg[n.impact] || impactBg.low;
-    const iDot = impactDot[n.impact] || '#aaa';
-    const iLbl = impactLabel[n.impact] || '';
-    const tagsHtml = (n.tags || []).map(t => `<span class="news-tag">#${t}</span>`).join('');
-    const relatedHtml = (n.related || []).map(r =>
-      `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:3px;padding:1px 7px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;color:#58a6ff;margin:2px 2px 0 0;cursor:pointer" onclick="event.stopPropagation();newsSymbolClick('${r}')" title="Load chart for ${r}">${r}</span>`
+    const isHero = idx === 0 && !!n.image;
+    const isCompact = idx > 0;
+    const hasUrl = !!n.url;
+    const relatedHtml = (n.related || []).slice(0, 5).map(r =>
+      `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:3px;padding:1px 6px;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:700;color:#58a6ff;margin:2px 2px 0 0;cursor:pointer" onclick="event.stopPropagation();newsSymbolClick('${r}')" title="Load chart for ${r}">${r}</span>`
     ).join('');
+    const openInTab = hasUrl ? `event.stopPropagation();window.open('${n.url}','_blank','noopener')` : 'void 0';
 
+    // Hero card with big image (first item if has image)
+    if (isHero) {
+      return `
+      <div class="news-item news-hero${n.breaking?' breaking':''}" style="border-bottom:1px solid #21262d;cursor:pointer;transition:background 0.15s"
+           onclick="${openInTab}"
+           onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+           onmouseout="this.style.background=''">
+        <div style="position:relative;width:100%;height:160px;overflow:hidden;background:#0d1117">
+          <img src="${n.image}" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'"/>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:40px 12px 10px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent)">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="background:${srcBg};color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
+              <span style="background:${catBg}cc;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
+              ${n.breaking ? '<span style="background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
+              <span style="color:#a3a3a3;font-size:10px;font-family:JetBrains Mono,monospace;margin-left:auto">${n.time}</span>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.35;text-shadow:0 2px 6px rgba(0,0,0,0.8)">${n.headline}</div>
+          </div>
+        </div>
+        ${n.body ? '<div style="padding:8px 12px 4px;font-size:11px;color:#8b949e;line-height:1.5">' + n.body.slice(0, 180) + (n.body.length > 180 ? '…' : '') + '</div>' : ''}
+        ${relatedHtml ? '<div style="padding:0 12px 10px">' + relatedHtml + '</div>' : ''}
+      </div>`;
+    }
+
+    // Compact list item with thumbnail
     return `
-    <div class="news-item${n.breaking?' breaking':''}${n.highlight?' highlight':''}" 
-         style="border-left:3px solid ${n.breaking?'#ef5350':catBg};margin-bottom:0;border-bottom:1px solid #21262d;padding:10px 12px;cursor:pointer;transition:background 0.15s"
-         onclick="window._toggleNewsExpand(this, ${n.id})"
+    <div class="news-item${n.breaking?' breaking':''}${n.highlight?' highlight':''}"
+         style="border-left:3px solid ${n.breaking?'#ef5350':catBg};border-bottom:1px solid #21262d;padding:10px 12px;cursor:pointer;transition:background 0.15s;display:flex;gap:10px"
+         onclick="${openInTab}"
          onmouseover="this.style.background='rgba(255,255,255,0.03)'"
          onmouseout="this.style.background=''">
-      
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap">
-        <span style="background:${srcBg};color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
-        <span style="color:#8b949e;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace">${n.time}</span>
-        <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
-        ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
-        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:${iBg};border:1px solid ${iDot}33;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${iDot}">
-          <span style="width:4px;height:4px;border-radius:50%;background:${iDot};display:inline-block"></span>${iLbl}
-        </span>
-      </div>
-
-      <div style="font-size:13px;font-weight:600;color:#e6edf3;line-height:1.45;margin-bottom:5px">${n.headline}</div>
-
-      <div class="news-expand-body" id="news-body-${n.id}" style="display:none;margin-top:6px">
-        <div style="font-size:12px;color:#c9d1d9;line-height:1.65;margin-bottom:8px;padding:8px;background:#0d1117;border-radius:4px;border:1px solid #21262d">${n.body}</div>
-        
-        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;padding:6px 8px;background:${iBg};border-radius:4px;border:1px solid ${iDot}22">
-          <span style="color:${iDot};font-size:11px;font-weight:700">📊 MARKET IMPACT:</span>
-          <span style="color:#c9d1d9;font-size:11px">${n.impactText}</span>
+      ${n.image ? '<div style="flex-shrink:0;width:64px;height:64px;background:#21262d;border-radius:4px;overflow:hidden"><img src="' + n.image + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.display=\'none\'"/></div>' : ''}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
+          <span style="background:${srcBg};color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
+          <span style="color:#8b949e;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace">${n.time}</span>
+          <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
+          ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px">● BREAKING</span>' : ''}
         </div>
-
-        ${n.related && n.related.length > 0 ? `
-        <div style="margin-top:4px">
-          <span style="font-size:10px;color:#8b949e;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">İLGİLİ SEMBOLLER → </span>
-          ${relatedHtml}
-        </div>` : ''}
-      </div>
-
-      <div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap">
-        <div class="news-tags" style="flex:1">${tagsHtml}</div>
-        <span style="font-size:10px;color:#444;transition:color 0.15s" id="news-arrow-${n.id}">▼ detay</span>
+        <div style="font-size:12px;font-weight:600;color:#e6edf3;line-height:1.4;margin-bottom:3px">${n.headline}</div>
+        ${n.body ? '<div style="font-size:10px;color:#8b949e;line-height:1.5;margin-bottom:4px">' + n.body.slice(0, 100) + (n.body.length > 100 ? '…' : '') + '</div>' : ''}
+        ${relatedHtml ? '<div style="margin-top:2px">' + relatedHtml + '</div>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -5273,9 +5354,11 @@ async function init() {
   fetchFearGreed();
   fetchStockFearGreed();
   fetchCryptoGlobal();
-  setInterval(fetchFearGreed,      30 * 60 * 1000); // crypto F&G — daily, 30m refresh fine
-  setInterval(fetchStockFearGreed, 30 * 60 * 1000); // CNN stocks F&G
-  setInterval(fetchCryptoGlobal,   10 * 60 * 1000); // crypto market totals
+  loadLiveNewsIntoFeed(); // real news from Finnhub
+  setInterval(fetchFearGreed,      30 * 60 * 1000);
+  setInterval(fetchStockFearGreed, 30 * 60 * 1000);
+  setInterval(fetchCryptoGlobal,   10 * 60 * 1000);
+  setInterval(loadLiveNewsIntoFeed, 5 * 60 * 1000); // refresh news every 5 min
 
   // Initial batches — staggered to fit credit budget (works with either provider)
   const hasApi = !!(getApiKeys().twelvedata || getApiKeys().finnhub);
@@ -5366,11 +5449,13 @@ async function init() {
     {"source":"WSJ","category":"equities","headline":"JPMorgan beats on net interest income — raises 2026 NII guide to $94B","body":"JPMorgan beat Q1 EPS at $4.84 vs $4.51 consensus. NII of $23.4B beat by $700M. Bank raised full-year NII guide to $94B from $91B. CET1 ratio 15.4%.","tags":["JPM","BANKS","NII","EARNINGS"],"impact":"med","impactText":"JPM +3.2%; BAC +2.1%; C +1.8%; XLF +0.9%","related":["JPM","BAC","C","XLF"]}
   ];
   let _liveId = 500;
+  // Fake news rotator disabled — we now pull real news from Finnhub via loadLiveNewsIntoFeed.
+  // Keep this as a no-op fallback that only activates if no Finnhub key is available.
   setInterval(() => {
-    // Pick from pool, but avoid inserting a headline that's already in the top 8
+    if (getApiKeys().finnhub) return; // real news active, skip fake rotation
     const top = new Set(newsData.slice(0,8).map(x => x.source+'|'+x.headline));
     const fresh = liveNewsPool.filter(x => !top.has(x.source+'|'+x.headline));
-    if (!fresh.length) return; // nothing new to add
+    if (!fresh.length) return;
     const n = fresh[Math.floor(Math.random()*fresh.length)];
     const now = new Date();
     const t = now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
