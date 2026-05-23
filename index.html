@@ -234,47 +234,71 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 .news-tag { cursor: default; }
 #news-panel .panel-body { scroll-behavior: smooth; }
 .chart-tab { user-select: none; }
-
-#tab-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:#0d1117;flex-direction:column;overflow:hidden}
-#tab-overlay.visible{display:flex}
-.overlay-header{display:flex;align-items:center;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;gap:12px;flex-shrink:0}
-.overlay-title{font-size:14px;font-weight:700;color:#e6edf3;flex:1}
-.overlay-close{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px}
-.crypto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.crypto-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s}
-.crypto-card:hover,.fx-card:hover{border-color:#58a6ff}
-.crypto-card-sym{font-size:15px;font-weight:700;color:#e6edf3}
-.crypto-card-name{font-size:11px;color:#8b949e;margin-bottom:6px}
-.crypto-card-price{font-size:18px;font-weight:700;font-family:monospace;color:#e6edf3}
-.crypto-card-chg,.fx-card-chg{font-size:12px;font-weight:600;margin-top:2px}
-.crypto-card-meta{font-size:11px;color:#8b949e;margin-top:6px}
-.fx-section-title{font-size:12px;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid #30363d}
-.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px}
-.fx-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
-.wl-manage-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.wl-manage-header input{flex:1;background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:7px 12px;border-radius:6px;font-size:13px;outline:none}
-.wl-manage-header input:focus{border-color:#58a6ff}
-.wl-manage-header button{background:#1f6feb;border:none;color:white;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
-.wl-list-card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:12px}
-.wl-list-card-header{display:flex;align-items:center;padding:10px 12px;background:#21262d;border-bottom:1px solid #30363d}
-.wl-list-card-name{flex:1;font-size:13px;font-weight:700;color:#e6edf3}
-.wl-list-card-btn{background:none;border:1px solid #30363d;color:#8b949e;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:6px}
-.wl-list-card-btn.danger:hover{color:#ff7b72;border-color:#ff7b72}
-.wl-list-items{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;min-height:36px}
-.wl-sym-chip{display:flex;align-items:center;gap:4px;background:#21262d;border:1px solid #30363d;border-radius:4px;padding:3px 8px;font-size:12px}
-.wl-sym-chip span{font-weight:700;color:#e6edf3}
-.wl-sym-chip button{background:none;border:none;color:#8b949e;cursor:pointer;font-size:14px;padding:0;line-height:1}
-.wl-sym-chip button:hover{color:#ff7b72}
-.wl-add-sym{display:flex;gap:6px;padding:6px 12px;border-top:1px solid #30363d}
-.wl-add-sym input{flex:1;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:4px;font-size:12px;outline:none}
-.wl-add-sym input:focus{border-color:#58a6ff}
-.wl-add-sym button{background:#238636;border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px}
-.wl-empty{color:#8b949e;font-size:12px;font-style:italic}
-.wl-active-badge{background:#238636;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:8px}
-.chart-tab.active{background:#1f6feb!important;color:#fff!important;border-color:#1f6feb!important;font-weight:700!important}
-.news-expand-body{animation:fadeIn .2s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 #search-dropdown{position:fixed;background:#161b22;border:1px solid #30363d;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:9999;max-height:250px;overflow-y:auto;display:none;min-width:220px}
+
+/* ============ Bloomberg-style additions ============ */
+#cmdbar { background:#000; border-top:2px solid #f97316; height:34px; display:flex; align-items:center; padding:0 12px; flex-shrink:0; font-family:"JetBrains Mono",monospace; gap:8px; }
+#cmdbar .cmd-prompt { color:#f97316; font-weight:700; font-size:13px; letter-spacing:0.5px; }
+#cmdbar input { flex:1; background:transparent; border:none; outline:none; color:#fff; font-family:inherit; font-size:13px; caret-color:#f97316; }
+#cmdbar .cmd-hint { color:#6e7681; font-size:10px; font-family:Inter,sans-serif; }
+#cmdbar.cmd-error { border-top-color:#ef4444; }
+#cmd-suggest { position:fixed; bottom:60px; left:12px; background:#161b22; border:1px solid #f97316; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.6); z-index:9999; max-height:280px; overflow-y:auto; display:none; min-width:380px; font-family:"JetBrains Mono",monospace; font-size:12px; }
+#cmd-suggest .cs-item { padding:6px 12px; border-bottom:1px solid #21262d; cursor:pointer; display:flex; gap:10px; align-items:center; }
+#cmd-suggest .cs-item:hover, #cmd-suggest .cs-item.sel { background:#21262d; }
+#cmd-suggest .cs-cmd { color:#f97316; font-weight:700; min-width:90px; }
+#cmd-suggest .cs-desc { color:#8b949e; font-size:11px; }
+
+#chart-toolbar { display:flex; gap:6px; padding:6px 14px; border-bottom:1px solid #21262d; align-items:center; background:#0d1117; }
+.chart-tool-btn { padding:3px 8px; font-size:11px; cursor:pointer; color:#8b949e; background:#161b22; border:1px solid #30363d; border-radius:4px; font-family:inherit; font-weight:500; }
+.chart-tool-btn:hover { color:#fff; border-color:#58a6ff; }
+.chart-tool-btn.active { color:#f97316; border-color:#f97316; background:rgba(249,115,22,0.08); }
+.chart-tool-sep { width:1px; height:18px; background:#30363d; margin:0 4px; }
+#chart-hud { position:absolute; top:8px; left:12px; background:rgba(13,17,23,0.92); border:1px solid #30363d; border-radius:4px; padding:6px 10px; font-family:"JetBrains Mono",monospace; font-size:11px; color:#c9d1d9; pointer-events:none; display:none; z-index:5; line-height:1.6; }
+#chart-hud .hud-row { display:flex; gap:8px; }
+#chart-hud .hud-lbl { color:#6e7681; min-width:40px; }
+#chart-hud .hud-up { color:#22c55e; }
+#chart-hud .hud-dn { color:#ef4444; }
+
+.toast-stack { position:fixed; top:60px; right:16px; z-index:10000; display:flex; flex-direction:column; gap:8px; max-width:380px; }
+.toast { background:#161b22; border:1px solid #30363d; border-left:3px solid #f97316; border-radius:6px; padding:10px 14px; font-size:12px; color:#e6edf3; box-shadow:0 8px 24px rgba(0,0,0,.5); animation:toastIn .25s ease; }
+.toast.t-alert { border-left-color:#ef4444; }
+.toast.t-ok { border-left-color:#22c55e; }
+.toast .t-title { font-weight:700; margin-bottom:3px; }
+.toast .t-body { color:#8b949e; font-size:11px; }
+@keyframes toastIn { from { transform:translateX(20px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+#alerts-panel { position:fixed; top:60px; right:16px; width:340px; background:#161b22; border:1px solid #30363d; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.6); z-index:9998; display:none; max-height:70vh; overflow:hidden; flex-direction:column; }
+#alerts-panel.open { display:flex; }
+#alerts-panel .ap-head { padding:10px 12px; border-bottom:1px solid #30363d; display:flex; align-items:center; gap:8px; }
+#alerts-panel .ap-title { flex:1; font-weight:700; font-size:13px; color:#e6edf3; }
+#alerts-panel .ap-close { cursor:pointer; color:#8b949e; font-size:18px; }
+#alerts-panel .ap-form { padding:10px 12px; display:grid; grid-template-columns:1fr 70px 1fr auto; gap:6px; border-bottom:1px solid #30363d; }
+#alerts-panel input, #alerts-panel select { background:#0d1117; border:1px solid #30363d; color:#e6edf3; padding:5px 8px; border-radius:4px; font-size:12px; outline:none; font-family:"JetBrains Mono",monospace; }
+#alerts-panel .ap-add { background:#1f6feb; color:#fff; border:none; cursor:pointer; padding:5px 10px; border-radius:4px; font-size:12px; font-weight:600; }
+#alerts-panel .ap-list { overflow-y:auto; padding:6px; max-height:300px; }
+#alerts-panel .ap-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:4px; font-size:12px; font-family:"JetBrains Mono",monospace; }
+#alerts-panel .ap-item:hover { background:#21262d; }
+#alerts-panel .ap-item .ap-sym { color:#f97316; font-weight:700; min-width:60px; }
+#alerts-panel .ap-item .ap-cond { color:#8b949e; }
+#alerts-panel .ap-item .ap-px { color:#e6edf3; font-weight:600; flex:1; }
+#alerts-panel .ap-item .ap-del { cursor:pointer; color:#6e7681; }
+#alerts-panel .ap-item .ap-del:hover { color:#ef4444; }
+#alerts-panel .ap-item.triggered { opacity:0.5; text-decoration:line-through; }
+
+.kb-help { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9997; display:none; align-items:center; justify-content:center; }
+.kb-help.open { display:flex; }
+.kb-help-box { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:20px; max-width:560px; width:90%; max-height:80vh; overflow-y:auto; }
+.kb-help h3 { color:#f97316; font-size:14px; margin-bottom:12px; letter-spacing:0.5px; }
+.kb-help .kb-row { display:flex; gap:14px; padding:5px 0; font-size:12px; align-items:center; }
+.kb-help .kb-key { background:#0d1117; border:1px solid #30363d; border-radius:4px; padding:2px 8px; min-width:60px; text-align:center; font-family:"JetBrains Mono",monospace; color:#f97316; font-weight:700; font-size:11px; }
+.kb-help .kb-desc { color:#c9d1d9; }
+
+#heatmap-grid { display:grid; gap:2px; padding:10px; height:calc(100% - 20px); }
+.heat-cell { display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; padding:6px; border-radius:3px; overflow:hidden; transition:transform .1s; min-width:0; }
+.heat-cell:hover { transform:scale(1.03); z-index:1; box-shadow:0 4px 12px rgba(0,0,0,0.5); }
+.heat-cell-sym { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:14px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+.heat-cell-pct { font-family:"JetBrains Mono",monospace; font-size:11px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+
 </style>
 </head>
 <body>
@@ -287,6 +311,7 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <span class="nav-tab active" onclick="switchTab('markets')">Markets</span>
     <span class="nav-tab" onclick="switchTab('crypto')">Crypto</span>
     <span class="nav-tab" onclick="switchTab('fx')">FX</span>
+    <span class="nav-tab" onclick="switchTab('heatmap')">Heat Map</span>
     <span class="nav-tab" onclick="switchTab('watchlist')">Watchlist</span>
   </div>
   <div class="topbar-right">
@@ -294,6 +319,8 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
       <span class="search-icon">🔍</span>
       <input class="search-input" id="search-input" type="text" placeholder="Search symbol..." oninput="handleSearch(this.value)" onkeydown="handleSearchKey(event)" />
     </div>
+    <span class="nav-tab" onclick="toggleAlerts()" title="Alerts (Alt+A)" style="font-size:11px">🔔 <span id="alerts-count" style="background:#ef4444;color:#fff;border-radius:9px;padding:0 5px;font-size:9px;font-weight:700;display:none;margin-left:2px">0</span></span>
+    <span class="nav-tab" onclick="toggleKbHelp()" title="Keyboard shortcuts (?)" style="font-size:11px">⌨</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
     <div class="market-status" id="market-status"><span class="status-dot" id="status-dot"></span><span id="market-status-text">NYSE OPEN</span></div>
     <div class="clock-box"><div class="clock-time" id="clock-time">—</div><div class="clock-date" id="clock-date">—</div></div>
@@ -322,12 +349,30 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <span id="chart-chg" style="font-size:13px;font-weight:600;color:#00e676">—</span>
   </div>
   <div class="chart-tabs">
-    <span class="chart-tab active" onclick="setRange('1D',this)">1D</span>
-    <span class="chart-tab" onclick="setRange('5D',this)">5D</span>
-    <span class="chart-tab" onclick="setRange('1M',this)">1M</span>
-    <span class="chart-tab" onclick="setRange('3M',this)">3M</span>
-    <span class="chart-tab" onclick="setRange('YTD',this)">YTD</span>
-    <span class="chart-tab" onclick="setRange('1Y',this)">1Y</span>
+    <span class="chart-tab active" onclick="setRange('1D',this)" data-r="1D">1D</span>
+    <span class="chart-tab" onclick="setRange('5D',this)" data-r="5D">5D</span>
+    <span class="chart-tab" onclick="setRange('1M',this)" data-r="1M">1M</span>
+    <span class="chart-tab" onclick="setRange('3M',this)" data-r="3M">3M</span>
+    <span class="chart-tab" onclick="setRange('6M',this)" data-r="6M">6M</span>
+    <span class="chart-tab" onclick="setRange('YTD',this)" data-r="YTD">YTD</span>
+    <span class="chart-tab" onclick="setRange('1Y',this)" data-r="1Y">1Y</span>
+    <span class="chart-tab" onclick="setRange('5Y',this)" data-r="5Y">5Y</span>
+  </div>
+  <div id="chart-toolbar">
+    <span style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px">Type</span>
+    <span class="chart-tool-btn active" onclick="setChartType('line')" data-type="line">Line</span>
+    <span class="chart-tool-btn" onclick="setChartType('area')" data-type="area">Area</span>
+    <span class="chart-tool-btn" onclick="setChartType('candle')" data-type="candle">Candle</span>
+    <span class="chart-tool-sep"></span>
+    <span style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px">Overlay</span>
+    <span class="chart-tool-btn" onclick="toggleIndicator('sma20')" data-ind="sma20">SMA20</span>
+    <span class="chart-tool-btn" onclick="toggleIndicator('sma50')" data-ind="sma50">SMA50</span>
+    <span class="chart-tool-btn" onclick="toggleIndicator('bb')" data-ind="bb">Bollinger</span>
+    <span class="chart-tool-btn" onclick="toggleIndicator('vol')" data-ind="vol">Volume</span>
+    <span class="chart-tool-sep"></span>
+    <span class="chart-tool-btn" onclick="quickAlert()" title="Set alert for selected symbol">🔔 Alert</span>
+    <span style="flex:1"></span>
+    <span style="font-size:10px;color:#6e7681" id="chart-range-info">Daily · 1Y</span>
   </div>
   <div class="chart-meta">
     <div class="chart-stat"><div class="chart-stat-lbl">Open</div><div class="chart-stat-val" id="cs-open">—</div></div>
@@ -335,10 +380,11 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
     <div class="chart-stat"><div class="chart-stat-lbl">Low</div><div class="chart-stat-val" id="cs-low">—</div></div>
     <div class="chart-stat"><div class="chart-stat-lbl">Close</div><div class="chart-stat-val" id="cs-close">—</div></div>
     <div class="chart-stat"><div class="chart-stat-lbl">Volume</div><div class="chart-stat-val" id="cs-vol">—</div></div>
-    <div class="chart-stat"><div class="chart-stat-lbl">P/E Ratio</div><div class="chart-stat-val">21.4x</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">52W Range</div><div class="chart-stat-val" id="cs-52w" style="font-size:11px">—</div></div>
   </div>
-  <div style="flex:1 1 0%;min-height:0;overflow:hidden;padding:8px;position:relative">
+  <div style="flex:1 1 0%;min-height:0;overflow:hidden;padding:8px;position:relative" id="chart-wrap">
     <canvas id="mainChart"></canvas>
+    <div id="chart-hud"></div>
   </div>
 </div>
 <div id="news-panel" class="panel">
@@ -375,13 +421,59 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
   </div>
 </div>
 </div>
+<div id="cmdbar">
+  <span class="cmd-prompt">›</span>
+  <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type a symbol (AAPL) or command (/help, /alert AAPL > 200, /watch TSLA, /sma 20)" />
+  <span class="cmd-hint" id="cmd-hint">Press <b style="color:#f97316">/</b> to focus · <b style="color:#f97316">?</b> for help</span>
+</div>
 <div id="statusbar">
-  <div class="sb-item"><span class="sb-dot sb-green"></span>Data Feed: Active</div>
+  <div class="sb-item" id="sb-datamode"><span class="sb-dot sb-blue"></span>Data: INIT</div>
   <div class="sb-item"><span class="sb-dot sb-blue"></span>CoinGecko API: Connected</div>
   <div class="sb-item" id="sb-nyse"><span class="sb-dot sb-green"></span>NYSE: OPEN</div>
-  <div class="sb-item"><span class="sb-dot sb-yellow"></span>LSE: CLOSED</div>
-  <div class="sb-item"><span class="sb-dot sb-yellow"></span>TSE: CLOSED</div>
+  <div class="sb-item" id="sb-lse"><span class="sb-dot sb-yellow"></span>LSE: CLOSED</div>
+  <div class="sb-item" id="sb-tse"><span class="sb-dot sb-yellow"></span>TSE: CLOSED</div>
   <div class="sb-item" id="sb-lastupdate">Last update: —</div>
+  <div class="sb-item" style="margin-left:auto"><span id="sb-symcount">0</span> symbols loaded</div>
+</div>
+<div id="cmd-suggest"></div>
+<div id="alerts-panel">
+  <div class="ap-head">
+    <div class="ap-title">🔔 Price Alerts</div>
+    <span class="ap-close" onclick="toggleAlerts()">✕</span>
+  </div>
+  <div class="ap-form">
+    <input id="ap-sym" type="text" placeholder="SYMBOL" autocomplete="off" />
+    <select id="ap-op"><option value=">">≥</option><option value="<">≤</option></select>
+    <input id="ap-px" type="number" placeholder="price" step="any" />
+    <button class="ap-add" onclick="addAlert()">Add</button>
+  </div>
+  <div class="ap-list" id="ap-list"></div>
+</div>
+<div class="toast-stack" id="toast-stack"></div>
+<div class="kb-help" id="kb-help">
+  <div class="kb-help-box">
+    <h3>⌨ KEYBOARD SHORTCUTS</h3>
+    <div class="kb-row"><span class="kb-key">/</span><span class="kb-desc">Focus command line</span></div>
+    <div class="kb-row"><span class="kb-key">Esc</span><span class="kb-desc">Close panels / clear command</span></div>
+    <div class="kb-row"><span class="kb-key">?</span><span class="kb-desc">Toggle this help</span></div>
+    <div class="kb-row"><span class="kb-key">Alt+A</span><span class="kb-desc">Toggle alerts panel</span></div>
+    <div class="kb-row"><span class="kb-key">↑ ↓</span><span class="kb-desc">Navigate watchlist symbols</span></div>
+    <div class="kb-row"><span class="kb-key">Enter</span><span class="kb-desc">Select highlighted symbol</span></div>
+    <div class="kb-row"><span class="kb-key">1–8</span><span class="kb-desc">Switch chart range (1D … 5Y)</span></div>
+    <div class="kb-row"><span class="kb-key">L / A / K</span><span class="kb-desc">Line / Area / Candle chart</span></div>
+    <div class="kb-row"><span class="kb-key">V</span><span class="kb-desc">Toggle volume bars</span></div>
+    <div class="kb-row"><span class="kb-key">M</span><span class="kb-desc">Toggle SMA20</span></div>
+    <h3 style="color:#6e7681;margin-top:14px">COMMAND LINE EXAMPLES</h3>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">AAPL</span><span class="kb-desc">Load chart for AAPL</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/watch TSLA</span><span class="kb-desc">Add to active watchlist</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/unwatch TSLA</span><span class="kb-desc">Remove from watchlist</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/alert NVDA &gt; 250</span><span class="kb-desc">Set price alert</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/range 1M</span><span class="kb-desc">Change chart range</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/chart candle</span><span class="kb-desc">Change chart type</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/heat</span><span class="kb-desc">Open heat map</span></div>
+    <div class="kb-row"><span class="kb-key" style="min-width:140px">/help</span><span class="kb-desc">Show this help</span></div>
+    <div style="text-align:center;margin-top:14px"><span class="chart-tool-btn" onclick="toggleKbHelp()">Close</span></div>
+  </div>
 </div>
 <div id="tab-overlay">
   <div class="overlay-header">
@@ -404,25 +496,346 @@ const WL_STORAGE_KEY = 'mtp_watchlists';
 // ==================== STATE ====================
 let selectedSym  = 'SPX';
 let selectedType = 'index';
-let chartState   = { symbol:'SPX', range:'1D', data:[] };
+let chartState   = { symbol:'SPX', range:'1D', data:[], chartType:'line', indicators:{} };
 let _newsCatFilter = 'all';
+let _alerts = [];
+let _watchlistFocusIdx = -1;
 let newsData = [{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":339,"time":"13:05","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":338,"time":"13:04","breaking":false,"highlight":false},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":337,"time":"13:04","breaking":true,"highlight":true},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":336,"time":"13:03","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":335,"time":"13:02","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":334,"time":"13:02","breaking":true,"highlight":true},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":333,"time":"13:01","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":332,"time":"13:00","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":331,"time":"13:00","breaking":false,"highlight":false},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":330,"time":"12:59","breaking":false,"highlight":false},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 in May — highest reading since February 2025","body":"The Conference Board's Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus estimate of 99.5. The Present Situation Index rose 8.1 points, while the Expectations Index gained 7.8 points. Consumers' assessment of current business conditions improved markedly.","tags":["CONSUMER","MACRO","USD","RETAIL"],"impact":"med","impactText":"Retail ETF XRT +0.5%; Consumer Discretionary XLY +0.4%; USD strengthened","related":["XRT","XLY","AMZN","WMT","TGT"],"id":329,"time":"12:58","breaking":false,"highlight":false},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":328,"time":"12:58","breaking":true,"highlight":true},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":327,"time":"12:57","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":326,"time":"12:56","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"Meta AI assistant reaches 1 billion users — Zuckerberg announces open-source Llama 4 release","body":"Meta Platforms announced its AI assistant has crossed 1 billion monthly active users across WhatsApp, Instagram, Facebook, and Messenger. CEO Mark Zuckerberg simultaneously unveiled the open-source release of Llama 4, which benchmarks show outperforms GPT-4o on several reasoning tasks.","tags":["META","AI","LLAMA","ZUCKERBERG","OPENAI"],"impact":"high","impactText":"META +2.8%; MSFT (OpenAI) -0.4%; GOOGL -0.2%; AI infrastructure plays higher","related":["META","MSFT","GOOGL","NVDA","AMD"],"id":325,"time":"12:56","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":324,"time":"12:56","breaking":true,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":323,"time":"12:55","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":322,"time":"12:53","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":321,"time":"12:52","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":320,"time":"12:52","breaking":false,"highlight":true},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":319,"time":"12:51","breaking":false,"highlight":false},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":318,"time":"12:50","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":317,"time":"12:50","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"Meta AI assistant reaches 1 billion users — Zuckerberg announces open-source Llama 4 release","body":"Meta Platforms announced its AI assistant has crossed 1 billion monthly active users across WhatsApp, Instagram, Facebook, and Messenger. CEO Mark Zuckerberg simultaneously unveiled the open-source release of Llama 4, which benchmarks show outperforms GPT-4o on several reasoning tasks.","tags":["META","AI","LLAMA","ZUCKERBERG","OPENAI"],"impact":"high","impactText":"META +2.8%; MSFT (OpenAI) -0.4%; GOOGL -0.2%; AI infrastructure plays higher","related":["META","MSFT","GOOGL","NVDA","AMD"],"id":316,"time":"12:49","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":315,"time":"12:48","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":314,"time":"12:48","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":313,"time":"12:47","breaking":true,"highlight":true},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":312,"time":"12:47","breaking":false,"highlight":true},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":311,"time":"12:46","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":310,"time":"12:45","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":309,"time":"12:44","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":308,"time":"12:44","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":307,"time":"12:43","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":306,"time":"12:42","breaking":false,"highlight":true},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":305,"time":"12:42","breaking":false,"highlight":false},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 in May — highest reading since February 2025","body":"The Conference Board's Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus estimate of 99.5. The Present Situation Index rose 8.1 points, while the Expectations Index gained 7.8 points. Consumers' assessment of current business conditions improved markedly.","tags":["CONSUMER","MACRO","USD","RETAIL"],"impact":"med","impactText":"Retail ETF XRT +0.5%; Consumer Discretionary XLY +0.4%; USD strengthened","related":["XRT","XLY","AMZN","WMT","TGT"],"id":304,"time":"12:41","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":303,"time":"12:40","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":302,"time":"12:40","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":301,"time":"12:39","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"U.S. 10Y Treasury yield ticks up to 4.33% ahead of Friday PCE data","body":"Treasury yields moved higher as traders positioned defensively ahead of Friday's PCE price index. Consensus expects core PCE at 2.6% YoY. A reading above 2.8% would reduce probability of a July Fed cut.","tags":["RATES","BONDS","FED","USD"],"impact":"med","impactText":"TLT -0.3%; 2Y/10Y spread widened to -14bps","related":["TLT","TBT","IEF","DXY"],"id":208,"time":"12:38","breaking":false,"highlight":false}];
 
-const LIVE = { loaded:{}, fx:[], chartCache:{}, cryptoPriceHistory:{} };
+const LIVE = { loaded:{}, fx:[], chartCache:{}, cryptoPriceHistory:{}, sourceFor:{} };
+const API_KEY_STORAGE = 'mtp_api_keys';
+function getApiKeys(){ try{ return JSON.parse(localStorage.getItem(API_KEY_STORAGE)||'{}'); }catch(e){ return {}; } }
+function setApiKey(provider, key){ const k = getApiKeys(); k[provider] = key; localStorage.setItem(API_KEY_STORAGE, JSON.stringify(k)); }
+let DATA_MODE = 'init'; // 'live' | 'sim' | 'mixed' | 'init'
+function setDataMode(m){ DATA_MODE = m; const el=document.getElementById('sb-datamode'); if(el){ const cls = m==='live'?'sb-green':m==='sim'?'sb-yellow':'sb-blue'; el.innerHTML = '<span class="sb-dot '+cls+'"></span>Data: '+(m==='live'?'LIVE':m==='sim'?'SIMULATED':m==='mixed'?'PARTIAL LIVE':'INIT'); } }
 
 // ==================== APIS ====================
-async function fetchCryptoLive(){try{const ids='bitcoin,ethereum,solana,binancecoin,ripple,tether';const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids+'&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true');const d=await r.json();const m={bitcoin:'BTC',ethereum:'ETH',solana:'SOL',binancecoin:'BNB',ripple:'XRP',tether:'USDT'};Object.entries(d).forEach(([id,v])=>{const sym=m[id];if(sym)LIVE.loaded[sym]={sym,price:v.usd,pct:v.usd_24h_change||0,mktcap:v.usd_market_cap,vol:v.usd_24h_vol,ts:Date.now()};});updateTickerBar();}catch(e){}}
+const YAHOO_PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
+];
+let _proxyIdx = 0;
+async function yahooFetch(url) {
+  let lastErr;
+  for (let attempt = 0; attempt < YAHOO_PROXIES.length; attempt++) {
+    const proxy = YAHOO_PROXIES[(_proxyIdx + attempt) % YAHOO_PROXIES.length];
+    try {
+      const r = await fetch(proxy(url), { signal: AbortSignal.timeout(3500) });
+      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+      const data = await r.json();
+      if (data?.chart?.result?.[0]) {
+        _proxyIdx = (_proxyIdx + attempt) % YAHOO_PROXIES.length;
+        return data;
+      }
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('all proxies failed');
+}
 
-async function fetchStockPrice(sym){try{const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1m&range=1d';const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent(url);const r=await fetch(proxy,{signal:AbortSignal.timeout(8000)});const data=await r.json();const q=data?.chart?.result?.[0];if(!q)return null;const meta=q.meta;const price=meta.regularMarketPrice;const prev=meta.previousClose||meta.chartPreviousClose;const chg=price-prev;const pct=(chg/prev)*100;return{sym,price,chg,pct,open:meta.regularMarketOpen||prev,high:meta.regularMarketDayHigh||price,low:meta.regularMarketDayLow||price,prevClose:prev,vol:meta.regularMarketVolume||0,ts:Date.now(),timestamps:q.timestamp,closes:q.indicators?.quote?.[0]?.close};}catch(e){return null;}}
+// ==================== SIMULATION ENGINE ====================
+// When live proxies fail, we generate believable random-walk OHLCV data so the
+// UI keeps feeling alive. Each tick is small and trends gently. Per-symbol state
+// lets the price evolve smoothly between renders.
+const SIM = { state: {}, seedTs: Date.now() };
 
-async function fetchIndexPrice(sym){const m={SPX:'^GSPC',DJI:'^DJI',COMP:'^IXIC',RUT:'^RUT',UKX:'^FTSE',DAX:'^GDAXI',CAC:'^FCHI',NKY:'^N225',HSI:'^HSI',SHCOMP:'000001.SS',IBOV:'^BVSP'};const y=m[sym];if(!y)return null;return fetchStockPrice(y);}
+function _baseFor(sym){
+  return STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym]
+    || { XAU:{base:2342.5,vol:8,trend:0.002}, XAG:{base:31.24,vol:0.4,trend:0.001},
+         WTI:{base:79.43,vol:0.8,trend:-0.001}, BRT:{base:83.21,vol:0.7,trend:-0.001},
+         NG:{base:2.843,vol:0.05,trend:0.002}, HG:{base:4.523,vol:0.08,trend:0.001} }[sym]
+    || (sym.includes('/') ? { base: sym.startsWith('EUR')?1.1603 : sym.startsWith('GBP')?1.3429 : sym==='USD/JPY'?159.13 : sym==='USD/TRY'?45.71 : 1.0, vol: 0.005, trend: 0 } : null)
+    || { base: LIVE.loaded[sym]?.price || 100, vol: 2, trend: 0 };
+}
+
+function simulateQuote(sym){
+  const conf = _baseFor(sym);
+  if (!conf) return null;
+  let st = SIM.state[sym];
+  if (!st) {
+    // Seed with a realistic opening offset so the symbol shows a believable day's move
+    const sessionShift = (((Math.random()+Math.random()+Math.random()-1.5)/1.5)) * conf.vol * 1.6 + (conf.trend||0) * conf.base * 0.01;
+    const startPrice = Math.max(0.0001, conf.base + sessionShift);
+    st = SIM.state[sym] = {
+      price: startPrice,
+      open: conf.base,
+      high: Math.max(conf.base, startPrice),
+      low: Math.min(conf.base, startPrice),
+      prevClose: conf.base,
+      vol: Math.round(2e5 + Math.random() * 8e6)
+    };
+  }
+  // Gaussian-ish micro step on each subsequent call
+  const r = (Math.random()+Math.random()+Math.random()-1.5)/1.5;
+  const step = r * (conf.vol * 0.12) + (conf.trend||0) * conf.base * 0.0004;
+  st.price = Math.max(0.0001, st.price + step);
+  st.high = Math.max(st.high, st.price);
+  st.low  = Math.min(st.low,  st.price);
+  st.vol  += Math.floor(Math.random() * 1e5);
+  const chg = st.price - st.prevClose;
+  const pct = (chg / st.prevClose) * 100;
+  return {
+    sym, price: st.price, chg, pct,
+    open: st.open, high: st.high, low: st.low, prevClose: st.prevClose,
+    vol: st.vol, ts: Date.now(),
+    week52Low: conf.base * 0.78, week52High: conf.base * 1.22,
+    _sim: true
+  };
+}
+
+function simulateSeries(sym, rangeKey){
+  const conf = _baseFor(sym);
+  if (!conf) return null;
+  const cfg = RANGE_API[rangeKey] || RANGE_API['1D'];
+  // Approx point count per range
+  const POINTS = { '1D':195, '5D':130, '1M':80, '3M':65, '6M':130, 'YTD':110, '1Y':260, '5Y':260 };
+  const n = POINTS[rangeKey] || 120;
+  // Step interval in ms for x-axis
+  const STEP_MS = { '1D':2*60*1000, '5D':15*60*1000, '1M':30*60*1000, '3M':24*3600*1000, '6M':24*3600*1000, 'YTD':24*3600*1000, '1Y':24*3600*1000, '5Y':7*24*3600*1000 };
+  const stepMs = STEP_MS[rangeKey] || 60*1000;
+  const now = Date.now();
+  const startTs = now - stepMs * (n - 1);
+
+  let p = conf.base * (1 - (conf.trend||0) * 0.1);
+  const data = [];
+  const drift = (conf.trend||0) * (conf.base * 0.0003);
+  const v = conf.vol * 0.45;
+  for (let i = 0; i < n; i++) {
+    const ts = startTs + i * stepMs;
+    const dt = new Date(ts);
+    const r = (Math.random()+Math.random()+Math.random()-1.5)/1.5;
+    const move = r * v + drift;
+    const o = p;
+    const c = Math.max(0.0001, p + move);
+    const wick = Math.abs(move) * 0.5 + v * 0.1;
+    const h = Math.max(o, c) + Math.random() * wick;
+    const l = Math.min(o, c) - Math.random() * wick;
+    const vol = Math.round(50000 + Math.random() * 5e5);
+    let lbl;
+    if (rangeKey === '1D' || rangeKey === '5D') lbl = dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0');
+    else if (rangeKey === '1Y' || rangeKey === '5Y' || rangeKey === 'YTD') lbl = dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    else lbl = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    data.push({ t:i, ts, o, h, l, c, v: vol, label: lbl });
+    p = c;
+  }
+  // Make the last bar match the simulated quote
+  const q = simulateQuote(sym);
+  if (q) { data[data.length-1].c = q.price; }
+  return { data, quote: q };
+}
+
+// Map our internal range key → Yahoo (range, interval)
+const RANGE_API = {
+  '1D':  { range:'1d',  interval:'2m'  },
+  '5D':  { range:'5d',  interval:'15m' },
+  '1M':  { range:'1mo', interval:'30m' },
+  '3M':  { range:'3mo', interval:'1d'  },
+  '6M':  { range:'6mo', interval:'1d'  },
+  'YTD': { range:'ytd', interval:'1d'  },
+  '1Y':  { range:'1y',  interval:'1d'  },
+  '5Y':  { range:'5y',  interval:'1wk' }
+};
+
+const CRYPTO_BASE = { BTC:74000, ETH:2050, SOL:80, BNB:640, XRP:1.3, USDT:1.0, USDC:1.0, ADA:0.45, AVAX:25, DOT:5, MATIC:0.4, LINK:13, UNI:7, DOGE:0.13, SHIB:0.000018, LTC:75 };
+const CRYPTO_VOL  = { BTC:1500, ETH:60, SOL:3, BNB:15, XRP:0.04, USDT:0.001, USDC:0.001, ADA:0.02, AVAX:1.2, DOT:0.2, MATIC:0.02, LINK:0.6, UNI:0.3, DOGE:0.008, SHIB:0.000002, LTC:2.5 };
+async function fetchCryptoLive(){
+  const m={bitcoin:'BTC',ethereum:'ETH',solana:'SOL',binancecoin:'BNB',ripple:'XRP',tether:'USDT','usd-coin':'USDC',cardano:'ADA','avalanche-2':'AVAX',polkadot:'DOT','matic-network':'MATIC',chainlink:'LINK',uniswap:'UNI',dogecoin:'DOGE','shiba-inu':'SHIB',litecoin:'LTC'};
+  let success = false;
+  try{
+    const ids=Object.keys(m).join(',');
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids+'&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true', { signal: AbortSignal.timeout(6000) });
+    if (r.ok) {
+      const d=await r.json();
+      Object.entries(d).forEach(([id,v])=>{
+        const sym=m[id];
+        if(sym && v && typeof v.usd === 'number'){
+          LIVE.loaded[sym]={sym,price:v.usd,pct:v.usd_24h_change||0,mktcap:v.usd_market_cap,vol:v.usd_24h_vol,ts:Date.now()};
+          LIVE.sourceFor[sym]='live';
+          success = true;
+        }
+      });
+    }
+  }catch(e){}
+  // Sim fallback for any crypto that didn't load
+  Object.values(m).forEach(sym => {
+    if (!LIVE.loaded[sym] && CRYPTO_BASE[sym]) {
+      // Inject a config for the simulator
+      if (!STOCK_CONFIGS[sym]) {
+        STOCK_CONFIGS[sym] = { base: CRYPTO_BASE[sym], vol: CRYPTO_VOL[sym]||CRYPTO_BASE[sym]*0.03, trend: 0, name: sym };
+      }
+      const q = simulateQuote(sym);
+      if (q) { LIVE.loaded[sym] = { ...q, mktcap: q.price * 1e8 }; LIVE.sourceFor[sym]='sim'; }
+    }
+  });
+  updateTickerBar();
+  checkAlerts();
+  return success;
+}
+
+async function fetchStockPriceTwelve(sym, rangeKey){
+  const keys = getApiKeys();
+  if (!keys.twelvedata) return null;
+  // Twelve Data uses different symbol conventions; pass through but strip ^ for indices
+  const td = sym.replace(/^\^/, '');
+  const intMap = {'1D':'5min','5D':'30min','1M':'1h','3M':'1day','6M':'1day','YTD':'1day','1Y':'1day','5Y':'1week'};
+  const outMap = {'1D':78,'5D':130,'1M':130,'3M':65,'6M':130,'YTD':110,'1Y':260,'5Y':260};
+  const interval = intMap[rangeKey] || '5min';
+  const outputsize = outMap[rangeKey] || 100;
+  try{
+    const url = 'https://api.twelvedata.com/time_series?symbol='+encodeURIComponent(td)+'&interval='+interval+'&outputsize='+outputsize+'&apikey='+keys.twelvedata;
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    const j = await r.json();
+    if (j.status === 'error' || !j.values) return null;
+    const vals = j.values.slice().reverse();
+    const closes = vals.map(v => parseFloat(v.close));
+    const opens  = vals.map(v => parseFloat(v.open));
+    const highs  = vals.map(v => parseFloat(v.high));
+    const lows   = vals.map(v => parseFloat(v.low));
+    const volumes = vals.map(v => parseFloat(v.volume||0));
+    const ts = vals.map(v => Math.floor(new Date(v.datetime).getTime()/1000));
+    const price = closes[closes.length-1];
+    const prev = closes[closes.length-2] || price;
+    return {
+      sym, price, chg: price-prev, pct: ((price-prev)/prev)*100,
+      open: opens[opens.length-1], high: highs[highs.length-1], low: lows[lows.length-1],
+      prevClose: prev, vol: volumes[volumes.length-1], ts: Date.now(),
+      timestamps: ts, opens, highs, lows, closes, volumes,
+      _source: 'twelvedata'
+    };
+  }catch(e){ return null; }
+}
+
+async function fetchStockPrice(sym, rangeKey){
+  rangeKey = rangeKey || '1D';
+  // Try Twelve Data first if user has key
+  const td = await fetchStockPriceTwelve(sym, rangeKey);
+  if (td) return td;
+
+  const cfg = RANGE_API[rangeKey] || RANGE_API['1D'];
+  try{
+    const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval='+cfg.interval+'&range='+cfg.range;
+    const data = await yahooFetch(url);
+    const q=data?.chart?.result?.[0];
+    if(!q)return null;
+    const meta=q.meta;
+    const price=meta.regularMarketPrice;
+    const prev=meta.previousClose||meta.chartPreviousClose;
+    const chg=price-prev;
+    const pct=(chg/prev)*100;
+    const quote = q.indicators?.quote?.[0] || {};
+    return{
+      sym,price,chg,pct,
+      open:meta.regularMarketOpen||prev,
+      high:meta.regularMarketDayHigh||price,
+      low:meta.regularMarketDayLow||price,
+      prevClose:prev,
+      vol:meta.regularMarketVolume||0,
+      week52High: meta.fiftyTwoWeekHigh,
+      week52Low: meta.fiftyTwoWeekLow,
+      ts:Date.now(),
+      timestamps:q.timestamp,
+      opens: quote.open,
+      highs: quote.high,
+      lows: quote.low,
+      closes: quote.close,
+      volumes: quote.volume,
+      currency: meta.currency
+    };
+  }catch(e){return null;}
+}
+
+const INDEX_YAHOO = {SPX:'^GSPC',DJI:'^DJI',COMP:'^IXIC',RUT:'^RUT',UKX:'^FTSE',DAX:'^GDAXI',CAC:'^FCHI',NKY:'^N225',HSI:'^HSI',SHCOMP:'000001.SS',IBOV:'^BVSP',XU100:'XU100.IS'};
+async function fetchIndexPrice(sym, rangeKey){
+  const y=INDEX_YAHOO[sym]||sym;
+  return fetchStockPrice(y, rangeKey);
+}
+
+// Commodities futures via Yahoo (fallback to sim)
+const COMMODITY_YAHOO = { XAU:'GC=F', XAG:'SI=F', WTI:'CL=F', BRT:'BZ=F', NG:'NG=F', HG:'HG=F' };
+async function fetchCommoditiesLive(){
+  let liveHits = 0;
+  const syms = Object.entries(COMMODITY_YAHOO);
+  await Promise.all(syms.map(async ([sym, ysym]) => {
+    let d = await fetchStockPrice(ysym);
+    if (d && d.price) { LIVE.sourceFor[sym]='live'; liveHits++; }
+    else { d = simulateQuote(sym); LIVE.sourceFor[sym]='sim'; }
+    if (d && d.price) LIVE.loaded[sym] = { ...d, sym };
+  }));
+  renderCommodities();
+  updateTickerBar();
+  checkAlerts();
+  return liveHits;
+}
+
+// FX via Yahoo (fallback to sim)
+const FX_PAIRS = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','USDTRY','USDCNY','EURTRY','USDBRL','USDINR','USDMXN','EURGBP','EURJPY','GBPJPY','EURCHF'];
+async function fetchFXLive(){
+  let liveHits = 0;
+  await Promise.all(FX_PAIRS.map(async pair => {
+    const ysym = pair + '=X';
+    const k = pair.slice(0,3) + '/' + pair.slice(3);
+    let d = await fetchStockPrice(ysym);
+    if (d && d.price) { LIVE.sourceFor[k]='live'; liveHits++; }
+    else { d = simulateQuote(k); LIVE.sourceFor[k]='sim'; }
+    if (d && d.price) {
+      LIVE.loaded[k] = { ...d, sym: k };
+      LIVE.fx = LIVE.fx || [];
+      const existing = LIVE.fx.find(f => f.pair === k);
+      if (existing) { existing.rate = d.price; existing.pct = d.pct; }
+      else LIVE.fx.push({ pair: k, rate: d.price, pct: d.pct });
+    }
+  }));
+  updateTickerBar();
+  checkAlerts();
+  return liveHits;
+}
+
+async function fetchIndicesLive(){
+  let liveHits = 0;
+  const syms = Object.keys(INDEX_YAHOO);
+  await Promise.all(syms.map(async sym => {
+    let d = await fetchIndexPrice(sym);
+    if (d && d.price) { LIVE.sourceFor[sym]='live'; liveHits++; }
+    else { d = simulateQuote(sym); LIVE.sourceFor[sym]='sim'; }
+    if (d && d.price) LIVE.loaded[sym] = { ...d, sym };
+  }));
+  renderIndices();
+  updateTickerBar();
+  checkAlerts();
+  return liveHits;
+}
 
 const _STOCK_Q=Object.keys(STOCK_CONFIGS);let _sqi=0;
-async function refreshNextStock(){const sym=_STOCK_Q[_sqi++%_STOCK_Q.length];const d=await fetchStockPrice(sym);if(d&&d.price){LIVE.loaded[sym]=d;updateWatchlistRow(sym,d);if(chartState.symbol===sym)updateChartHeader(d);}}
+async function refreshNextStock(){
+  const sym=_STOCK_Q[_sqi++%_STOCK_Q.length];
+  let d = await fetchStockPrice(sym);
+  if (!d) { d = simulateQuote(sym); LIVE.sourceFor[sym]='sim'; }
+  else LIVE.sourceFor[sym]='live';
+  if(d&&d.price){
+    LIVE.loaded[sym]=d;
+    updateWatchlistRow(sym,d);
+    if(chartState.symbol===sym)updateChartHeader(d);
+    updateTickerBar();
+    checkAlerts();
+  }
+}
 
 function updateWatchlistRow(sym,d){const row=document.querySelector('.wl-table tr[data-sym="'+sym+'"]');if(!row)return;const cells=row.querySelectorAll('td');if(cells.length<2)return;const isUp=d.pct>=0;cells[1].textContent=d.price.toFixed(2);if(cells[2])cells[2].innerHTML='<span class="chg-pill '+(isUp?'g':'r')+'">'+(isUp?'▲':'▼')+' '+Math.abs(d.pct).toFixed(2)+'%</span>';}
 
-function updateChartHeader(d){const pe=document.getElementById('chart-price');const ce=document.getElementById('chart-chg');if(pe)pe.textContent=d.price.toFixed(2);if(ce){const u=d.pct>=0;ce.textContent=(u?'▲ +':'▼ ')+Math.abs(d.pct).toFixed(2)+'%';ce.style.color=u?'#00e676':'#ff5252';}const f=v=>v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v+'';if(d.open){const e=document.getElementById('cs-open');if(e)e.textContent=d.open.toFixed(2);}if(d.high){const e=document.getElementById('cs-high');if(e)e.textContent=d.high.toFixed(2);}if(d.low){const e=document.getElementById('cs-low');if(e)e.textContent=d.low.toFixed(2);}if(d.prevClose){const e=document.getElementById('cs-close');if(e)e.textContent=d.prevClose.toFixed(2);}if(d.vol){const e=document.getElementById('cs-vol');if(e)e.textContent=f(d.vol);}}
+function updateChartHeader(d){
+  const pe=document.getElementById('chart-price');
+  const ce=document.getElementById('chart-chg');
+  if(pe)pe.textContent=d.price.toFixed(2);
+  if(ce){const u=d.pct>=0;ce.textContent=(u?'▲ +':'▼ ')+Math.abs(d.pct).toFixed(2)+'%';ce.style.color=u?'#00e676':'#ff5252';}
+  const f=v=>v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v+'';
+  const setText = (id, val) => { const e=document.getElementById(id); if(e) e.textContent = val; };
+  if(d.open) setText('cs-open', d.open.toFixed(2));
+  if(d.high) setText('cs-high', d.high.toFixed(2));
+  if(d.low)  setText('cs-low',  d.low.toFixed(2));
+  if(d.prevClose) setText('cs-close', d.prevClose.toFixed(2));
+  if(d.vol) setText('cs-vol', f(d.vol));
+  if(d.week52Low && d.week52High) setText('cs-52w', d.week52Low.toFixed(0)+'–'+d.week52High.toFixed(0));
+}
 
 function updateTickerBar(){const items=document.querySelectorAll('.tick-item');items.forEach(item=>{const se=item.querySelector('.tick-sym');const pe=item.querySelector('.tick-price');if(!se||!pe)return;const sym=se.textContent.trim();const d=LIVE.loaded[sym];if(!d)return;const u=d.pct>=0;pe.textContent=(d.price>1000?d.price.toLocaleString('en-US',{maximumFractionDigits:0}):d.price.toFixed(2))+' '+(u?'▲':'▼')+Math.abs(d.pct).toFixed(2)+'%';pe.className='tick-price '+(u?'tick-up':'tick-dn');});}
 
@@ -629,115 +1042,247 @@ const getDateLabels = function(range) {
   }
   return ['','','','','',''];
 };
+function sma(values, period) {
+  const out = new Array(values.length).fill(null);
+  if (period > values.length) return out;
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i];
+    if (i >= period) sum -= values[i - period];
+    if (i >= period - 1) out[i] = sum / period;
+  }
+  return out;
+}
+function stddev(values, period) {
+  const out = new Array(values.length).fill(null);
+  for (let i = period - 1; i < values.length; i++) {
+    let mean = 0;
+    for (let j = i - period + 1; j <= i; j++) mean += values[j];
+    mean /= period;
+    let v = 0;
+    for (let j = i - period + 1; j <= i; j++) v += (values[j] - mean) ** 2;
+    out[i] = Math.sqrt(v / period);
+  }
+  return out;
+}
+
 function drawChart() {
   const canvas = document.getElementById('mainChart');
   if (!canvas) return;
 
   const par = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
   const W = par.clientWidth || 800;
   const H = par.clientHeight || 380;
   if (W < 50 || H < 50) return;
 
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
   const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const data = chartState && chartState.data;
   const rk = (chartState && chartState.range) || '1D';
+  const chartType = chartState.chartType || 'line';
+  const inds = chartState.indicators || {};
+  const showVol = !!inds.vol;
 
-  // Background
   ctx.fillStyle = '#0d1117';
   ctx.fillRect(0, 0, W, H);
-
   if (!data || data.length < 2) return;
 
-  // Get valid close prices
-  const closes = data.map(d => d.c).filter(p => typeof p === 'number' && !isNaN(p) && p > 0);
-  if (closes.length < 2) return;
+  // Valid points
+  const pts = data.filter(d => typeof d.c === 'number' && !isNaN(d.c) && d.c > 0);
+  if (pts.length < 2) return;
 
-  // Live price for badge
+  // Live price scaling so the chart's last point matches the live header price
   const livePriceEl = document.getElementById('chart-price');
-  const livePrice = livePriceEl ? parseFloat(livePriceEl.textContent.replace(/,/g, '')) || closes[closes.length-1] : closes[closes.length-1];
+  const livePrice = livePriceEl ? parseFloat(livePriceEl.textContent.replace(/,/g, '')) || pts[pts.length-1].c : pts[pts.length-1].c;
+  const dataLastPrice = pts[pts.length - 1].c;
+  const sf = (livePrice > 0 && dataLastPrice > 0 && rk === '1D') ? livePrice / dataLastPrice : 1;
 
-  // Scale factor to normalize data to live price
-  const dataLastPrice = closes[closes.length - 1];
-  const scaleFactor = (livePrice > 0 && dataLastPrice > 0) ? livePrice / dataLastPrice : 1;
+  const closes = pts.map(d => d.c * sf);
+  const opens  = pts.map(d => (d.o ?? d.c) * sf);
+  const highs  = pts.map(d => (d.h ?? d.c) * sf);
+  const lows   = pts.map(d => (d.l ?? d.c) * sf);
+  const vols   = pts.map(d => d.v || 0);
 
-  const scaled = closes.map(c => c * scaleFactor);
-  let minP = Math.min(...scaled);
-  let maxP = Math.max(...scaled);
+  // Compute indicators
+  const sma20 = inds.sma20 ? sma(closes, 20) : null;
+  const sma50 = inds.sma50 ? sma(closes, 50) : null;
+  let bbU = null, bbL = null, bbM = null;
+  if (inds.bb) {
+    bbM = sma(closes, 20);
+    const sd = stddev(closes, 20);
+    bbU = bbM.map((m, i) => m == null ? null : m + 2 * sd[i]);
+    bbL = bbM.map((m, i) => m == null ? null : m - 2 * sd[i]);
+  }
+
+  // Y range from highs/lows including indicators
+  let minP = Math.min(...lows);
+  let maxP = Math.max(...highs);
+  if (sma50) sma50.forEach(v => { if (v != null) { if (v < minP) minP = v; if (v > maxP) maxP = v; } });
+  if (bbL) bbL.forEach(v => { if (v != null) { if (v < minP) minP = v; } });
+  if (bbU) bbU.forEach(v => { if (v != null) { if (v > maxP) maxP = v; } });
+
   let priceRange = maxP - minP;
   if (priceRange < maxP * 0.0005) { priceRange = maxP * 0.02; minP = maxP - priceRange; }
-  const padPct = 0.15;
+  const padPct = 0.08;
   minP -= priceRange * padPct;
   maxP += priceRange * padPct;
   priceRange = maxP - minP;
 
-  const PAD = { top: 28, right: 80, bottom: 38, left: 80 };
+  const PAD = { top: 14, right: 70, bottom: 30, left: 64 };
+  const volH = showVol ? 70 : 0;
   const CW = W - PAD.left - PAD.right;
-  const CH = H - PAD.top - PAD.bottom;
-  const xPos = i => PAD.left + (i / Math.max(closes.length - 1, 1)) * CW;
-  const yPos = p => PAD.top + CH - ((p - minP) / priceRange) * CH;
+  const priceH = H - PAD.top - PAD.bottom - volH;
+  const priceTop = PAD.top;
+  const volTop = priceTop + priceH + 4;
 
-  // Determine color (up/down)
-  const firstC = scaled[0];
-  const lastC = livePrice;
-  const isUp = lastC >= firstC;
-  const lineColor = isUp ? '#00e676' : '#ff5252';
+  const xPos = i => PAD.left + (i / Math.max(pts.length - 1, 1)) * CW;
+  const yPos = p => priceTop + priceH - ((p - minP) / priceRange) * priceH;
 
-  // Grid lines and Y labels
+  const lastC = closes[closes.length - 1];
+  const firstC = closes[0];
+  const upOverall = lastC >= firstC;
+  const upColor = '#22c55e';
+  const dnColor = '#ef4444';
+  const lineColor = upOverall ? upColor : dnColor;
+
+  // Grid + Y labels
   const fmt = p => p >= 10000 ? p.toFixed(0) : p >= 1000 ? p.toFixed(1) : p >= 10 ? p.toFixed(2) : p.toFixed(4);
-  ctx.font = '11px monospace';
+  ctx.font = '10px JetBrains Mono, monospace';
   const gridN = 5;
   for (let g = 0; g <= gridN; g++) {
     const gp = minP + (priceRange * (gridN - g) / gridN);
-    const gy = PAD.top + (g / gridN) * CH;
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    const gy = priceTop + (g / gridN) * priceH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
-    ctx.fillStyle = 'rgba(160,172,190,0.8)';
+    ctx.fillStyle = 'rgba(160,172,190,0.7)';
     ctx.textAlign = 'right';
-    ctx.fillText(fmt(gp), PAD.left - 5, gy + 4);
+    ctx.fillText(fmt(gp), PAD.left - 6, gy + 3);
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(100,110,130,0.5)';
-    ctx.fillText(fmt(gp), W - PAD.right + 4, gy + 4);
+    ctx.fillStyle = 'rgba(110,118,129,0.5)';
+    ctx.fillText(fmt(gp), W - PAD.right + 6, gy + 3);
   }
 
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + CH);
-  grad.addColorStop(0, isUp ? 'rgba(0,230,118,0.12)' : 'rgba(255,82,82,0.12)');
-  grad.addColorStop(1, 'rgba(13,17,23,0.01)');
+  // Vertical date guides
+  const maxLbls = Math.max(4, Math.floor(CW / 90));
+  const lStep = Math.max(1, Math.floor(pts.length / maxLbls));
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  for (let i = lStep; i < pts.length; i += lStep) {
+    const x = xPos(i);
+    ctx.beginPath(); ctx.moveTo(x, priceTop); ctx.lineTo(x, priceTop + priceH); ctx.stroke();
+  }
 
-  // Fill area
-  ctx.beginPath();
-  ctx.moveTo(xPos(0), yPos(scaled[0]));
-  for (let i = 1; i < scaled.length; i++) ctx.lineTo(xPos(i), yPos(scaled[i]));
-  ctx.lineTo(xPos(scaled.length - 1), PAD.top + CH);
-  ctx.lineTo(xPos(0), PAD.top + CH);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  // Bollinger band
+  if (bbU && bbL) {
+    ctx.fillStyle = 'rgba(88,166,255,0.08)';
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < pts.length; i++) {
+      if (bbU[i] == null) continue;
+      if (!started) { ctx.moveTo(xPos(i), yPos(bbU[i])); started = true; }
+      else ctx.lineTo(xPos(i), yPos(bbU[i]));
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (bbL[i] == null) continue;
+      ctx.lineTo(xPos(i), yPos(bbL[i]));
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(88,166,255,0.4)';
+    ctx.lineWidth = 1;
+    [bbU, bbL, bbM].forEach((line, idx) => {
+      if (!line) return;
+      ctx.beginPath();
+      let s = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] == null) continue;
+        if (!s) { ctx.moveTo(xPos(i), yPos(line[i])); s = true; }
+        else ctx.lineTo(xPos(i), yPos(line[i]));
+      }
+      if (idx === 2) ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
 
-  // Price line
-  ctx.beginPath();
-  ctx.moveTo(xPos(0), yPos(scaled[0]));
-  for (let i = 1; i < scaled.length; i++) ctx.lineTo(xPos(i), yPos(scaled[i]));
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = 1.8;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
+  // Body: candles or line/area
+  if (chartType === 'candle' && pts.length > 1) {
+    const cw = Math.max(2, Math.min(12, CW / pts.length * 0.7));
+    for (let i = 0; i < pts.length; i++) {
+      const x = xPos(i);
+      const o = opens[i], c = closes[i], h = highs[i], l = lows[i];
+      const up = c >= o;
+      ctx.strokeStyle = up ? upColor : dnColor;
+      ctx.fillStyle = up ? upColor : dnColor;
+      ctx.lineWidth = 1;
+      // wick
+      ctx.beginPath();
+      ctx.moveTo(x, yPos(h));
+      ctx.lineTo(x, yPos(l));
+      ctx.stroke();
+      // body
+      const yO = yPos(o), yC = yPos(c);
+      const top = Math.min(yO, yC);
+      const bh = Math.max(1, Math.abs(yC - yO));
+      ctx.fillRect(x - cw / 2, top, cw, bh);
+    }
+  } else {
+    // area fill
+    if (chartType === 'area' || chartType === 'line') {
+      if (chartType === 'area') {
+        const grad = ctx.createLinearGradient(0, priceTop, 0, priceTop + priceH);
+        grad.addColorStop(0, upOverall ? 'rgba(34,197,94,0.22)' : 'rgba(239,68,68,0.22)');
+        grad.addColorStop(1, 'rgba(13,17,23,0.01)');
+        ctx.beginPath();
+        ctx.moveTo(xPos(0), yPos(closes[0]));
+        for (let i = 1; i < closes.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+        ctx.lineTo(xPos(closes.length - 1), priceTop + priceH);
+        ctx.lineTo(xPos(0), priceTop + priceH);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(closes[0]));
+      for (let i = 1; i < closes.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.8;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+  }
 
-  // Last price dashed line
+  // SMAs
+  const drawSeries = (series, color, width) => {
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < series.length; i++) {
+      if (series[i] == null) continue;
+      if (!started) { ctx.moveTo(xPos(i), yPos(series[i])); started = true; }
+      else ctx.lineTo(xPos(i), yPos(series[i]));
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+  };
+  if (sma20) drawSeries(sma20, '#f97316', 1.4);
+  if (sma50) drawSeries(sma50, '#a78bfa', 1.4);
+
+  // Last price dashed line + badge
   const liveY = yPos(lastC);
   ctx.setLineDash([4, 4]);
-  ctx.strokeStyle = lineColor + '70';
+  ctx.strokeStyle = lineColor + 'aa';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(PAD.left, liveY); ctx.lineTo(W - PAD.right, liveY); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Price badge on right
   const badgeStr = fmt(lastC);
-  ctx.font = 'bold 11px monospace';
+  ctx.font = 'bold 11px JetBrains Mono, monospace';
   const bw = ctx.measureText(badgeStr).width + 14;
   ctx.fillStyle = lineColor;
   ctx.fillRect(W - PAD.right + 2, liveY - 10, bw, 20);
@@ -745,94 +1290,213 @@ function drawChart() {
   ctx.textAlign = 'left';
   ctx.fillText(badgeStr, W - PAD.right + 7, liveY + 4);
 
-  // X axis time labels
+  // Alert lines for this symbol
+  const sym = chartState.symbol;
+  _alerts.filter(a => a.sym === sym && !a.triggered).forEach(a => {
+    if (a.price < minP || a.price > maxP) return;
+    const ay = yPos(a.price);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.setLineDash([2, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.left, ay); ctx.lineTo(W - PAD.right, ay); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('🔔 ' + (a.op === '>' ? '≥' : '≤') + ' ' + a.price, PAD.left + 4, ay - 3);
+  });
+
+  // X axis labels
   ctx.fillStyle = 'rgba(130,142,160,0.75)';
-  ctx.font = '11px monospace';
+  ctx.font = '10px JetBrains Mono, monospace';
   ctx.textAlign = 'center';
-  const maxLbls = Math.floor(CW / 80);
-  const lStep = Math.max(1, Math.floor(data.length / maxLbls));
-  for (let i = 0; i < data.length; i += lStep) {
-    const d = data[i];
-    let lbl = d.label || '';
-    if (!lbl && d.ts) {
-      const dt = new Date(d.ts);
-      if (!isNaN(dt.getTime())) {
-        if (rk === '1D') lbl = dt.getHours() + ':' + String(dt.getMinutes()).padStart(2,'0');
-        else lbl = (dt.getMonth()+1)+'/'+ dt.getDate();
-      }
-    }
-    if (!lbl) continue;
-    ctx.fillText(lbl, xPos(i), H - 8);
+  for (let i = 0; i < pts.length; i += lStep) {
+    const d = pts[i];
+    if (!d.label) continue;
+    ctx.fillText(d.label, xPos(i), priceTop + priceH + 16);
   }
 
-  // Left border
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(PAD.left, PAD.top);
-  ctx.lineTo(PAD.left, PAD.top + CH);
-  ctx.stroke();
+  // Volume sub-panel
+  if (showVol && volH > 0) {
+    const maxV = Math.max(...vols);
+    if (maxV > 0) {
+      const vw = Math.max(1, CW / pts.length * 0.7);
+      for (let i = 0; i < pts.length; i++) {
+        const v = vols[i];
+        if (!v) continue;
+        const h = (v / maxV) * (volH - 8);
+        const up = i === 0 ? closes[i] >= opens[i] : closes[i] >= closes[i-1];
+        ctx.fillStyle = up ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)';
+        ctx.fillRect(xPos(i) - vw / 2, volTop + (volH - 8 - h), vw, h);
+      }
+      ctx.fillStyle = 'rgba(160,172,190,0.6)';
+      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('VOL', PAD.left + 4, volTop + 10);
+    }
+  }
+
+  // Indicator legend top-left
+  const legend = [];
+  if (sma20) legend.push({ label: 'SMA(20)', color: '#f97316' });
+  if (sma50) legend.push({ label: 'SMA(50)', color: '#a78bfa' });
+  if (bbU)   legend.push({ label: 'BB(20,2)', color: '#58a6ff' });
+  if (legend.length) {
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    let lx = PAD.left + 8;
+    legend.forEach(l => {
+      ctx.fillStyle = l.color;
+      ctx.fillRect(lx, priceTop + 6, 8, 2);
+      ctx.fillStyle = '#c9d1d9';
+      ctx.fillText(l.label, lx + 12, priceTop + 10);
+      lx += ctx.measureText(l.label).width + 30;
+    });
+  }
+
+  // Cache draw state for crosshair
+  chartState._draw = { PAD, CW, priceH, priceTop, pts, xPos, yPos, fmt, W, H, sf };
 }
-function setRange(rk,el){document.querySelectorAll('.chart-tab').forEach(t=>t.classList.toggle('active',t.textContent.trim()===rk));chartState.range=rk;loadLiveChart(chartState.symbol,selectedType);}
-function selectStock(sym){selectedSym=sym;selectedType='stock';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(STOCK_CONFIGS[sym]?.name||sym);loadLiveChart(sym,'stock');}
+
+function drawCrosshair(mx, my) {
+  const canvas = document.getElementById('mainChart');
+  const hud = document.getElementById('chart-hud');
+  if (!canvas || !chartState._draw) return;
+  drawChart();
+  const ctx = canvas.getContext('2d');
+  const { PAD, CW, priceH, priceTop, pts, xPos, yPos, fmt, W, H, sf } = chartState._draw;
+  if (mx < PAD.left || mx > W - PAD.right || my < priceTop || my > priceTop + priceH) {
+    if (hud) hud.style.display = 'none';
+    return;
+  }
+  const ratio = (mx - PAD.left) / CW;
+  const i = Math.max(0, Math.min(pts.length - 1, Math.round(ratio * (pts.length - 1))));
+  const x = xPos(i);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, priceTop); ctx.lineTo(x, priceTop + priceH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PAD.left, my); ctx.lineTo(W - PAD.right, my); ctx.stroke();
+  ctx.setLineDash([]);
+  const p = pts[i];
+  const yPrice = ((priceTop + priceH - my) / priceH);
+  // HUD content
+  if (hud) {
+    const ch = (p.c - p.o);
+    const chPct = p.o ? (ch / p.o * 100) : 0;
+    const upCls = ch >= 0 ? 'hud-up' : 'hud-dn';
+    const f = v => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).toFixed(2)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(0);
+    hud.innerHTML =
+      '<div class="hud-row"><span class="hud-lbl">'+ (p.label||'') +'</span></div>'+
+      '<div class="hud-row"><span class="hud-lbl">O</span><span>'+fmt(p.o*sf)+'</span></div>'+
+      '<div class="hud-row"><span class="hud-lbl">H</span><span>'+fmt(p.h*sf)+'</span></div>'+
+      '<div class="hud-row"><span class="hud-lbl">L</span><span>'+fmt(p.l*sf)+'</span></div>'+
+      '<div class="hud-row"><span class="hud-lbl">C</span><span class="'+upCls+'">'+fmt(p.c*sf)+' ('+(chPct>=0?'+':'')+chPct.toFixed(2)+'%)</span></div>'+
+      (p.v ? '<div class="hud-row"><span class="hud-lbl">V</span><span>'+f(p.v)+'</span></div>' : '');
+    hud.style.display = 'block';
+  }
+}
+function setRange(rk,el){
+  document.querySelectorAll('.chart-tab').forEach(t=>t.classList.toggle('active',(t.dataset.r||t.textContent.trim())===rk));
+  chartState.range=rk;
+  const info = document.getElementById('chart-range-info');
+  if (info) {
+    const cfg = RANGE_API[rk];
+    info.textContent = (cfg?.interval || '') + ' · ' + rk;
+  }
+  loadLiveChart(chartState.symbol,selectedType);
+}
+function setChartType(t){
+  chartState.chartType = t;
+  document.querySelectorAll('.chart-tool-btn[data-type]').forEach(b=>b.classList.toggle('active', b.dataset.type===t));
+  drawChart();
+}
+function toggleIndicator(name){
+  chartState.indicators = chartState.indicators || {};
+  chartState.indicators[name] = !chartState.indicators[name];
+  document.querySelectorAll('.chart-tool-btn[data-ind="'+name+'"]').forEach(b=>b.classList.toggle('active', chartState.indicators[name]));
+  drawChart();
+}
+function selectStock(sym){selectedSym=sym;selectedType='stock';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(STOCK_CONFIGS[sym]?.name||sym);highlightWatchlistRow(sym);loadLiveChart(sym,'stock');}
 function selectIndex(sym){selectedSym=sym;selectedType='index';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(INDEX_CONFIGS[sym]?.name||sym);loadLiveChart(sym,'index');}
+function highlightWatchlistRow(sym){
+  document.querySelectorAll('.wl-table tbody tr').forEach(tr=>tr.classList.toggle('wl-row-selected', tr.dataset.sym===sym));
+}
 
 async function loadLiveChart(sym, type) {
   sym  = sym  || selectedSym  || 'SPX';
   type = type || selectedType || 'index';
-  
-  const cached = LIVE.chartCache[sym];
-  if (cached && (Date.now() - (cached._fetchedAt||0)) < 60000) {
+  const rk = chartState.range || '1D';
+
+  const cacheKey = sym + '_' + rk;
+  const cached = LIVE.chartCache[cacheKey];
+  if (cached && (Date.now() - (cached._fetchedAt||0)) < 45000) {
     chartState.data = cached;
     drawChart();
     return;
   }
-  
+
   let result = null;
-  if (type === 'stock') {
-    result = await fetchStockPrice(sym);
+  if (type === 'stock' || type === 'crypto') {
+    result = await fetchStockPrice(sym, rk);
   } else if (type === 'index') {
-    result = await fetchIndexPrice(sym);
-  } else {
-    // crypto veya diğerleri: genChartData kullan
-    const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
-    const n = (RANGE_CONFIGS[chartState.range] && RANGE_CONFIGS[chartState.range].points) || 120;
-    chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
-    drawChart();
-    return;
+    result = await fetchIndexPrice(sym, rk);
   }
-  
+
   if (result && result.timestamps && result.closes) {
-    // Yahoo Finance'den gerçek 1D veri
     const data = [];
     for (let i = 0; i < result.timestamps.length; i++) {
-      if (result.closes[i] == null) continue;
+      const c = result.closes[i];
+      if (c == null) continue;
       const ts = result.timestamps[i] * 1000;
       const dt = new Date(ts);
-      data.push({
-        t: i,
-        ts: ts,
-        o: result.closes[i],
-        h: result.closes[i] * 1.001,
-        l: result.closes[i] * 0.999,
-        c: result.closes[i],
-        label: dt.getHours()+':'+(dt.getMinutes()<10?'0':'')+dt.getMinutes()
-      });
+      const o = result.opens?.[i] ?? c;
+      const h = result.highs?.[i] ?? Math.max(o, c);
+      const l = result.lows?.[i]  ?? Math.min(o, c);
+      const v = result.volumes?.[i] ?? 0;
+      let lbl;
+      if (rk === '1D' || rk === '5D') {
+        lbl = dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0');
+      } else if (rk === '1Y' || rk === '5Y' || rk === 'YTD') {
+        lbl = dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+      } else {
+        lbl = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      }
+      data.push({ t:i, ts, o, h, l, c, v, label: lbl });
     }
     if (data.length > 0) {
       data._fetchedAt = Date.now();
-      LIVE.chartCache[sym] = data;
+      LIVE.chartCache[cacheKey] = data;
       chartState.data = data;
       updateChartHeader(result);
       drawChart();
       return;
     }
   }
-  
-  // Fallback: simüle veri
+
+  // Fallback: simulated OHLCV series with realistic timestamps
+  const sim = simulateSeries(sym, rk);
+  if (sim) {
+    sim.data._fetchedAt = Date.now();
+    LIVE.chartCache[cacheKey] = sim.data;
+    chartState.data = sim.data;
+    if (sim.quote) {
+      // Synchronize price header + LIVE.loaded so the chart's last bar aligns
+      LIVE.loaded[sym] = LIVE.loaded[sym] || sim.quote;
+      LIVE.loaded[sym].price = sim.quote.price;
+      LIVE.loaded[sym].pct = sim.quote.pct;
+      LIVE.sourceFor[sym] = LIVE.sourceFor[sym] || 'sim';
+      updateChartHeader(sim.quote);
+    }
+    drawChart();
+    return;
+  }
+  // Last-resort: raw genChartData
   const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
   const n = (RANGE_CONFIGS[chartState.range] && RANGE_CONFIGS[chartState.range].points) || 120;
-  chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
+  const pts = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
+  pts.forEach(p => p.v = Math.round(Math.random() * 1e6));
+  chartState.data = pts;
   drawChart();
 }
 function renderNews(cat)  {
@@ -943,10 +1607,15 @@ function switchTab(tab)  {
     if (overlayTitle) overlayTitle.textContent = '💱 Döviz Piyasaları (FX)';
     navTabs[2] && navTabs[2].classList.add('active');
     window.renderFXView();
+  } else if (tab === 'heatmap') {
+    if (overlay) overlay.classList.add('visible');
+    if (overlayTitle) overlayTitle.textContent = '🔥 Heat Map — Mega Cap Performance';
+    navTabs[3] && navTabs[3].classList.add('active');
+    window.renderHeatmap();
   } else if (tab === 'watchlist') {
     if (overlay) overlay.classList.add('visible');
     if (overlayTitle) overlayTitle.textContent = '📋 Watchlist Yönetimi';
-    navTabs[3] && navTabs[3].classList.add('active');
+    navTabs[4] && navTabs[4].classList.add('active');
     window.renderWatchlistManage();
   }
 }
@@ -1284,77 +1953,549 @@ function handleSearchKey(e) {
 }
 document.addEventListener('click',e=>{const d=document.getElementById('search-dropdown');const i=document.getElementById('search-input');if(d&&i&&!i.contains(e.target)&&!d.contains(e.target))d.style.display='none';});
 
+// ==================== COMMAND LINE ====================
+const COMMANDS = [
+  { cmd: '/help',     desc: 'Show keyboard help' },
+  { cmd: '/watch',    desc: 'Add symbol to active watchlist — /watch TSLA' },
+  { cmd: '/unwatch',  desc: 'Remove symbol from watchlist — /unwatch TSLA' },
+  { cmd: '/alert',    desc: 'Set price alert — /alert AAPL > 200' },
+  { cmd: '/alerts',   desc: 'Open alerts panel' },
+  { cmd: '/range',    desc: 'Change chart range — /range 1M (1D 5D 1M 3M 6M YTD 1Y 5Y)' },
+  { cmd: '/chart',    desc: 'Change chart type — /chart candle | line | area' },
+  { cmd: '/sma',      desc: 'Toggle SMA — /sma 20 or /sma 50' },
+  { cmd: '/bb',       desc: 'Toggle Bollinger Bands' },
+  { cmd: '/vol',      desc: 'Toggle volume bars' },
+  { cmd: '/heat',     desc: 'Open sector heat map' },
+  { cmd: '/apikey',   desc: 'Save API key for live data — /apikey twelvedata YOURKEY (free at twelvedata.com)' },
+  { cmd: '/markets',  desc: 'Back to markets view' },
+  { cmd: '/crypto',   desc: 'Open crypto view' },
+  { cmd: '/fx',       desc: 'Open FX view' },
+  { cmd: '/clear',    desc: 'Clear all alerts' },
+];
+let _cmdSuggestIdx = 0;
+let _cmdSuggestItems = [];
+
+function cmdFocus() {
+  const el = document.getElementById('cmd-input');
+  if (el) { el.focus(); el.select(); }
+}
+function showToast(title, body, kind) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' t-' + kind : '');
+  el.innerHTML = '<div class="t-title">' + title + '</div>' + (body ? '<div class="t-body">' + body + '</div>' : '');
+  stack.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 5000);
+}
+
+function renderCmdSuggest(items) {
+  const box = document.getElementById('cmd-suggest');
+  if (!box) return;
+  if (!items.length) { box.style.display = 'none'; _cmdSuggestItems = []; return; }
+  _cmdSuggestItems = items;
+  box.innerHTML = items.map((it, idx) =>
+    '<div class="cs-item' + (idx === _cmdSuggestIdx ? ' sel' : '') + '" onclick="cmdRunSuggest(' + idx + ')">' +
+    '<span class="cs-cmd">' + it.cmd + '</span>' +
+    '<span class="cs-desc">' + (it.desc || '') + '</span>' +
+    '</div>'
+  ).join('');
+  box.style.display = 'block';
+}
+function cmdRunSuggest(idx) {
+  const it = _cmdSuggestItems[idx];
+  if (!it) return;
+  const el = document.getElementById('cmd-input');
+  if (it.symbol) { runCommand(it.symbol); }
+  else if (it.cmd && it.cmd.startsWith('/')) {
+    el.value = it.cmd + ' ';
+    el.focus();
+    renderCmdSuggest([]);
+  }
+}
+function cmdInput(e) {
+  const val = e.target.value.trim();
+  if (!val) { renderCmdSuggest([]); return; }
+  const v = val.toLowerCase();
+  if (val.startsWith('/')) {
+    const matches = COMMANDS.filter(c => c.cmd.startsWith(v)).slice(0, 8);
+    _cmdSuggestIdx = 0;
+    renderCmdSuggest(matches);
+  } else {
+    const matches = _allSearchSymbols
+      .filter(s => s.sym.toLowerCase().includes(v) || s.name.toLowerCase().includes(v))
+      .slice(0, 8)
+      .map(s => ({ cmd: s.sym, desc: s.name + '  ·  ' + s.type, symbol: s.sym }));
+    _cmdSuggestIdx = 0;
+    renderCmdSuggest(matches);
+  }
+}
+function cmdKey(e) {
+  const box = document.getElementById('cmd-suggest');
+  if (e.key === 'Escape') {
+    e.target.value = '';
+    renderCmdSuggest([]);
+    e.target.blur();
+    return;
+  }
+  if (e.key === 'ArrowDown' && _cmdSuggestItems.length) {
+    e.preventDefault();
+    _cmdSuggestIdx = (_cmdSuggestIdx + 1) % _cmdSuggestItems.length;
+    renderCmdSuggest(_cmdSuggestItems);
+    return;
+  }
+  if (e.key === 'ArrowUp' && _cmdSuggestItems.length) {
+    e.preventDefault();
+    _cmdSuggestIdx = (_cmdSuggestIdx - 1 + _cmdSuggestItems.length) % _cmdSuggestItems.length;
+    renderCmdSuggest(_cmdSuggestItems);
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_cmdSuggestItems.length && _cmdSuggestIdx >= 0) {
+      const it = _cmdSuggestItems[_cmdSuggestIdx];
+      if (it.symbol) { runCommand(it.symbol); e.target.value = ''; renderCmdSuggest([]); return; }
+    }
+    runCommand(e.target.value);
+    e.target.value = '';
+    renderCmdSuggest([]);
+  }
+}
+function flashCmd(error) {
+  const bar = document.getElementById('cmdbar');
+  if (!bar) return;
+  bar.classList.toggle('cmd-error', !!error);
+  setTimeout(() => bar.classList.remove('cmd-error'), 700);
+}
+function runCommand(raw) {
+  const txt = (raw || '').trim();
+  if (!txt) return;
+  const lc = txt.toLowerCase();
+
+  // Bare symbol → load chart
+  if (!txt.startsWith('/')) {
+    const sym = txt.toUpperCase().split(/\s+/)[0];
+    const found = _allSearchSymbols.find(s => s.sym === sym);
+    if (found) {
+      if (found.type === 'index') selectIndex(sym);
+      else selectStock(sym);
+      switchTab('markets');
+      showToast('Loaded ' + sym, found.name);
+    } else {
+      // Try fetch as a Yahoo symbol
+      selectStock(sym);
+      switchTab('markets');
+      showToast('Loading ' + sym, 'Symbol not in local index — fetching from Yahoo');
+    }
+    return;
+  }
+
+  // Slash commands
+  const parts = txt.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  switch (cmd) {
+    case '/help': toggleKbHelp(true); return;
+    case '/markets': switchTab('markets'); return;
+    case '/crypto': switchTab('crypto'); return;
+    case '/fx': switchTab('fx'); return;
+    case '/heat': case '/heatmap': switchTab('heatmap'); return;
+    case '/alerts': toggleAlerts(true); return;
+    case '/clear':
+      _alerts = [];
+      saveAlerts();
+      renderAlertList();
+      updateAlertsCount();
+      showToast('Alerts cleared', '', 'ok');
+      return;
+    case '/watch': {
+      const s = (args[0] || '').toUpperCase();
+      if (!s) { flashCmd(true); return; }
+      const lists = loadWatchlists();
+      const active = lists.find(w => w.active) || lists[0];
+      if (active && !active.symbols.includes(s)) {
+        active.symbols.push(s);
+        saveWatchlists(lists);
+        showToast('Added ' + s + ' to "' + active.name + '"', '', 'ok');
+        renderWatchlist('');
+      } else if (active) {
+        showToast(s + ' already in ' + active.name);
+      }
+      return;
+    }
+    case '/unwatch': {
+      const s = (args[0] || '').toUpperCase();
+      const lists = loadWatchlists();
+      const active = lists.find(w => w.active) || lists[0];
+      if (active) {
+        active.symbols = active.symbols.filter(x => x !== s);
+        saveWatchlists(lists);
+        showToast('Removed ' + s, '', 'ok');
+        renderWatchlist('');
+      }
+      return;
+    }
+    case '/alert': {
+      const m = txt.match(/^\/alert\s+([A-Z0-9.\-=^/]+)\s*(>=|<=|>|<)\s*([0-9.]+)/i);
+      if (!m) { flashCmd(true); showToast('Usage', '/alert AAPL > 200', 'alert'); return; }
+      const sym = m[1].toUpperCase();
+      const op = m[2].startsWith('>') ? '>' : '<';
+      const price = parseFloat(m[3]);
+      _alerts.push({ id: 'a_' + Date.now(), sym, op, price, triggered: false, createdAt: Date.now() });
+      saveAlerts();
+      renderAlertList();
+      updateAlertsCount();
+      drawChart();
+      showToast('Alert set', sym + ' ' + (op === '>' ? '≥' : '≤') + ' ' + price, 'ok');
+      return;
+    }
+    case '/range': {
+      const r = (args[0] || '').toUpperCase();
+      if (RANGE_API[r]) {
+        setRange(r);
+        showToast('Range', r, 'ok');
+      } else { flashCmd(true); }
+      return;
+    }
+    case '/chart': {
+      const t = (args[0] || '').toLowerCase();
+      if (['line','area','candle'].includes(t)) {
+        setChartType(t);
+        showToast('Chart type', t, 'ok');
+      } else { flashCmd(true); }
+      return;
+    }
+    case '/sma': {
+      const n = parseInt(args[0] || '20', 10);
+      if (n === 20) toggleIndicator('sma20');
+      else if (n === 50) toggleIndicator('sma50');
+      else { flashCmd(true); showToast('Usage', '/sma 20 or /sma 50', 'alert'); }
+      return;
+    }
+    case '/bb': toggleIndicator('bb'); return;
+    case '/vol': toggleIndicator('vol'); return;
+    case '/apikey': {
+      const provider = (args[0]||'').toLowerCase();
+      const key = args.slice(1).join(' ').trim();
+      if (!provider || !key) { showToast('Usage', '/apikey twelvedata YOURKEY', 'alert'); return; }
+      setApiKey(provider, key);
+      showToast('API key saved', provider + ' — will be tried on next refresh', 'ok');
+      return;
+    }
+  }
+
+  flashCmd(true);
+  showToast('Unknown command', txt, 'alert');
+}
+
+// ==================== ALERTS ====================
+const ALERTS_KEY = 'mtp_alerts';
+function loadAlerts() {
+  try { return JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveAlerts() {
+  try { localStorage.setItem(ALERTS_KEY, JSON.stringify(_alerts)); } catch (e) {}
+}
+function toggleAlerts(force) {
+  const p = document.getElementById('alerts-panel');
+  if (!p) return;
+  if (force === true) p.classList.add('open');
+  else if (force === false) p.classList.remove('open');
+  else p.classList.toggle('open');
+  renderAlertList();
+}
+function addAlert() {
+  const sym = document.getElementById('ap-sym').value.trim().toUpperCase();
+  const op = document.getElementById('ap-op').value;
+  const px = parseFloat(document.getElementById('ap-px').value);
+  if (!sym || !isFinite(px)) { showToast('Invalid alert', 'Need symbol and price', 'alert'); return; }
+  _alerts.push({ id: 'a_' + Date.now(), sym, op, price: px, triggered: false, createdAt: Date.now() });
+  saveAlerts();
+  renderAlertList();
+  updateAlertsCount();
+  drawChart();
+  document.getElementById('ap-sym').value = '';
+  document.getElementById('ap-px').value = '';
+}
+function removeAlert(id) {
+  _alerts = _alerts.filter(a => a.id !== id);
+  saveAlerts();
+  renderAlertList();
+  updateAlertsCount();
+  drawChart();
+}
+function renderAlertList() {
+  const el = document.getElementById('ap-list');
+  if (!el) return;
+  if (!_alerts.length) {
+    el.innerHTML = '<div style="color:#6e7681;padding:14px;text-align:center;font-size:11px">No alerts yet — set one above or via /alert AAPL > 200</div>';
+    return;
+  }
+  el.innerHTML = _alerts.map(a => {
+    const live = LIVE.loaded[a.sym];
+    const cur = live ? live.price.toFixed(2) : '—';
+    return '<div class="ap-item' + (a.triggered ? ' triggered' : '') + '">' +
+      '<span class="ap-sym">' + a.sym + '</span>' +
+      '<span class="ap-cond">' + (a.op === '>' ? '≥' : '≤') + '</span>' +
+      '<span class="ap-px">' + a.price + ' <span style="color:#6e7681;font-size:10px">(now ' + cur + ')</span></span>' +
+      '<span class="ap-del" onclick="removeAlert(\'' + a.id + '\')">✕</span>' +
+      '</div>';
+  }).join('');
+}
+function updateAlertsCount() {
+  const n = _alerts.filter(a => !a.triggered).length;
+  const el = document.getElementById('alerts-count');
+  if (el) {
+    el.textContent = n;
+    el.style.display = n ? 'inline-block' : 'none';
+  }
+}
+function checkAlerts() {
+  let fired = false;
+  _alerts.forEach(a => {
+    if (a.triggered) return;
+    const live = LIVE.loaded[a.sym];
+    if (!live || !isFinite(live.price)) return;
+    const ok = a.op === '>' ? live.price >= a.price : live.price <= a.price;
+    if (ok) {
+      a.triggered = true;
+      a.triggeredAt = Date.now();
+      fired = true;
+      showToast('🔔 ALERT  ' + a.sym, a.sym + ' ' + (a.op === '>' ? '≥' : '≤') + ' ' + a.price + '  (now ' + live.price.toFixed(2) + ')', 'alert');
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Market Terminal alert', { body: a.sym + ' ' + (a.op === '>' ? '≥' : '≤') + ' ' + a.price + '\nNow: ' + live.price.toFixed(2) });
+        }
+      } catch (e) {}
+    }
+  });
+  if (fired) { saveAlerts(); renderAlertList(); updateAlertsCount(); drawChart(); }
+}
+function quickAlert() {
+  toggleAlerts(true);
+  const live = LIVE.loaded[chartState.symbol];
+  const sym = document.getElementById('ap-sym');
+  const px  = document.getElementById('ap-px');
+  if (sym) sym.value = chartState.symbol;
+  if (px && live && isFinite(live.price)) px.value = (live.price * 1.05).toFixed(2);
+}
+
+// ==================== KEYBOARD ====================
+function toggleKbHelp(force) {
+  const k = document.getElementById('kb-help');
+  if (!k) return;
+  if (force === true) k.classList.add('open');
+  else if (force === false) k.classList.remove('open');
+  else k.classList.toggle('open');
+}
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  const inField = tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable;
+
+  // Escape always closes overlays
+  if (e.key === 'Escape') {
+    document.getElementById('kb-help')?.classList.remove('open');
+    document.getElementById('alerts-panel')?.classList.remove('open');
+    const ov = document.getElementById('tab-overlay');
+    if (ov && ov.classList.contains('visible')) switchTab('markets');
+    if (inField) { e.target.blur(); }
+    return;
+  }
+  if (inField) return; // Don't intercept while typing in a real field
+
+  if (e.key === '/') { e.preventDefault(); cmdFocus(); return; }
+  if (e.key === '?') { e.preventDefault(); toggleKbHelp(); return; }
+  if (e.key === 'a' && e.altKey) { e.preventDefault(); toggleAlerts(); return; }
+
+  // Range hotkeys 1-8
+  const rangeKeys = ['1D','5D','1M','3M','6M','YTD','1Y','5Y'];
+  const idx = '12345678'.indexOf(e.key);
+  if (idx >= 0) { setRange(rangeKeys[idx]); return; }
+
+  if (e.key === 'l' || e.key === 'L') { setChartType('line'); return; }
+  if (e.key === 'a' || e.key === 'A') { setChartType('area'); return; }
+  if (e.key === 'k' || e.key === 'K') { setChartType('candle'); return; }
+  if (e.key === 'v' || e.key === 'V') { toggleIndicator('vol'); return; }
+  if (e.key === 'm' || e.key === 'M') { toggleIndicator('sma20'); return; }
+
+  // Watchlist nav
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const rows = Array.from(document.querySelectorAll('.wl-table tbody tr[data-sym]'));
+    if (!rows.length) return;
+    e.preventDefault();
+    _watchlistFocusIdx = e.key === 'ArrowDown'
+      ? Math.min(rows.length - 1, _watchlistFocusIdx + 1)
+      : Math.max(0, _watchlistFocusIdx - 1);
+    rows.forEach((r, i) => r.classList.toggle('wl-row-selected', i === _watchlistFocusIdx));
+    rows[_watchlistFocusIdx].scrollIntoView({ block: 'nearest' });
+  }
+  if (e.key === 'Enter' && _watchlistFocusIdx >= 0) {
+    const rows = Array.from(document.querySelectorAll('.wl-table tbody tr[data-sym]'));
+    const row = rows[_watchlistFocusIdx];
+    if (row) selectStock(row.dataset.sym);
+  }
+});
+
+// ==================== HEAT MAP ====================
+function renderHeatmap() {
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  const MEGA_CAPS = ['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','BRKB','JPM','V','WMT','XOM','UNH','GS','BA'];
+  const symbols = MEGA_CAPS;
+  // Approximate weights (market cap proxy)
+  const weights = { AAPL:18, MSFT:18, GOOGL:12, AMZN:12, NVDA:14, META:8, TSLA:6, BRKB:5, JPM:4, V:4, WMT:3, XOM:3, UNH:3, GS:2, BA:2 };
+  let html = '<div style="padding:0 4px 12px;color:#8b949e;font-size:12px">Mega-cap heat — cell size by market cap proxy, color by today\'s % change</div>';
+  html += '<div id="heatmap-grid" style="grid-template-columns:repeat(' + Math.ceil(Math.sqrt(symbols.length)) + ', 1fr);grid-auto-rows:1fr"></div>';
+  body.innerHTML = html;
+  const grid = document.getElementById('heatmap-grid');
+  const colorFor = pct => {
+    if (pct >= 3) return '#14532d';
+    if (pct >= 1.5) return '#166534';
+    if (pct >= 0.3) return '#15803d';
+    if (pct > -0.3) return '#374151';
+    if (pct > -1.5) return '#991b1b';
+    if (pct > -3) return '#b91c1c';
+    return '#7f1d1d';
+  };
+  grid.innerHTML = symbols.map(sym => {
+    const d = LIVE.loaded[sym];
+    const pct = d?.pct || 0;
+    const w = weights[sym] || 2;
+    const bg = colorFor(pct);
+    const arrow = pct >= 0 ? '▲' : '▼';
+    return '<div class="heat-cell" style="background:' + bg + ';grid-column:span ' + Math.max(1, Math.round(w / 4)) + ';grid-row:span ' + Math.max(1, Math.round(w / 6)) + '" onclick="selectStock(\'' + sym + '\');switchTab(\'markets\')">' +
+      '<div class="heat-cell-sym">' + sym + '</div>' +
+      '<div class="heat-cell-pct">' + arrow + ' ' + Math.abs(pct).toFixed(2) + '%</div>' +
+    '</div>';
+  }).join('');
+}
+
 // ==================== INIT ====================
 async function init() {
-  // Saat başlat
   updateClock();
   setInterval(updateClock, 1000);
-  
-  // Watchlist kayıtlı değilse varsayılan oluştur
+
+  // Load alerts from storage
+  _alerts = loadAlerts();
+  renderAlertList();
+  updateAlertsCount();
+
+  // Watchlist default
   if (!localStorage.getItem(WL_STORAGE_KEY)) {
     saveWatchlists([
       {id:'wl_default',name:'My Watchlist',symbols:['AAPL','MSFT','GOOGL','NVDA','TSLA'],active:true}
     ]);
   }
-  
-  // İlk render
+
+  // First render
   renderWatchlist('');
   renderIndices();
   renderCommodities();
   renderTicker();
   renderNews('all');
-  
-  // News count badge
+
   document.getElementById('news-count-badge').textContent = (window.newsData || newsData).length;
-  
-  // Crypto fiyatlarını al
-  await fetchCryptoLive();
-  renderCommodities();
+
+  // Command line listeners
+  const cmdEl = document.getElementById('cmd-input');
+  if (cmdEl) {
+    cmdEl.addEventListener('input', cmdInput);
+    cmdEl.addEventListener('keydown', cmdKey);
+    cmdEl.addEventListener('blur', () => setTimeout(() => renderCmdSuggest([]), 150));
+  }
+
+  // Chart crosshair listeners
+  const wrap = document.getElementById('chart-wrap');
+  if (wrap) {
+    wrap.addEventListener('mousemove', e => {
+      const r = wrap.getBoundingClientRect();
+      drawCrosshair(e.clientX - r.left, e.clientY - r.top);
+    });
+    wrap.addEventListener('mouseleave', () => {
+      const hud = document.getElementById('chart-hud');
+      if (hud) hud.style.display = 'none';
+      drawChart();
+    });
+  }
+
+  // Live data — fire all in parallel, sim falls back automatically
+  setDataMode('init');
+  const results = await Promise.all([
+    fetchCryptoLive().then(() => { renderCommodities(); return 1; }).catch(()=>0),
+    fetchIndicesLive().catch(()=>0),
+    fetchCommoditiesLive().catch(()=>0),
+    fetchFXLive().catch(()=>0)
+  ]);
+  const liveTotal = results.reduce((a,b)=>a+(b||0),0);
+  // Crypto via CoinGecko is reliable → at minimum 'mixed'
+  setDataMode(liveTotal > 6 ? 'live' : liveTotal > 0 ? 'mixed' : 'sim');
   updateTickerBar();
   renderTicker();
-  
-  // S&P 500'ü yükle
+
+  // Load SPX initial chart
   await loadLiveChart('SPX', 'index');
-  
-  // Chart symbol başlığı
   document.getElementById('chart-symbol').textContent = 'SPX — S&P 500 Index';
-  
-  // Stok fiyatlarını sırayla güncelle (her 4 saniyede bir sonraki)
-  setInterval(refreshNextStock, 4000);
-  
-  // İlk yüklemede tüm hisse fiyatlarını hızlıca al (3 paralel batch)
+
+  // Stocks loaded over time (rate limit friendly) with sim fallback
   (async () => {
-    const allSyms = Object.keys(STOCK_CONFIGS);
-    // 3 batch, aralarında 1500ms bekle
+    const allSyms = Object.keys(STOCK_CONFIGS).filter(s => s !== 'SPX');
+    // First pass: seed every symbol with simulation so the watchlist is alive immediately
+    allSyms.forEach(sym => {
+      if (!LIVE.loaded[sym]) {
+        const q = simulateQuote(sym);
+        if (q) { LIVE.loaded[sym] = q; LIVE.sourceFor[sym]='sim'; updateWatchlistRow(sym, q); }
+      }
+    });
+    updateTickerBar();
+    document.getElementById('sb-symcount').textContent = Object.keys(LIVE.loaded).length;
+    // Second pass: attempt to upgrade to real-time
     for (let i = 0; i < allSyms.length; i++) {
       const sym = allSyms[i];
       fetchStockPrice(sym).then(d => {
         if (d && d.price) {
           LIVE.loaded[sym] = d;
+          LIVE.sourceFor[sym] = 'live';
           updateWatchlistRow(sym, d);
           if (chartState.symbol === sym) updateChartHeader(d);
           updateTickerBar();
+          checkAlerts();
+          // Promote DATA_MODE
+          const total = Object.keys(LIVE.sourceFor).length;
+          const liveN = Object.values(LIVE.sourceFor).filter(x => x==='live').length;
+          setDataMode(liveN === total ? 'live' : liveN > 0 ? 'mixed' : 'sim');
         }
       });
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 350));
     }
   })();
-  
-  // Crypto her 60 saniyede bir güncelle
+
+  // Periodic refreshers
+  setInterval(refreshNextStock, 4000);
   setInterval(async () => {
     await fetchCryptoLive();
     renderCommodities();
     updateTickerBar();
+  }, 45000);
+  setInterval(async () => {
+    await fetchIndicesLive();
+    updateTickerBar();
+  }, 30000);
+  setInterval(async () => {
+    await fetchCommoditiesLive();
   }, 60000);
-  
-  // renderIndices her 30 saniyede bir
-  setInterval(() => { renderIndices(); updateTickerBar(); }, 30000);
-  
-  // Chart 5 saniyede bir yenile
+  setInterval(async () => {
+    await fetchFXLive();
+  }, 60000);
   setInterval(() => {
     if (document.getElementById('tab-overlay')?.classList.contains('visible')) return;
     if (chartState.data?.length > 0) drawChart();
   }, 5000);
+
+  // Notification permission (only when first alert is added, but ask gently up-front)
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => { try { Notification.requestPermission(); } catch(e){} }, 4000);
+  }
   
   // Canlı haber akışı - 40 saniyede bir
   const liveNewsPool = [{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain 'reasonable' if core PCE continues declining toward 2%. He emphasized the Fed is data-dependent, noting strong employment gives the FOMC flexibility.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"]},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta traded in positive territory. Breadth positive with 73% of components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE"]},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 — highest since February 2025","body":"The Conference Board Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus of 99.5. The Present Situation Index rose 8.1 points.","tags":["CONSUMER","MACRO","USD"],"impact":"med","impactText":"Retail ETF XRT +0.5%; XLY +0.4%","related":["XRT","XLY","AMZN","WMT"]},{"source":"BBG","category":"crypto","headline":"Bitcoin ETF inflows hit $620M — BlackRock IBIT leads institutional demand","body":"U.S. spot Bitcoin ETFs recorded $620M combined net inflows, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM crossed $65B. Options OI on IBIT hit a record $4.2B.","tags":["BTC","ETF","IBIT","BLACKROCK"],"impact":"high","impactText":"BTC +2.1%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR"]},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — AI workloads now $6B+ annual run rate","body":"AWS Q1 2026 revenue hit $29.3B, up 32% YoY, beating consensus by $900M. CEO Jassy said generative AI services exceeded $6B annualized run rate. Operating margin expanded to 38.7%.","tags":["AMZN","AWS","AI","CLOUD"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3%; GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA"]},{"source":"CNBC","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods beat consensus","body":"Durable goods orders rose 2.3% MoM in April, exceeding +0.8% forecast. Core capital goods shipments rose 0.4%, a proxy for business investment.","tags":["DURABLEGOODS","MACRO","CAPEX"],"impact":"med","impactText":"DXY +0.15%; XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON"]},{"source":"BBG","category":"equities","headline":"Meta AI assistant reaches 1B users — Zuckerberg announces open-source Llama 4","body":"Meta Platforms announced its AI assistant crossed 1 billion MAU across WhatsApp, Instagram, Facebook, and Messenger. Llama 4 open-source release benchmarks above GPT-4o on reasoning tasks.","tags":["META","AI","LLAMA"],"impact":"high","impactText":"META +2.8%; MSFT -0.4%; GOOGL -0.2%","related":["META","MSFT","GOOGL","NVDA"]}];
