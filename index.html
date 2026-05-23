@@ -659,6 +659,47 @@ body.compact .wl-table td, body.compact .wl-table th { padding: 5px 10px !import
   #topbar .topbar-right { flex: 1 1 auto; justify-content: flex-end; }
 }
 
+/* ========== Print / PDF export ========== */
+@media print {
+  body { background: #fff !important; color: #000 !important; height: auto !important; }
+  #topbar, #tickerbar, #sector-strip, #cmdbar, #statusbar, #news-ticker, .modal-backdrop, #tab-overlay, .toast-stack, #alerts-panel, #calc-panel, #book-panel, #cmd-suggest, #gtt, #fn-modal { display: none !important; }
+  #main { display: block !important; height: auto !important; overflow: visible !important; }
+  .panel { background: #fff !important; color: #000 !important; border: 1px solid #ccc !important; page-break-inside: avoid; margin-bottom: 12px !important; }
+  .panel-head { background: #f5f5f5 !important; color: #000 !important; border-bottom: 1px solid #ddd !important; }
+  .wl-table td, .wl-table th { color: #000 !important; }
+  .g { color: #1a7f37 !important; }
+  .r { color: #cf222e !important; }
+  canvas { max-width: 100% !important; }
+  body::before { content: "Market Terminal — printed " attr(data-print-date); display: block; padding: 8px; font-family: Inter, sans-serif; font-size: 12px; color: #666; border-bottom: 1px solid #ddd; margin-bottom: 12px; }
+}
+
+/* ========== Mobile responsive ========== */
+@media (max-width: 1024px) {
+  #main { grid-template-columns: 1fr !important; grid-template-rows: auto auto auto auto auto !important; height: auto !important; overflow: visible !important; }
+  body { overflow: auto !important; height: auto !important; }
+  .panel { min-height: 220px; }
+  #chart-panel { grid-area: auto !important; height: 360px; }
+  #news-panel { grid-area: auto !important; height: 400px; }
+  #indices-panel { grid-area: auto !important; }
+  #commodities-panel { grid-area: auto !important; }
+}
+@media (max-width: 768px) {
+  #topbar { flex-direction: column !important; align-items: stretch !important; height: auto !important; padding: 6px !important; gap: 6px !important; }
+  #topbar .nav-tabs { flex-wrap: wrap !important; justify-content: center !important; }
+  #topbar .topbar-right { flex-wrap: wrap !important; justify-content: center !important; gap: 4px !important; }
+  #fng-widget, #fng-widget-stocks { font-size: 10px !important; }
+  .nav-tab { padding: 4px 8px !important; font-size: 10px !important; }
+  .nav-tab.icon-btn { min-width: 28px !important; font-size: 13px !important; padding: 3px 6px !important; }
+  .search-input { width: 110px !important; font-size: 11px !important; }
+  #chart-panel { height: 280px !important; }
+  #news-panel { height: 320px !important; }
+  .news-hero { display: none !important; }
+  #fundamentals-bar { font-size: 9px !important; gap: 6px !important; padding: 4px 8px !important; }
+  .chart-meta { display: none !important; }
+  #cmdbar input { font-size: 12px !important; }
+  #cmd-suggest { left: 8px !important; right: 8px !important; min-width: 0 !important; }
+}
+
 /* Beginner mode: hide advanced features */
 body.beginner #chart-toolbar .chart-tool-btn[data-type="candle"],
 body.beginner #chart-toolbar .chart-tool-btn[data-ind="sma50"],
@@ -2159,6 +2200,7 @@ async function loadLiveNewsIntoFeed(){
   news.forEach(n => newsData.push(n));
   renderNews(_newsCatFilter || 'all');
   renderNewsTicker();
+  flashCheckNewNews();
   const badge = document.getElementById('feed-badge');
   if (badge) { badge.style.background='#22c55e'; badge.style.color='#0d1117'; badge.textContent='● LIVE'; }
 }
@@ -4926,6 +4968,9 @@ const COMMANDS = [
   { cmd: '/ddm',      desc: 'Dividend Discount Model fair value — /ddm AAPL 5 10' },
   { cmd: '/wacc',     desc: 'Weighted Avg Cost of Capital — /wacc AAPL 8 5 21' },
   { cmd: '/port',     desc: 'Open portfolio view' },
+  { cmd: '/wei',      desc: 'World Equity Indices snapshot (Americas/Europe/Asia)' },
+  { cmd: '/risk',     desc: 'Portfolio risk dashboard (beta, sector, concentration)' },
+  { cmd: '/pdf',      desc: 'Print/export current view to PDF (use browser dialog)' },
   { cmd: '/q',        desc: 'Instant quote popup — /q AAPL (no chart switch)' },
   { cmd: '/settings', desc: 'Open settings (beginner mode, tooltips, …)' },
   { cmd: '/tour',     desc: 'Re-show the welcome tour' },
@@ -5194,6 +5239,9 @@ function runCommand(raw) {
     }
     case '/calc': toggleCalc(); return;
     case '/port': case '/portfolio': switchTab('portfolio'); return;
+    case '/wei':  openWEIView(); return;
+    case '/risk': renderRiskDashboard(); return;
+    case '/pdf':  document.body.setAttribute('data-print-date', new Date().toLocaleString('en-US')); setTimeout(() => window.print(), 200); return;
     case '/book': toggleBook(); return;
     case '/save': {
       const name = args.join(' ').trim();
@@ -6189,6 +6237,146 @@ function _renderInsiderCard(r){
     (r.reasons.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + r.reasons.map(re => '<span style="background:'+r.verdict.color+'18;border:1px solid '+r.verdict.color+'44;color:#c9d1d9;padding:3px 8px;border-radius:3px;font-size:11px">'+re+'</span>').join('') + '</div>' : '') +
     (txRows ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr style="color:#6e7681;font-size:9px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Date</th><th style="text-align:left;padding:4px 8px">Insider</th><th style="text-align:right;padding:4px 8px">Action</th><th style="text-align:right;padding:4px 8px">Shares</th><th style="text-align:right;padding:4px 8px">Price</th><th style="text-align:right;padding:4px 8px">Value</th></tr></thead><tbody>'+txRows+'</tbody></table>' : '') +
   '</div>';
+}
+
+// ==================== WEI — World Equities Snapshot ====================
+const WEI_REGIONS = {
+  'Americas': [
+    { sym:'SPX',  name:'S&P 500',     flag:'🇺🇸' },
+    { sym:'DJI',  name:'Dow Jones',   flag:'🇺🇸' },
+    { sym:'COMP', name:'NASDAQ',      flag:'🇺🇸' },
+    { sym:'RUT',  name:'Russell 2000',flag:'🇺🇸' },
+    { sym:'IBOV', name:'Bovespa',     flag:'🇧🇷' }
+  ],
+  'Europe': [
+    { sym:'UKX',  name:'FTSE 100',    flag:'🇬🇧' },
+    { sym:'DAX',  name:'DAX 40',      flag:'🇩🇪' },
+    { sym:'CAC',  name:'CAC 40',      flag:'🇫🇷' }
+  ],
+  'Asia / Pacific': [
+    { sym:'NKY',   name:'Nikkei 225', flag:'🇯🇵' },
+    { sym:'HSI',   name:'Hang Seng',  flag:'🇭🇰' },
+    { sym:'SHCOMP',name:'Shanghai',   flag:'🇨🇳' }
+  ],
+  'EMEA': [
+    { sym:'XU100', name:'BIST 100',   flag:'🇹🇷' }
+  ]
+};
+function openWEIView(){
+  let m = document.getElementById('fn-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'fn-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9990;display:flex;align-items:center;justify-content:center;padding:20px';
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    document.body.appendChild(m);
+  }
+  const renderRegion = (name, items) => {
+    return '<div style="margin-bottom:18px"><h3 style="color:#f97316;font-size:12px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid #30363d;padding-bottom:4px">' + name + '</h3>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">' +
+        items.map(it => {
+          const d = LIVE.loaded[it.sym];
+          const price = d?.price || INDEX_CONFIGS[it.sym]?.base || 0;
+          const pct = d?.pct || 0;
+          const isUp = pct >= 0;
+          const c = isUp ? '#22c55e' : '#ef4444';
+          const live = LIVE.sourceFor[it.sym] === 'live';
+          return '<div onclick="selectIndex(\''+it.sym+'\');document.getElementById(\'fn-modal\').remove();switchTab(\'markets\')" style="background:#0d1117;border:1px solid #30363d;border-left:3px solid '+c+';border-radius:5px;padding:10px 12px;cursor:pointer" onmouseover="this.style.background=\'#161b22\'" onmouseout="this.style.background=\'#0d1117\'">' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:16px">'+it.flag+'</span><span style="font-family:JetBrains Mono,monospace;font-weight:700;color:#e6edf3;font-size:12px">'+it.sym+'</span>'+(live?'<span style="width:5px;height:5px;border-radius:50%;background:#22c55e;display:inline-block"></span>':'')+'</div>' +
+            '<div style="color:#8b949e;font-size:10px;margin-bottom:4px">'+it.name+'</div>' +
+            '<div style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px;color:#e6edf3">'+price.toLocaleString('en-US',{maximumFractionDigits:price>1000?0:2})+'</div>' +
+            '<div style="font-family:JetBrains Mono,monospace;color:'+c+';font-weight:700;font-size:11px;margin-top:2px">'+(isUp?'▲':'▼')+' '+Math.abs(pct).toFixed(2)+'%</div>' +
+          '</div>';
+        }).join('') +
+      '</div></div>';
+  };
+  m.innerHTML =
+    '<div style="background:#0d1117;border:1px solid #f97316;border-radius:8px;max-width:920px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column">' +
+      '<div style="padding:14px 18px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px"><span style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px">WEI</span><span style="color:#8b949e;font-size:11px">World Equity Indices · live snapshot</span><span style="margin-left:auto;cursor:pointer;color:#8b949e;font-size:20px" onclick="document.getElementById(\'fn-modal\').remove()">✕</span></div>' +
+      '<div style="overflow:auto;padding:18px">' + Object.entries(WEI_REGIONS).map(([r,it]) => renderRegion(r, it)).join('') + '</div>' +
+    '</div>';
+}
+
+// ==================== FLASH NEWS ALERTS (N!) ====================
+let _seenNewsIds = new Set();
+function flashCheckNewNews(){
+  if (!Array.isArray(newsData)) return;
+  // Only check top 5 items for "new and breaking"
+  newsData.slice(0, 5).forEach(n => {
+    const key = (n.id || '') + '|' + (n.headline||'').slice(0,40);
+    if (_seenNewsIds.has(key)) return;
+    _seenNewsIds.add(key);
+    if (_seenNewsIds.size > 100) {
+      // Keep set bounded
+      const arr = Array.from(_seenNewsIds).slice(-50);
+      _seenNewsIds = new Set(arr);
+    }
+    // Only flash for high-impact items
+    const scored = scoreNews(n);
+    if (scored.score >= 8) {
+      showToast('🚨 ' + scored.tags.join(', '), n.headline, 'alert');
+      playAlertSound();
+    } else if (scored.score >= 5) {
+      playNewsBlip();
+    }
+  });
+}
+
+// ==================== RISK DASHBOARD ====================
+async function renderRiskDashboard(){
+  // Append below the portfolio table when /risk command runs
+  const body = document.getElementById('overlay-body');
+  if (!body) { switchTab('portfolio'); setTimeout(renderRiskDashboard, 400); return; }
+  const positions = loadPortfolio();
+  if (!positions.length) { showToast('Portfolio empty', 'Add positions first', 'alert'); return; }
+  // Gather data per position
+  let totalValue = 0;
+  const enriched = [];
+  for (const p of positions) {
+    const live = LIVE.loaded[p.sym];
+    const price = live?.price || p.avgCost;
+    const value = p.shares * price;
+    totalValue += value;
+    const f = await fetchFundamentals(p.sym);
+    const beta = f?.metric?.beta || 1;
+    const sector = SYMBOL_SECTOR[p.sym] || 'Other';
+    enriched.push({ sym: p.sym, value, beta, sector, pct: 0 });
+  }
+  enriched.forEach(p => p.pct = (p.value / totalValue) * 100);
+  // Beta-weighted exposure
+  const betaWeighted = enriched.reduce((s, p) => s + (p.beta * (p.pct/100)), 0);
+  // Sector concentration
+  const sectorAlloc = {};
+  enriched.forEach(p => { sectorAlloc[p.sector] = (sectorAlloc[p.sector] || 0) + p.pct; });
+  const largestPos = enriched.sort((a,b) => b.pct - a.pct)[0];
+  // Concentration risk score (HHI-style)
+  const hhi = enriched.reduce((s, p) => s + Math.pow(p.pct, 2), 0);
+  const concentration = hhi < 1500 ? 'Diversified' : hhi < 2500 ? 'Moderate' : hhi < 5000 ? 'Concentrated' : 'Very Concentrated';
+  const concColor = hhi < 1500 ? '#22c55e' : hhi < 2500 ? '#84cc16' : hhi < 5000 ? '#f97316' : '#ef4444';
+  // Beta verdict
+  const betaColor = Math.abs(betaWeighted - 1) < 0.15 ? '#22c55e' : Math.abs(betaWeighted - 1) < 0.4 ? '#84cc16' : betaWeighted > 1 ? '#ef4444' : '#fbbf24';
+  // Render
+  const existing = document.getElementById('risk-panel');
+  if (existing) existing.remove();
+  const panel = document.createElement('div');
+  panel.id = 'risk-panel';
+  panel.style.cssText = 'margin-top:18px;background:#0d1117;border:1px solid #f97316;border-radius:8px;padding:16px';
+  panel.innerHTML =
+    '<h3 style="color:#f97316;font-size:14px;margin-bottom:14px">⚖ RISK DASHBOARD</h3>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:18px">' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Total Exposure</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:#e6edf3">$'+totalValue.toLocaleString('en-US',{maximumFractionDigits:0})+'</div></div>' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Beta-Weighted</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:'+betaColor+'">'+betaWeighted.toFixed(2)+'</div><div style="font-size:9px;color:#6e7681">' + (betaWeighted > 1.2 ? 'aggressive vs market' : betaWeighted < 0.8 ? 'defensive vs market' : 'market-like risk') + '</div></div>' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Largest Position</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:#e6edf3">'+largestPos.sym+'</div><div style="font-size:11px;color:'+(largestPos.pct > 30 ? '#ef4444' : '#8b949e')+'">'+largestPos.pct.toFixed(1)+'% of portfolio'+(largestPos.pct > 30 ? ' (high)' : '')+'</div></div>' +
+      '<div style="background:#161b22;border:1px solid #30363d;border-radius:5px;padding:10px"><div style="font-size:9px;color:#6e7681;text-transform:uppercase">Concentration</div><div style="font-size:18px;font-weight:700;font-family:JetBrains Mono,monospace;color:'+concColor+'">'+concentration+'</div><div style="font-size:9px;color:#6e7681">HHI '+hhi.toFixed(0)+'</div></div>' +
+    '</div>' +
+    '<h4 style="color:#8b949e;font-size:11px;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Sector Allocation</h4>' +
+    Object.entries(sectorAlloc).sort((a,b) => b[1] - a[1]).map(([sec, p]) => {
+      const w = p;
+      const col = w > 50 ? '#ef4444' : w > 30 ? '#fbbf24' : '#22c55e';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px"><div style="width:80px;color:#c9d1d9;font-size:11px">'+sec+'</div><div style="flex:1;height:10px;background:#21262d;border-radius:2px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:'+col+'"></div></div><div style="width:50px;text-align:right;font-family:JetBrains Mono,monospace;color:#e6edf3;font-size:11px">'+w.toFixed(1)+'%</div></div>';
+    }).join('');
+  body.appendChild(panel);
+  panel.scrollIntoView({ behavior:'smooth' });
 }
 
 // ==================== PORTFOLIO ====================
