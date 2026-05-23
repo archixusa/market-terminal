@@ -370,10 +370,13 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
   </div>
 </div>
 <div id="chart-panel" class="panel">
-  <div class="panel-head">
+  <div class="panel-head" style="flex-wrap:wrap;gap:8px">
     <span class="panel-title" id="chart-symbol">S&P 500 Index</span>
-    <span id="chart-price" style="font-size:22px;font-weight:700;font-family:monospace;color:#00e676;margin:0 8px">—</span>
-    <span id="chart-chg" style="font-size:13px;font-weight:600;color:#00e676">—</span>
+    <span id="chart-price" style="font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#22c55e;margin:0 8px">—</span>
+    <span id="chart-chg" style="font-size:13px;font-weight:600;color:#22c55e">—</span>
+    <span id="chart-session" style="display:none;font-size:9px;font-weight:800;letter-spacing:0.6px;padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace"></span>
+    <span id="chart-extended" style="display:none;font-size:11px;font-family:'JetBrains Mono',monospace;color:#fbbf24"></span>
+    <span style="margin-left:auto;display:flex;gap:6px;align-items:center;color:#6e7681;font-size:10px;font-family:'JetBrains Mono',monospace" id="chart-session-details"></span>
   </div>
   <div class="chart-tabs">
     <span class="chart-tab active" onclick="setRange('1D',this)" data-r="1D">1D</span>
@@ -588,6 +591,54 @@ async function tdFetch(path, params, cost){
   } catch(e) { return null; }
 }
 
+// ==================== MARKET SESSION ====================
+// US equity sessions (Eastern Time, DST-aware):
+//   pre-market   04:00 - 09:30
+//   regular      09:30 - 16:00
+//   after-hours  16:00 - 20:00
+//   closed       20:00 - 04:00 + weekends
+// Use Intl APIs so DST is handled automatically year-round.
+function _getETParts(now){
+  now = now || new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short', hour12: false,
+    hour: '2-digit', minute: '2-digit'
+  }).formatToParts(now);
+  const out = {};
+  parts.forEach(p => { out[p.type] = p.value; });
+  return { hour: parseInt(out.hour, 10), minute: parseInt(out.minute, 10), weekday: out.weekday };
+}
+function getMarketSession(now){
+  const et = _getETParts(now);
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(et.weekday);
+  if (dow === 0 || dow === 6) return 'closed';
+  const total = et.hour * 60 + et.minute;
+  if (total < 240)  return 'closed';     // before 4am
+  if (total < 570)  return 'pre';        // 4am - 9:30am
+  if (total < 960)  return 'regular';    // 9:30am - 4pm
+  if (total < 1200) return 'after';      // 4pm - 8pm
+  return 'closed';                       // 8pm onward
+}
+function sessionLabel(s){ return { pre:'PRE-MARKET', regular:'OPEN', after:'AFTER-HOURS', closed:'CLOSED' }[s] || s; }
+function sessionColor(s){ return { pre:'#58a6ff', regular:'#22c55e', after:'#fbbf24', closed:'#6e7681' }[s] || '#6e7681'; }
+// 16:00 America/New_York as a UTC Date — works in both EST and EDT
+function _etTimeToday(hour, minute){
+  const now = new Date();
+  // Find the local time when the ET clock reads (hour:minute).
+  // Iterate (cheap): build a Date with current UTC and adjust until ET matches.
+  // Simpler: get current ET parts, compute offset minutes, adjust.
+  const et = _getETParts(now);
+  const targetMinutes = hour * 60 + minute;
+  const currentETMinutes = et.hour * 60 + et.minute;
+  const delta = targetMinutes - currentETMinutes;
+  const d = new Date(now.getTime() + delta * 60000);
+  d.setSeconds(0, 0);
+  return d;
+}
+function todayCloseTime(){ return _etTimeToday(16, 0); }
+function todayOpenTime(){  return _etTimeToday(9, 30); }
+
 // ==================== SIMULATION ENGINE ====================
 // When live proxies fail, we generate believable random-walk OHLCV data so the
 // UI keeps feeling alive. Each tick is small and trends gently. Per-symbol state
@@ -618,34 +669,70 @@ function _baseFor(sym){
 function simulateQuote(sym){
   const conf = _baseFor(sym);
   if (!conf) return null;
+  const session = getMarketSession();
   let st = SIM.state[sym];
   if (!st) {
-    // Seed with a realistic opening offset so the symbol shows a believable day's move
-    const sessionShift = (((Math.random()+Math.random()+Math.random()-1.5)/1.5)) * conf.vol * 1.6 + (conf.trend||0) * conf.base * 0.01;
-    const startPrice = Math.max(0.0001, conf.base + sessionShift);
+    // Overnight gap: open may differ from prev close
+    const overnightMove = (((Math.random()+Math.random()-1)/1)) * conf.vol * 0.6;
+    const regOpen  = Math.max(0.0001, conf.base + overnightMove);
+    // Regular-session intraday move builds on top of open
+    const regMove = (((Math.random()+Math.random()+Math.random()-1.5)/1.5)) * conf.vol * 1.4 + (conf.trend||0) * conf.base * 0.01;
+    const regClose = Math.max(0.0001, regOpen + regMove);
+    // AH/PM move (smaller volatility)
+    const ahMove = (((Math.random()+Math.random()-1)/1)) * conf.vol * 0.4;
+    const currentPrice = (session === 'regular') ? regClose
+                       : (session === 'after')   ? Math.max(0.0001, regClose + ahMove)
+                       : (session === 'pre')     ? Math.max(0.0001, regClose + ahMove)
+                       : regClose;
     st = SIM.state[sym] = {
-      price: startPrice,
-      open: conf.base,
-      high: Math.max(conf.base, startPrice),
-      low: Math.min(conf.base, startPrice),
+      price: currentPrice,
+      open: regOpen,
+      high: Math.max(regOpen, regClose, currentPrice),
+      low:  Math.min(regOpen, regClose, currentPrice),
       prevClose: conf.base,
-      vol: Math.round(2e5 + Math.random() * 8e6)
+      regularOpen: regOpen,
+      regularClose: regClose,         // captured at 16:00 ET
+      regularCloseTs: todayCloseTime().getTime(),
+      regularOpenTs:  todayOpenTime().getTime(),
+      vol: Math.round(2e5 + Math.random() * 8e6),
+      session
     };
   }
-  // Gaussian-ish micro step on each subsequent call
+  // Micro step depends on session — quieter outside regular hours
+  const sessionMult = session === 'regular' ? 0.12 : session === 'closed' ? 0 : 0.04;
   const r = (Math.random()+Math.random()+Math.random()-1.5)/1.5;
-  const step = r * (conf.vol * 0.12) + (conf.trend||0) * conf.base * 0.0004;
+  const step = r * (conf.vol * sessionMult) + (conf.trend||0) * conf.base * 0.0004 * (session==='regular'?1:0);
   st.price = Math.max(0.0001, st.price + step);
-  st.high = Math.max(st.high, st.price);
-  st.low  = Math.min(st.low,  st.price);
-  st.vol  += Math.floor(Math.random() * 1e5);
+  // During regular session keep tracking regularClose live; outside, freeze it
+  if (session === 'regular') {
+    st.regularClose = st.price;
+    st.high = Math.max(st.high, st.price);
+    st.low  = Math.min(st.low,  st.price);
+  }
+  st.vol  += session === 'regular' ? Math.floor(Math.random() * 1e5) : Math.floor(Math.random() * 1e4);
   const chg = st.price - st.prevClose;
   const pct = (chg / st.prevClose) * 100;
+  // After-hours delta = current price - regularClose
+  const ahChg = st.price - st.regularClose;
+  const ahPct = st.regularClose ? (ahChg / st.regularClose) * 100 : 0;
+  // Pre-market: like AH but indicates next day open
+  st._session = session;
+  st._regularClose = st.regularClose;
+  st._regularOpen = st.regularOpen;
+  st._ahPct = ahPct;
+  st._ahChg = ahChg;
   return {
     sym, price: st.price, chg, pct,
-    open: st.open, high: st.high, low: st.low, prevClose: st.prevClose,
+    open: st.regularOpen, high: st.high, low: st.low, prevClose: st.prevClose,
     vol: st.vol, ts: Date.now(),
     week52Low: conf.base * 0.78, week52High: conf.base * 1.22,
+    session,
+    regularClose: st.regularClose,
+    regularCloseTs: st.regularCloseTs,
+    regularOpen:   st.regularOpen,
+    regularOpenTs: st.regularOpenTs,
+    extendedChg: st._ahChg,
+    extendedPct: st._ahPct,
     _sim: true
   };
 }
@@ -809,9 +896,15 @@ async function fetchBatchQuotesTwelve(symbols){
     const prev  = parseFloat(data.previous_close);
     const pct   = parseFloat(data.percent_change);
     if (!isFinite(price)) continue;
+    // Extract extended-hours fields if Twelve Data provided them (paid tiers / certain markets)
+    const extPrice = data.extended_price ? parseFloat(data.extended_price) : null;
+    const extChg   = data.extended_change ? parseFloat(data.extended_change) : null;
+    const extPct   = data.extended_percent_change ? parseFloat(data.extended_percent_change) : null;
+    const isMktOpen = data.is_market_open;
+    const session = isMktOpen === false ? (extPrice ? 'after' : 'closed') : (isMktOpen === true ? 'regular' : getMarketSession());
     const q = {
       sym: b.sym,
-      price,
+      price: extPrice && session !== 'regular' ? extPrice : price,
       chg: price - prev,
       pct,
       open: parseFloat(data.open),
@@ -822,6 +915,13 @@ async function fetchBatchQuotesTwelve(symbols){
       week52High: data.fifty_two_week?.high ? parseFloat(data.fifty_two_week.high) : undefined,
       week52Low:  data.fifty_two_week?.low  ? parseFloat(data.fifty_two_week.low)  : undefined,
       ts: Date.now(),
+      session,
+      regularClose: price,
+      regularCloseTs: data.timestamp ? data.timestamp * 1000 : todayCloseTime().getTime(),
+      regularOpen: parseFloat(data.open),
+      regularOpenTs: todayOpenTime().getTime(),
+      extendedChg: extChg,
+      extendedPct: extPct,
       _source: 'twelvedata'
     };
     result[b.sym] = q;
@@ -999,7 +1099,17 @@ function updateWatchlistRow(sym,d){
     void cells[1].offsetWidth; // restart animation
     cells[1].classList.add(newPrice > prevPrice ? 'flash-g' : 'flash-r');
   }
-  cells[1].textContent = newPrice >= 1000 ? newPrice.toLocaleString('en-US',{maximumFractionDigits:2}) : newPrice.toFixed(2);
+  // Price + optional AH/PM marker
+  const priceStr = newPrice >= 1000 ? newPrice.toLocaleString('en-US',{maximumFractionDigits:2}) : newPrice.toFixed(2);
+  const session = d.session || getMarketSession();
+  const ahPct = d.extendedPct;
+  let priceHtml = priceStr;
+  if (session !== 'regular' && isFinite(ahPct) && Math.abs(ahPct) > 0.005) {
+    const ahColor = ahPct >= 0 ? '#22c55e' : '#ef4444';
+    const lbl = session === 'pre' ? 'PRE' : 'AH';
+    priceHtml = priceStr + ' <span style="font-size:8px;color:'+ahColor+';background:'+ahColor+'22;padding:1px 3px;border-radius:2px;font-weight:700;vertical-align:middle" title="'+sessionLabel(session)+' '+(ahPct>=0?'+':'')+ahPct.toFixed(2)+'%">'+lbl+' '+(ahPct>=0?'+':'')+ahPct.toFixed(2)+'%</span>';
+  }
+  cells[1].innerHTML = priceHtml;
   if(cells[2]){
     const src = LIVE.sourceFor[sym] === 'live' ? '<span title="Live data" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;margin-right:4px;vertical-align:middle"></span>' : '<span title="Simulated" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#6e7681;margin-right:4px;vertical-align:middle"></span>';
     cells[2].innerHTML = src + '<span class="chg-pill '+(isUp?'g':'r')+'">'+(isUp?'▲':'▼')+' '+Math.abs(d.pct).toFixed(2)+'%</span>';
@@ -1013,9 +1123,9 @@ function updateWatchlistRow(sym,d){
 function updateChartHeader(d){
   const pe=document.getElementById('chart-price');
   const ce=document.getElementById('chart-chg');
-  if(pe)pe.textContent=d.price.toFixed(2);
-  if(ce){const u=d.pct>=0;ce.textContent=(u?'▲ +':'▼ ')+Math.abs(d.pct).toFixed(2)+'%';ce.style.color=u?'#00e676':'#ff5252';}
-  const f=v=>v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v+'';
+  if(pe)pe.textContent=d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(ce){const u=d.pct>=0;ce.textContent=(u?'▲ +':'▼ ')+Math.abs(d.pct).toFixed(2)+'%';ce.style.color=u?'#22c55e':'#ef4444';}
+  const f=v=>v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v+'';
   const setText = (id, val) => { const e=document.getElementById(id); if(e) e.textContent = val; };
   if(d.open) setText('cs-open', d.open.toFixed(2));
   if(d.high) setText('cs-high', d.high.toFixed(2));
@@ -1023,6 +1133,51 @@ function updateChartHeader(d){
   if(d.prevClose) setText('cs-close', d.prevClose.toFixed(2));
   if(d.vol) setText('cs-vol', f(d.vol));
   if(d.week52Low && d.week52High) setText('cs-52w', d.week52Low.toFixed(0)+'–'+d.week52High.toFixed(0));
+
+  // Session badge + extended-hours info
+  const session = d.session || getMarketSession();
+  const sessEl = document.getElementById('chart-session');
+  const extEl  = document.getElementById('chart-extended');
+  const detEl  = document.getElementById('chart-session-details');
+  if (sessEl) {
+    const sColor = sessionColor(session);
+    sessEl.textContent = '● ' + sessionLabel(session);
+    sessEl.style.display = 'inline-block';
+    sessEl.style.color = sColor;
+    sessEl.style.background = sColor + '18';
+    sessEl.style.border = '1px solid ' + sColor + '44';
+  }
+  // Extended-hours delta — show whenever we have a meaningful AH/PM move
+  const ahPct = d.extendedPct;
+  const ahChg = d.extendedChg;
+  if (extEl) {
+    if (isFinite(ahPct) && Math.abs(ahPct) > 0.005 && session !== 'regular') {
+      const isUp = ahPct >= 0;
+      const lbl = session === 'pre' ? 'PRE' : session === 'after' ? 'AH' : 'POST';
+      extEl.style.color = isUp ? '#22c55e' : '#ef4444';
+      extEl.textContent = lbl + ' ' + (isUp?'+':'') + (ahChg||0).toFixed(2) + ' (' + (isUp?'+':'') + ahPct.toFixed(2) + '%)';
+      extEl.style.display = 'inline-block';
+    } else {
+      extEl.style.display = 'none';
+    }
+  }
+  // Details: close time & opening price
+  if (detEl) {
+    const bits = [];
+    if (d.regularClose && d.regularCloseTs) {
+      const ct = new Date(d.regularCloseTs);
+      const timeStr = ct.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/New_York'});
+      const dateStr = ct.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      bits.push('<span style="color:#6e7681">Close</span> <span style="color:#e6edf3;font-weight:600">' + d.regularClose.toFixed(2) + '</span> @ ' + timeStr + ' ET ' + dateStr);
+    }
+    if (d.regularOpen && d.regularOpenTs && session === 'regular') {
+      const opChg = d.regularOpen - (d.prevClose || d.regularOpen);
+      const opPct = d.prevClose ? (opChg / d.prevClose) * 100 : 0;
+      const opColor = opPct >= 0 ? '#22c55e' : '#ef4444';
+      bits.push('<span style="color:#6e7681">Open</span> <span style="color:#e6edf3;font-weight:600">' + d.regularOpen.toFixed(2) + '</span> <span style="color:'+opColor+'">' + (opPct>=0?'+':'') + opPct.toFixed(2) + '%</span>');
+    }
+    detEl.innerHTML = bits.join(' · ');
+  }
 }
 
 function updateTickerBar(){const items=document.querySelectorAll('.tick-item');items.forEach(item=>{const se=item.querySelector('.tick-sym');const pe=item.querySelector('.tick-price');if(!se||!pe)return;const sym=se.textContent.trim();const d=LIVE.loaded[sym];if(!d)return;const u=d.pct>=0;pe.textContent=(d.price>1000?d.price.toLocaleString('en-US',{maximumFractionDigits:0}):d.price.toFixed(2))+' '+(u?'▲':'▼')+Math.abs(d.pct).toFixed(2)+'%';pe.className='tick-price '+(u?'tick-up':'tick-dn');});}
@@ -1147,11 +1302,14 @@ function renderCommodities() {
   grid.innerHTML = items.map(item => {
     const d = LIVE.loaded[item.sym];
     const price = d?.price || basePrices[item.sym] || 0;
-    const pct = d?.pct || (Math.random()*1.2-0.6);
+    const pct = d?.pct || 0;
     const isUp = pct >= 0;
     const priceStr = price > 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:0}) : price.toFixed(price>10?2:4);
-    return `<div class="cmd-card" style="cursor:pointer">
-      <div class="cmd-name">${item.name} <span class="live-badge" style="font-size:9px;padding:1px 4px">LIVE</span></div>
+    const live = LIVE.sourceFor[item.sym] === 'live';
+    const isCrypto = !!item.coinId;
+    const clickFn = isCrypto ? `selectStock('${item.sym}')` : `selectStock('${item.sym}')`;
+    return `<div class="cmd-card" style="cursor:pointer" onclick="${clickFn}" title="Click to load ${item.sym} chart">
+      <div class="cmd-name">${item.name} <span class="live-badge" style="font-size:9px;padding:1px 4px;${live?'':'opacity:0.4'}">${live?'LIVE':'SIM'}</span></div>
       <div class="cmd-price">${priceStr}</div>
       <div class="cmd-chg ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(2)}%</div>
       ${item.unit?'<div class="cmd-unit">'+item.unit+'</div>':''}
@@ -1763,7 +1921,20 @@ function toggleIndicator(name){
   document.querySelectorAll('.chart-tool-btn[data-ind="'+name+'"]').forEach(b=>b.classList.toggle('active', chartState.indicators[name]));
   drawChart();
 }
-function selectStock(sym){selectedSym=sym;selectedType='stock';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(STOCK_CONFIGS[sym]?.name||sym);highlightWatchlistRow(sym);loadLiveChart(sym,'stock');}
+const COMMODITY_NAMES = { XAU:'Gold', XAG:'Silver', WTI:'WTI Crude Oil', BRT:'Brent Crude Oil', NG:'Natural Gas', HG:'Copper' };
+const CRYPTO_NAMES = { BTC:'Bitcoin', ETH:'Ethereum', SOL:'Solana', BNB:'BNB', XRP:'Ripple', USDT:'Tether', USDC:'USD Coin', ADA:'Cardano', AVAX:'Avalanche', DOT:'Polkadot', MATIC:'Polygon', LINK:'Chainlink', UNI:'Uniswap', DOGE:'Dogecoin', SHIB:'Shiba Inu', LTC:'Litecoin' };
+function symbolName(sym){
+  return STOCK_CONFIGS[sym]?.name || INDEX_CONFIGS[sym]?.name || COMMODITY_NAMES[sym] || CRYPTO_NAMES[sym] || sym;
+}
+function selectStock(sym){
+  selectedSym=sym;
+  selectedType = COINGECKO_IDS[sym] ? 'crypto' : (COMMODITY_NAMES[sym] ? 'commodity' : 'stock');
+  chartState.symbol=sym;
+  const el=document.getElementById('chart-symbol');
+  if(el)el.textContent = sym + ' — ' + symbolName(sym);
+  highlightWatchlistRow(sym);
+  loadLiveChart(sym, selectedType);
+}
 function selectIndex(sym){selectedSym=sym;selectedType='index';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(INDEX_CONFIGS[sym]?.name||sym);loadLiveChart(sym,'index');}
 function highlightWatchlistRow(sym){
   document.querySelectorAll('.wl-table tbody tr').forEach(tr=>tr.classList.toggle('wl-row-selected', tr.dataset.sym===sym));
@@ -1786,10 +1957,12 @@ async function loadLiveChart(sym, type) {
   if (type === 'crypto' || COINGECKO_IDS[sym]) {
     result = await fetchChartCoinGecko(sym, rk);
     if (!result) result = await fetchStockPrice(sym, rk);
-  } else if (type === 'stock') {
-    result = await fetchStockPrice(sym, rk);
-  } else if (type === 'index') {
+  } else if (type === 'commodity' || TD_COMMODITY_MAP[sym]) {
+    result = await fetchChartTwelve(sym, rk);
+  } else if (type === 'index' || INDEX_CONFIGS[sym]) {
     result = await fetchIndexPrice(sym, rk);
+  } else {
+    result = await fetchStockPrice(sym, rk);
   }
 
   if (result && result.timestamps && result.closes) {
