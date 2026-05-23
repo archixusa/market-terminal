@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Market Terminal Pro</title>
+<style>
+* { margin: 0px; padding: 0px; box-sizing: border-box; }
+body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inter, -apple-system, sans-serif; font-size: 13px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: rgb(22, 27, 34); }
+::-webkit-scrollbar-thumb { background: rgb(48, 54, 61); border-radius: 2px; }
+#topbar { background: linear-gradient(135deg, rgb(22, 27, 34) 0%, rgb(28, 33, 40) 100%); border-bottom: 1px solid rgb(33, 38, 45); padding: 0px 16px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, rgb(249, 115, 22), rgb(239, 68, 68)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: rgb(255, 255, 255); font-family: "JetBrains Mono"; }
+.logo-text { font-size: 16px; font-weight: 700; color: rgb(249, 115, 22); letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; color: rgb(139, 148, 158); margin-top: -2px; }
+.nav-tabs { display: flex; gap: 2px; }
+.nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; color: rgb(139, 148, 158); transition: 0.2s; border: 1px solid transparent; }
+.nav-tab:hover { color: rgb(230, 237, 243); background: rgb(33, 38, 45); }
+.nav-tab.active { color: rgb(249, 115, 22); background: rgb(28, 33, 40); border-color: rgb(249, 115, 22); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.clock-box { background: rgb(22, 27, 34); border: 1px solid rgb(33, 38, 45); border-radius: 6px; padding: 4px 10px; text-align: center; }
+.clock-time { font-family: "JetBrains Mono"; font-size: 14px; font-weight: 600; color: rgb(249, 115, 22); }
+.clock-date { font-size: 10px; color: rgb(139, 148, 158); }
+.market-status { display: flex; align-items: center; gap: 6px; background: rgb(22, 27, 34); border: 1px solid rgb(33, 38, 45); border-radius: 6px; padding: 4px 10px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(34, 197, 94); animation: 2s ease 0s infinite normal none running pulse; }
+@keyframes pulse { 
+  0%, 100% { opacity: 1; box-shadow: rgba(34, 197, 94, 0.4) 0px 0px 0px 0px; }
+  50% { opacity: 0.8; box-shadow: rgba(34, 197, 94, 0) 0px 0px 0px 6px; }
+}
+#tickerbar { background: rgb(22, 27, 34); border-bottom: 1px solid rgb(33, 38, 45); height: 36px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; }
+.ticker-scroll { display: flex; animation: 60s linear 0s infinite normal none running scroll-left; white-space: nowrap; }
+.ticker-scroll:hover { animation-play-state: paused; }
+@keyframes scroll-left { 
+  0% { transform: translateX(0px); }
+  100% { transform: translateX(-50%); }
+}
+.tick-item { display: inline-flex; align-items: center; gap: 6px; padding: 0px 16px; border-right: 1px solid rgb(33, 38, 45); font-family: "JetBrains Mono"; font-size: 11px; }
+.tick-sym { color: rgb(139, 148, 158); font-weight: 500; }
+.tick-price { color: rgb(230, 237, 243); font-weight: 600; }
+.tick-up { color: rgb(34, 197, 94); }
+.tick-dn { color: rgb(239, 68, 68); }
+#main { display: grid; grid-template-columns: 320px 1fr 380px; grid-template-rows: 1fr 220px; gap: 1px; background: rgb(33, 38, 45); flex: 1 1 0%; overflow: hidden; }
+.panel { background: rgb(13, 17, 23); overflow: hidden; display: flex; flex-direction: column; }
+.panel-head { padding: 10px 14px; border-bottom: 1px solid rgb(33, 38, 45); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.panel-title { font-size: 11px; font-weight: 600; color: rgb(139, 148, 158); letter-spacing: 0.8px; text-transform: uppercase; }
+.panel-badge { font-size: 10px; background: rgb(28, 33, 40); border: 1px solid rgb(48, 54, 61); color: rgb(139, 148, 158); padding: 2px 6px; border-radius: 4px; font-family: "JetBrains Mono"; }
+.panel-body { flex: 1 1 0%; overflow: hidden auto; }
+.wl-table { width: 100%; border-collapse: collapse; }
+.wl-table th { padding: 6px 10px; font-size: 9px; color: rgb(110, 118, 129); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid rgb(33, 38, 45); text-align: right; position: sticky; top: 0px; background: rgb(13, 17, 23); }
+.wl-table th:first-child { text-align: left; }
+.wl-table td { padding: 7px 10px; border-bottom: 1px solid rgb(22, 27, 34); text-align: right; font-family: "JetBrains Mono"; font-size: 11px; transition: background 0.15s; }
+.wl-table tr:hover td { background: rgb(22, 27, 34); }
+.wl-sym { font-weight: 600; color: rgb(230, 237, 243); font-size: 12px; text-align: left !important; }
+.wl-name { font-size: 10px; color: rgb(110, 118, 129); margin-top: 1px; font-family: Inter !important; }
+.g { color: rgb(34, 197, 94); }
+.r { color: rgb(239, 68, 68); }
+.y { color: rgb(245, 158, 11); }
+.chg-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.chg-pill.g { background: rgba(34, 197, 94, 0.12); color: rgb(34, 197, 94); }
+.chg-pill.r { background: rgba(239, 68, 68, 0.12); color: rgb(239, 68, 68); }
+.mini-spark { display: inline-block; }
+#chart-panel { grid-area: 1 / 2; }
+.chart-tabs { display: flex; gap: 4px; padding: 8px 14px 0px; border-bottom: 1px solid rgb(33, 38, 45); }
+.chart-tab { padding: 4px 10px; font-size: 11px; cursor: pointer; color: rgb(110, 118, 129); border-bottom: 2px solid transparent; transition: 0.15s; font-weight: 500; }
+.chart-tab.active { color: rgb(249, 115, 22); border-bottom-color: rgb(249, 115, 22); }
+.chart-tab:hover:not(.active) { color: rgb(230, 237, 243); }
+.chart-meta { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: rgb(33, 38, 45); border-bottom: 1px solid rgb(33, 38, 45); }
+.chart-stat { background: rgb(13, 17, 23); padding: 8px 12px; }
+.chart-stat-lbl { font-size: 9px; color: rgb(110, 118, 129); text-transform: uppercase; letter-spacing: 0.5px; }
+.chart-stat-val { font-family: "JetBrains Mono"; font-size: 13px; font-weight: 600; margin-top: 2px; }
+#news-panel { grid-area: 1 / 3 / 3; overflow: hidden; }
+.news-filter-bar { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid rgb(33, 38, 45); flex-wrap: wrap; }
+.news-filter { padding: 3px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; border: 1px solid rgb(48, 54, 61); color: rgb(139, 148, 158); background: transparent; transition: 0.15s; }
+.news-filter:hover { border-color: rgb(88, 166, 255); color: rgb(88, 166, 255); }
+.news-filter.active { background: rgb(28, 58, 94); border-color: rgb(88, 166, 255); color: rgb(88, 166, 255); }
+.news-item { padding: 12px 14px; border-bottom: 1px solid rgb(22, 27, 34); cursor: pointer; transition: background 0.15s; position: relative; }
+.news-item:hover { background: rgb(22, 27, 34); }
+.news-item.breaking { border-left: 3px solid rgb(239, 68, 68); padding-left: 11px; }
+.news-item.breaking::before { content: "BREAKING"; position: absolute; top: 10px; right: 10px; font-size: 8px; font-weight: 700; color: rgb(239, 68, 68); background: rgba(239, 68, 68, 0.1); padding: 2px 5px; border-radius: 3px; border: 1px solid rgba(239, 68, 68, 0.3); }
+.news-item.highlight { border-left: 3px solid rgb(245, 158, 11); padding-left: 11px; }
+.news-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.news-source-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px; }
+.src-bbg { background: rgb(255, 102, 0); color: rgb(0, 0, 0); }
+.src-rtr { background: rgb(255, 143, 0); color: rgb(0, 0, 0); }
+.src-wsj { background: rgb(0, 48, 135); color: rgb(255, 255, 255); }
+.src-ft { background: rgb(255, 255, 255); color: rgb(204, 0, 0); border: 1px solid rgb(204, 0, 0); }
+.src-cnbc { background: rgb(0, 151, 207); color: rgb(255, 255, 255); }
+.src-djn { background: rgb(26, 26, 46); color: rgb(255, 255, 255); border: 1px solid rgb(68, 68, 68); }
+.src-trt { background: rgb(200, 16, 46); color: rgb(255, 255, 255); }
+.src-aa { background: rgb(0, 53, 128); color: rgb(255, 255, 255); }
+.news-time { font-size: 10px; color: rgb(110, 118, 129); font-family: "JetBrains Mono"; }
+.news-category { font-size: 9px; color: rgb(139, 148, 158); background: rgb(28, 33, 40); padding: 1px 5px; border-radius: 3px; }
+.news-headline { font-size: 12px; font-weight: 500; color: rgb(230, 237, 243); line-height: 1.5; margin-bottom: 6px; }
+.news-summary { font-size: 11px; color: rgb(139, 148, 158); line-height: 1.6; margin-bottom: 6px; }
+.news-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.news-tag { font-size: 9px; color: rgb(88, 166, 255); background: rgba(88, 166, 255, 0.1); padding: 2px 6px; border-radius: 3px; cursor: pointer; }
+.news-tag:hover { background: rgba(88, 166, 255, 0.2); }
+.news-impact { font-size: 9px; margin-top: 4px; padding: 3px 6px; border-radius: 3px; display: inline-block; }
+.impact-high { background: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68); border: 1px solid rgba(239, 68, 68, 0.2); }
+.impact-med { background: rgba(245, 158, 11, 0.1); color: rgb(245, 158, 11); border: 1px solid rgba(245, 158, 11, 0.2); }
+.impact-low { background: rgba(34, 197, 94, 0.1); color: rgb(34, 197, 94); border: 1px solid rgba(34, 197, 94, 0.2); }
+#indices-panel { grid-area: 2 / 1; }
+#commodities-panel { grid-area: 2 / 2; }
+.idx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgb(33, 38, 45); height: 100%; }
+.idx-card { background: rgb(13, 17, 23); padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: background 0.15s; }
+.idx-card:hover { background: rgb(22, 27, 34); }
+.idx-name { font-size: 10px; color: rgb(139, 148, 158); font-weight: 500; margin-bottom: 2px; }
+.idx-val { font-family: "JetBrains Mono"; font-size: 14px; font-weight: 700; }
+.idx-chg { font-family: "JetBrains Mono"; font-size: 11px; margin-top: 2px; }
+.idx-bar { height: 3px; border-radius: 2px; margin-top: 6px; background: rgb(33, 38, 45); overflow: hidden; }
+.idx-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.cmd-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: rgb(33, 38, 45); height: 100%; }
+.cmd-card { background: rgb(13, 17, 23); padding: 10px 12px; cursor: pointer; transition: background 0.15s; position: relative; overflow: hidden; }
+.cmd-card:hover { background: rgb(22, 27, 34); }
+.cmd-name { font-size: 9px; color: rgb(139, 148, 158); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+.cmd-price { font-family: "JetBrains Mono"; font-size: 15px; font-weight: 700; margin: 4px 0px; }
+.cmd-chg { font-family: "JetBrains Mono"; font-size: 11px; }
+.cmd-unit { font-size: 9px; color: rgb(110, 118, 129); margin-top: 2px; }
+.cmd-canvas { position: absolute; bottom: 0px; right: 0px; opacity: 0.3; }
+#statusbar { background: rgb(22, 27, 34); border-top: 1px solid rgb(33, 38, 45); height: 26px; display: flex; align-items: center; padding: 0px 14px; gap: 20px; flex-shrink: 0; }
+.sb-item { font-size: 10px; color: rgb(110, 118, 129); display: flex; align-items: center; gap: 4px; }
+.sb-dot { width: 5px; height: 5px; border-radius: 50%; }
+.sb-green { background: rgb(34, 197, 94); }
+.sb-yellow { background: rgb(245, 158, 11); }
+.sb-blue { background: rgb(88, 166, 255); }
+.tooltip { position: fixed; background: rgb(28, 33, 40); border: 1px solid rgb(48, 54, 61); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: rgb(230, 237, 243); pointer-events: none; z-index: 9999; max-width: 200px; display: none; box-shadow: rgba(0, 0, 0, 0.4) 0px 8px 24px; }
+.live-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 600; color: rgb(34, 197, 94); background: rgba(34, 197, 94, 0.1); padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(34, 197, 94, 0.3); }
+.live-dot { width: 5px; height: 5px; border-radius: 50%; background: rgb(34, 197, 94); animation: 2s ease 0s infinite normal none running pulse; }
+.search-box { position: relative; }
+.search-input { background: rgb(28, 33, 40); border: 1px solid rgb(48, 54, 61); border-radius: 6px; padding: 5px 10px 5px 30px; font-size: 12px; color: rgb(230, 237, 243); outline: none; width: 180px; transition: 0.2s; }
+.search-input:focus { border-color: rgb(88, 166, 255); width: 220px; }
+.search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: rgb(110, 118, 129); font-size: 12px; pointer-events: none; }
+@keyframes flashG { 
+  0%, 100% { background: transparent; }
+  25% { background: rgba(34, 197, 94, 0.2); }
+}
+@keyframes flashR { 
+  0%, 100% { background: transparent; }
+  25% { background: rgba(239, 68, 68, 0.2); }
+}
+.flash-g { animation: 0.6s ease 0s 1 normal none running flashG; }
+.flash-r { animation: 0.6s ease 0s 1 normal none running flashR; }
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: rgb(48, 54, 61); }
+
+@keyframes claude-pulse { 
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+#claude-agent-glow-border-inner { animation: 2s ease-in-out 0s infinite normal none running claude-pulse; }
+@media (prefers-reduced-motion: reduce) {
+  #claude-agent-glow-border-inner { animation: auto ease 0s 1 normal none running none; }
+}
+
+.wl-row-selected { background: rgb(30, 42, 58) !important; border-left: 3px solid rgb(249, 115, 22) !important; }
+.wl-table tbody tr { transition: background 0.15s; }
+.wl-table tbody tr:hover { background: rgb(22, 27, 34) !important; }
+
+.idx-card-selected { background: rgb(30, 42, 58) !important; border-left: 3px solid rgb(249, 115, 22) !important; }
+
+.idx-card { cursor: pointer; transition: background 0.15s, border 0.15s; border: 1px solid transparent; }
+.idx-card:hover { border-color: rgb(48, 54, 61); background: rgb(28, 33, 40) !important; }
+.idx-selected { background: rgb(30, 42, 58) !important; border: 1px solid rgb(249, 115, 22) !important; }
+.idx-selected .idx-name { color: rgb(249, 115, 22); }
+
+#crypto-view, #fx-view, #wl-manage-view { display: none; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+#crypto-view.active, #fx-view.active, #wl-manage-view.active { display: flex; }
+.tab-view { display: none; }
+.tab-view.active { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+#tab-overlay { display: none; position: fixed; inset: 0px; z-index: 999; background: rgb(13, 17, 23); flex-direction: column; overflow: hidden; }
+#tab-overlay.visible { display: flex; }
+#tab-overlay .overlay-header { display: flex; align-items: center; padding: 10px 16px; background: rgb(22, 27, 34); border-bottom: 1px solid rgb(48, 54, 61); gap: 12px; flex-shrink: 0; }
+#tab-overlay .overlay-title { font-size: 14px; font-weight: 700; color: rgb(230, 237, 243); flex: 1 1 0%; }
+#tab-overlay .overlay-close { background: rgb(33, 38, 45); border: 1px solid rgb(48, 54, 61); color: rgb(230, 237, 243); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+#tab-overlay .overlay-close:hover { background: rgb(48, 54, 61); }
+#tab-overlay .overlay-body { flex: 1 1 0%; overflow-y: auto; padding: 12px; }
+.crypto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; padding: 4px; }
+.crypto-card { background: rgb(22, 27, 34); border: 1px solid rgb(48, 54, 61); border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color 0.15s; }
+.crypto-card:hover { border-color: rgb(88, 166, 255); }
+.crypto-card-sym { font-size: 15px; font-weight: 700; color: rgb(230, 237, 243); }
+.crypto-card-name { font-size: 11px; color: rgb(139, 148, 158); margin-bottom: 6px; }
+.crypto-card-price { font-size: 18px; font-weight: 700; font-family: monospace; color: rgb(230, 237, 243); }
+.crypto-card-chg { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.crypto-card-meta { font-size: 11px; color: rgb(139, 148, 158); margin-top: 6px; }
+.fx-section-title { font-size: 12px; font-weight: 700; color: rgb(139, 148, 158); text-transform: uppercase; letter-spacing: 1px; margin: 12px 0px 6px; padding-bottom: 4px; border-bottom: 1px solid rgb(48, 54, 61); }
+.fx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.fx-card { background: rgb(22, 27, 34); border: 1px solid rgb(48, 54, 61); border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s; }
+.fx-card:hover { border-color: rgb(88, 166, 255); }
+.fx-card-pair { font-size: 14px; font-weight: 700; color: rgb(230, 237, 243); }
+.fx-card-price { font-size: 16px; font-weight: 700; font-family: monospace; color: rgb(230, 237, 243); margin-top: 3px; }
+.fx-card-chg { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.wl-manage-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.wl-manage-header input { flex: 1 1 0%; background: rgb(22, 27, 34); border: 1px solid rgb(48, 54, 61); color: rgb(230, 237, 243); padding: 7px 12px; border-radius: 6px; font-size: 13px; outline: none; }
+.wl-manage-header input:focus { border-color: rgb(88, 166, 255); }
+.wl-manage-header button { background: rgb(31, 111, 235); border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; color: white; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.wl-manage-header button:hover { background: rgb(56, 139, 253); }
+.wl-lists { display: flex; flex-direction: column; gap: 12px; }
+.wl-list-card { background: rgb(22, 27, 34); border: 1px solid rgb(48, 54, 61); border-radius: 8px; overflow: hidden; }
+.wl-list-card-header { display: flex; align-items: center; padding: 10px 12px; background: rgb(33, 38, 45); border-bottom: 1px solid rgb(48, 54, 61); }
+.wl-list-card-name { flex: 1 1 0%; font-size: 13px; font-weight: 700; color: rgb(230, 237, 243); }
+.wl-list-card-btn { background: none; border: 1px solid rgb(48, 54, 61); color: rgb(139, 148, 158); padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 6px; }
+.wl-list-card-btn:hover { color: rgb(230, 237, 243); border-color: rgb(139, 148, 158); }
+.wl-list-card-btn.danger:hover { color: rgb(255, 123, 114); border-color: rgb(255, 123, 114); }
+.wl-list-items { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; min-height: 36px; }
+.wl-sym-chip { display: flex; align-items: center; gap: 4px; background: rgb(33, 38, 45); border: 1px solid rgb(48, 54, 61); border-radius: 4px; padding: 3px 8px; font-size: 12px; }
+.wl-sym-chip span { font-weight: 700; color: rgb(230, 237, 243); }
+.wl-sym-chip button { background: none; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; color: rgb(139, 148, 158); cursor: pointer; font-size: 14px; padding: 0px; line-height: 1; }
+.wl-sym-chip button:hover { color: rgb(255, 123, 114); }
+.wl-add-sym { display: flex; gap: 6px; padding: 6px 12px; border-top: 1px solid rgb(48, 54, 61); }
+.wl-add-sym input { flex: 1 1 0%; background: rgb(13, 17, 23); border: 1px solid rgb(48, 54, 61); color: rgb(230, 237, 243); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none; }
+.wl-add-sym input:focus { border-color: rgb(88, 166, 255); }
+.wl-add-sym button { background: rgb(35, 134, 54); border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.wl-add-sym button:hover { background: rgb(46, 160, 67); }
+.wl-empty { color: rgb(139, 148, 158); font-size: 12px; font-style: italic; }
+.wl-activate-btn { background: rgb(31, 111, 235); }
+.wl-activate-btn:hover { background: rgb(56, 139, 253) !important; color: white !important; border-color: transparent !important; }
+.wl-active-badge { background: rgb(35, 134, 54); color: rgb(255, 255, 255); border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700; margin-left: 8px; }
+
+.idx-card { cursor: pointer !important; }
+.idx-card:hover { border-color: rgb(88, 166, 255) !important; }
+.cmd-card { cursor: pointer !important; }
+.wl-table tr[data-sym]:hover td { cursor: pointer; }
+.chart-tab { cursor: pointer !important; }
+
+.chart-tab.active { background: rgb(31, 111, 235) !important; color: rgb(255, 255, 255) !important; border-color: rgb(31, 111, 235) !important; font-weight: 700 !important; }
+.news-item { transition: background 0.15s; }
+.news-expand-body { animation: 0.2s ease 0s 1 normal none running fadeIn; }
+@keyframes fadeIn { 
+  0% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0px); }
+}
+.news-tag { cursor: default; }
+#news-panel .panel-body { scroll-behavior: smooth; }
+.chart-tab { user-select: none; }
+
+#tab-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:#0d1117;flex-direction:column;overflow:hidden}
+#tab-overlay.visible{display:flex}
+.overlay-header{display:flex;align-items:center;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;gap:12px;flex-shrink:0}
+.overlay-title{font-size:14px;font-weight:700;color:#e6edf3;flex:1}
+.overlay-close{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+.crypto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.crypto-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s}
+.crypto-card:hover,.fx-card:hover{border-color:#58a6ff}
+.crypto-card-sym{font-size:15px;font-weight:700;color:#e6edf3}
+.crypto-card-name{font-size:11px;color:#8b949e;margin-bottom:6px}
+.crypto-card-price{font-size:18px;font-weight:700;font-family:monospace;color:#e6edf3}
+.crypto-card-chg,.fx-card-chg{font-size:12px;font-weight:600;margin-top:2px}
+.crypto-card-meta{font-size:11px;color:#8b949e;margin-top:6px}
+.fx-section-title{font-size:12px;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px}
+.fx-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
+.wl-manage-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.wl-manage-header input{flex:1;background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:7px 12px;border-radius:6px;font-size:13px;outline:none}
+.wl-manage-header input:focus{border-color:#58a6ff}
+.wl-manage-header button{background:#1f6feb;border:none;color:white;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.wl-list-card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:12px}
+.wl-list-card-header{display:flex;align-items:center;padding:10px 12px;background:#21262d;border-bottom:1px solid #30363d}
+.wl-list-card-name{flex:1;font-size:13px;font-weight:700;color:#e6edf3}
+.wl-list-card-btn{background:none;border:1px solid #30363d;color:#8b949e;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:6px}
+.wl-list-card-btn.danger:hover{color:#ff7b72;border-color:#ff7b72}
+.wl-list-items{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;min-height:36px}
+.wl-sym-chip{display:flex;align-items:center;gap:4px;background:#21262d;border:1px solid #30363d;border-radius:4px;padding:3px 8px;font-size:12px}
+.wl-sym-chip span{font-weight:700;color:#e6edf3}
+.wl-sym-chip button{background:none;border:none;color:#8b949e;cursor:pointer;font-size:14px;padding:0;line-height:1}
+.wl-sym-chip button:hover{color:#ff7b72}
+.wl-add-sym{display:flex;gap:6px;padding:6px 12px;border-top:1px solid #30363d}
+.wl-add-sym input{flex:1;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:4px;font-size:12px;outline:none}
+.wl-add-sym input:focus{border-color:#58a6ff}
+.wl-add-sym button{background:#238636;border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px}
+.wl-empty{color:#8b949e;font-size:12px;font-style:italic}
+.wl-active-badge{background:#238636;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:8px}
+.chart-tab.active{background:#1f6feb!important;color:#fff!important;border-color:#1f6feb!important;font-weight:700!important}
+.news-expand-body{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+#search-dropdown{position:fixed;background:#161b22;border:1px solid #30363d;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:9999;max-height:250px;overflow-y:auto;display:none;min-width:220px}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">MT</div>
+    <div><div class="logo-text">Market Terminal</div><div class="logo-sub">Professional Edition</div></div>
+  </div>
+  <div class="nav-tabs">
+    <span class="nav-tab active" onclick="switchTab('markets')">Markets</span>
+    <span class="nav-tab" onclick="switchTab('crypto')">Crypto</span>
+    <span class="nav-tab" onclick="switchTab('fx')">FX</span>
+    <span class="nav-tab" onclick="switchTab('watchlist')">Watchlist</span>
+  </div>
+  <div class="topbar-right">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" type="text" placeholder="Search symbol..." oninput="handleSearch(this.value)" onkeydown="handleSearchKey(event)" />
+    </div>
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <div class="market-status" id="market-status"><span class="status-dot" id="status-dot"></span><span id="market-status-text">NYSE OPEN</span></div>
+    <div class="clock-box"><div class="clock-time" id="clock-time">—</div><div class="clock-date" id="clock-date">—</div></div>
+  </div>
+</div>
+<div id="tickerbar">
+  <div class="ticker-scroll" id="ticker-scroll"></div>
+</div>
+<div id="main">
+<div id="watchlist-panel" class="panel">
+  <div class="panel-head">
+    <span class="panel-title">📊 Watchlist</span>
+    <span class="panel-badge live-badge"><span class="live-dot"></span>Live</span>
+  </div>
+  <div class="panel-body">
+    <table class="wl-table" id="wl-body">
+      <thead><tr><th>Symbol</th><th>Price</th><th>Chg%</th><th>Vol</th></tr></thead>
+      <tbody id="wl-tbody"></tbody>
+    </table>
+  </div>
+</div>
+<div id="chart-panel" class="panel">
+  <div class="panel-head">
+    <span class="panel-title" id="chart-symbol">S&P 500 Index</span>
+    <span id="chart-price" style="font-size:22px;font-weight:700;font-family:monospace;color:#00e676;margin:0 8px">—</span>
+    <span id="chart-chg" style="font-size:13px;font-weight:600;color:#00e676">—</span>
+  </div>
+  <div class="chart-tabs">
+    <span class="chart-tab active" onclick="setRange('1D',this)">1D</span>
+    <span class="chart-tab" onclick="setRange('5D',this)">5D</span>
+    <span class="chart-tab" onclick="setRange('1M',this)">1M</span>
+    <span class="chart-tab" onclick="setRange('3M',this)">3M</span>
+    <span class="chart-tab" onclick="setRange('YTD',this)">YTD</span>
+    <span class="chart-tab" onclick="setRange('1Y',this)">1Y</span>
+  </div>
+  <div class="chart-meta">
+    <div class="chart-stat"><div class="chart-stat-lbl">Open</div><div class="chart-stat-val" id="cs-open">—</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">High</div><div class="chart-stat-val" id="cs-high">—</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">Low</div><div class="chart-stat-val" id="cs-low">—</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">Close</div><div class="chart-stat-val" id="cs-close">—</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">Volume</div><div class="chart-stat-val" id="cs-vol">—</div></div>
+    <div class="chart-stat"><div class="chart-stat-lbl">P/E Ratio</div><div class="chart-stat-val">21.4x</div></div>
+  </div>
+  <div style="flex:1 1 0%;min-height:0;overflow:hidden;padding:8px;position:relative">
+    <canvas id="mainChart"></canvas>
+  </div>
+</div>
+<div id="news-panel" class="panel">
+  <div class="panel-head">
+    <span class="panel-title">📰 Market News <span id="news-count-badge" style="background:#21262d;color:#8b949e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px">0</span></span>
+    <span class="panel-badge" id="feed-badge" style="background:#238636;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">● FEED</span>
+  </div>
+  <div class="news-filter-bar">
+    <span class="news-filter active" onclick="filterNews('all')">All</span>
+    <span class="news-filter" onclick="filterNews('macro')">Macro</span>
+    <span class="news-filter" onclick="filterNews('equities')">Equities</span>
+    <span class="news-filter" onclick="filterNews('crypto')">Crypto</span>
+    <span class="news-filter" onclick="filterNews('fx')">FX</span>
+    <span class="news-filter" onclick="filterNews('commodities')">Commodities</span>
+  </div>
+  <div id="news-body" class="panel-body"></div>
+</div>
+<div id="indices-panel" class="panel">
+  <div class="panel-head">
+    <span class="panel-title">🌍 Global Indices</span>
+    <span class="panel-badge">WEI</span>
+  </div>
+  <div class="panel-body">
+    <div class="idx-grid" id="idx-grid"></div>
+  </div>
+</div>
+<div id="commodities-panel" class="panel">
+  <div class="panel-head">
+    <span class="panel-title">⚡ Commodities &amp; Crypto</span>
+    <span class="panel-badge">CoinGecko</span>
+  </div>
+  <div class="panel-body">
+    <div class="cmd-grid" id="cmd-grid"></div>
+  </div>
+</div>
+</div>
+<div id="statusbar">
+  <div class="sb-item"><span class="sb-dot sb-green"></span>Data Feed: Active</div>
+  <div class="sb-item"><span class="sb-dot sb-blue"></span>CoinGecko API: Connected</div>
+  <div class="sb-item" id="sb-nyse"><span class="sb-dot sb-green"></span>NYSE: OPEN</div>
+  <div class="sb-item"><span class="sb-dot sb-yellow"></span>LSE: CLOSED</div>
+  <div class="sb-item"><span class="sb-dot sb-yellow"></span>TSE: CLOSED</div>
+  <div class="sb-item" id="sb-lastupdate">Last update: —</div>
+</div>
+<div id="tab-overlay">
+  <div class="overlay-header">
+    <span class="overlay-title" id="overlay-title">Crypto</span>
+    <button class="overlay-close" onclick="switchTab('markets')">✕ Markets'a Dön</button>
+  </div>
+  <div class="overlay-body" id="overlay-body"></div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<div id="search-dropdown"></div>
+
+<script>
+// ==================== CONFIGS ====================
+const STOCK_CONFIGS = {"AAPL":{"base":308.82,"vol":2.5,"trend":0.01,"name":"Apple Inc."},"MSFT":{"base":418.57,"vol":3,"trend":0.015,"name":"Microsoft Corp."},"GOOGL":{"base":382.97,"vol":2.5,"trend":-0.005,"name":"Alphabet Inc."},"AMZN":{"base":266.32,"vol":3,"trend":0.018,"name":"Amazon.com Inc."},"NVDA":{"base":215.33,"vol":4,"trend":-0.02,"name":"NVIDIA Corp."},"META":{"base":610.26,"vol":4.5,"trend":0.008,"name":"Meta Platforms"},"TSLA":{"base":426.01,"vol":5,"trend":-0.022,"name":"Tesla Inc."},"BRKB":{"base":458,"vol":1.5,"trend":0.001,"name":"Berkshire Hath."},"JPM":{"base":306.38,"vol":2,"trend":0.005,"name":"JPMorgan Chase"},"V":{"base":328.88,"vol":1.8,"trend":0.003,"name":"Visa Inc."},"WMT":{"base":120.27,"vol":1.2,"trend":0.005,"name":"Walmart Inc."},"XOM":{"base":154.92,"vol":2.5,"trend":-0.008,"name":"ExxonMobil Corp."},"UNH":{"base":388.47,"vol":3,"trend":0.006,"name":"UnitedHealth Grp"},"GS":{"base":996.73,"vol":4,"trend":0.005,"name":"Goldman Sachs"},"BA":{"base":219.02,"vol":3.5,"trend":-0.018,"name":"Boeing Co."},"SPX":{"base":5234,"vol":12,"trend":0.02,"name":"S&P 500 Index"}};
+const INDEX_CONFIGS = {"SPX":{"base":7473.47,"vol":12,"trend":0.02,"name":"S&P 500 Index"},"DJI":{"base":50561.81659622652,"vol":80,"trend":0.015,"name":"Dow Jones Ind."},"COMP":{"base":26343.97,"vol":55,"trend":-0.01,"name":"NASDAQ Composite"},"RUT":{"base":2866.936407276747,"vol":8,"trend":0.01,"name":"Russell 2000"},"UKX":{"base":10466.26,"vol":20,"trend":0.005,"name":"FTSE 100"},"DAX":{"base":24903.719597409927,"vol":50,"trend":-0.01,"name":"DAX 40"},"CAC":{"base":8115.75,"vol":25,"trend":-0.008,"name":"CAC 40"},"NKY":{"base":63217.85894335057,"vol":90,"trend":0.02,"name":"Nikkei 225"},"HSI":{"base":25592.130635251644,"vol":60,"trend":-0.02,"name":"Hang Seng Index"},"SHCOMP":{"base":3067.5371542278945,"vol":14,"trend":0.01,"name":"Shanghai Comp."},"XU100":{"base":11218.726947727691,"vol":40,"trend":0.025,"name":"BIST 100"},"IBOV":{"base":176209.61,"vol":300,"trend":0.01,"name":"Bovespa Index"}};
+const RANGE_CONFIGS = {"1D":{"points":120,"labelCount":6},"5D":{"points":200,"labelCount":5},"1M":{"points":22,"labelCount":5},"3M":{"points":63,"labelCount":6},"YTD":{"points":143,"labelCount":5},"1Y":{"points":252,"labelCount":6}};
+const IDX_CONFIGS   = {"S&P 500":{"base":5287,"vol":12,"trend":0.015},"Dow Jones":{"base":42183,"vol":95,"trend":0.012},"NASDAQ":{"base":18721,"vol":65,"trend":-0.012},"Russell 2K":{"base":2084,"vol":8,"trend":0.008},"FTSE 100":{"base":8432,"vol":28,"trend":0.004},"DAX":{"base":18934,"vol":70,"trend":-0.008},"CAC 40":{"base":8213,"vol":30,"trend":-0.008},"Nikkei 225":{"base":38142,"vol":140,"trend":0.015},"Hang Seng":{"base":19823,"vol":80,"trend":-0.015},"Shanghai":{"base":3124,"vol":14,"trend":0.008},"BIST 100":{"base":11234,"vol":55,"trend":0.02},"Bovespa":{"base":128734,"vol":380,"trend":0.008}};
+const WL_STORAGE_KEY = 'mtp_watchlists';
+
+// ==================== STATE ====================
+let selectedSym  = 'SPX';
+let selectedType = 'index';
+let chartState   = { symbol:'SPX', range:'1D', data:[] };
+let _newsCatFilter = 'all';
+let newsData = [{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":339,"time":"13:05","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":338,"time":"13:04","breaking":false,"highlight":false},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":337,"time":"13:04","breaking":true,"highlight":true},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":336,"time":"13:03","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":335,"time":"13:02","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":334,"time":"13:02","breaking":true,"highlight":true},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":333,"time":"13:01","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":332,"time":"13:00","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":331,"time":"13:00","breaking":false,"highlight":false},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":330,"time":"12:59","breaking":false,"highlight":false},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 in May — highest reading since February 2025","body":"The Conference Board's Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus estimate of 99.5. The Present Situation Index rose 8.1 points, while the Expectations Index gained 7.8 points. Consumers' assessment of current business conditions improved markedly.","tags":["CONSUMER","MACRO","USD","RETAIL"],"impact":"med","impactText":"Retail ETF XRT +0.5%; Consumer Discretionary XLY +0.4%; USD strengthened","related":["XRT","XLY","AMZN","WMT","TGT"],"id":329,"time":"12:58","breaking":false,"highlight":false},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":328,"time":"12:58","breaking":true,"highlight":true},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":327,"time":"12:57","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":326,"time":"12:56","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"Meta AI assistant reaches 1 billion users — Zuckerberg announces open-source Llama 4 release","body":"Meta Platforms announced its AI assistant has crossed 1 billion monthly active users across WhatsApp, Instagram, Facebook, and Messenger. CEO Mark Zuckerberg simultaneously unveiled the open-source release of Llama 4, which benchmarks show outperforms GPT-4o on several reasoning tasks.","tags":["META","AI","LLAMA","ZUCKERBERG","OPENAI"],"impact":"high","impactText":"META +2.8%; MSFT (OpenAI) -0.4%; GOOGL -0.2%; AI infrastructure plays higher","related":["META","MSFT","GOOGL","NVDA","AMD"],"id":325,"time":"12:56","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":324,"time":"12:56","breaking":true,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":323,"time":"12:55","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":322,"time":"12:53","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":321,"time":"12:52","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":320,"time":"12:52","breaking":false,"highlight":true},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":319,"time":"12:51","breaking":false,"highlight":false},{"source":"CNBC","category":"crypto","headline":"Bitcoin ETF inflows hit $620M in single session — institutional demand accelerating","body":"U.S. spot Bitcoin ETFs recorded combined net inflows of $620 million, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM across all spot BTC ETFs crossed $65 billion. Options open interest on IBIT hit a record $4.2 billion, suggesting growing institutional hedging and directional exposure.","tags":["BTC","ETF","IBIT","BLACKROCK","INSTITUTIONAL"],"impact":"high","impactText":"BTC +2.1%; ETH +1.4%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR","GBTC"],"id":318,"time":"12:50","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":317,"time":"12:50","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"Meta AI assistant reaches 1 billion users — Zuckerberg announces open-source Llama 4 release","body":"Meta Platforms announced its AI assistant has crossed 1 billion monthly active users across WhatsApp, Instagram, Facebook, and Messenger. CEO Mark Zuckerberg simultaneously unveiled the open-source release of Llama 4, which benchmarks show outperforms GPT-4o on several reasoning tasks.","tags":["META","AI","LLAMA","ZUCKERBERG","OPENAI"],"impact":"high","impactText":"META +2.8%; MSFT (OpenAI) -0.4%; GOOGL -0.2%; AI infrastructure plays higher","related":["META","MSFT","GOOGL","NVDA","AMD"],"id":316,"time":"12:49","breaking":false,"highlight":false},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — generative AI workloads now $6B+ annual run rate","body":"Amazon Web Services reported Q1 2026 revenue of $29.3B, up 32% YoY and beating consensus by $900M. CEO Andy Jassy said generative AI services have reached an annualized revenue run rate exceeding $6 billion. AWS operating margin expanded to 38.7%, up from 37.6% in Q4 2025.","tags":["AMZN","AWS","AI","CLOUD","EARNINGS"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3% (competitive read); GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA","CRM"],"id":315,"time":"12:48","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":314,"time":"12:48","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain a 'reasonable' baseline if core PCE continues declining toward 2%. He emphasized the Fed is not in a hurry and will remain data-dependent, noting that strong employment gives the FOMC flexibility to wait for more clarity on inflation.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"],"id":313,"time":"12:47","breaking":true,"highlight":true},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":312,"time":"12:47","breaking":false,"highlight":true},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":311,"time":"12:46","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":310,"time":"12:45","breaking":false,"highlight":false},{"source":"RTR","category":"macro","headline":"U.S. housing starts beat at 1.42M annualized — permits surge to 8-month high","body":"U.S. housing starts came in at 1.42 million annualized units in April, beating the consensus estimate of 1.36M and up 5.7% from March. Building permits surged to 1.44 million, the highest since August 2025, signaling continued momentum in the homebuilding sector despite elevated mortgage rates near 6.9%.","tags":["HOUSING","MACRO","RATES","REALESTATE"],"impact":"med","impactText":"Homebuilder ETF ITB +1.8%; DHI +2.1%; LEN +1.9%; PHM +2.0%","related":["ITB","DHI","LEN","PHM","TOL"],"id":309,"time":"12:44","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":308,"time":"12:44","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":307,"time":"12:43","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"Fed balance sheet falls below $7T for first time since 2020 — QT proceeds on schedule","body":"The Federal Reserve's balance sheet declined below $7 trillion this week for the first time since April 2020, as quantitative tightening continues at the current $60B/month pace. Fed officials have signaled the pace of QT reduction may slow in H2 2026 as reserves approach 'ample' levels, estimated at 10-11% of nominal GDP.","tags":["FED","QT","BALANCE_SHEET","RATES","BONDS"],"impact":"med","impactText":"Long-end yields +3bps; TLT -0.4%; Financials XLF +0.3%","related":["TLT","TBF","XLF","BND"],"id":306,"time":"12:42","breaking":false,"highlight":true},{"source":"BBG","category":"equities","headline":"Alphabet Q1 2026 earnings: Search revenue +14% YoY, Cloud +28% — AI integration accelerating","body":"Alphabet reported Q1 2026 revenue of $90.2B, beating consensus by $2.1B. Google Search revenue grew 14% YoY to $54.2B, while Google Cloud revenue grew 28% to $12.3B. YouTube advertising revenue grew 10% to $8.9B. The company announced a $70B buyback and increased quarterly dividend by 5%.","tags":["GOOGL","EARNINGS","AI","CLOUD","SEARCH"],"impact":"high","impactText":"GOOGL +4.1% afterhours; META +0.8%; MSFT +0.5%","related":["GOOGL","META","MSFT","AMZN","SNAP"],"id":305,"time":"12:42","breaking":false,"highlight":false},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 in May — highest reading since February 2025","body":"The Conference Board's Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus estimate of 99.5. The Present Situation Index rose 8.1 points, while the Expectations Index gained 7.8 points. Consumers' assessment of current business conditions improved markedly.","tags":["CONSUMER","MACRO","USD","RETAIL"],"impact":"med","impactText":"Retail ETF XRT +0.5%; Consumer Discretionary XLY +0.4%; USD strengthened","related":["XRT","XLY","AMZN","WMT","TGT"],"id":304,"time":"12:41","breaking":false,"highlight":false},{"source":"DJN","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods shipments beat","body":"Durable goods orders rose 2.3% month-over-month in April, exceeding the consensus forecast of +0.8%, driven by a 14.2% surge in transportation equipment orders. Excluding transportation, orders rose 0.7%. Core capital goods shipments — a proxy for business investment — rose 0.4%, slightly above the 0.3% consensus.","tags":["DURABLEGOODS","MACRO","CAPEX","USD"],"impact":"med","impactText":"DXY +0.15%; Industrial sector ETF XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON","GE"],"id":303,"time":"12:40","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":302,"time":"12:40","breaking":false,"highlight":false},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta all traded in positive territory. Energy stocks gained on the EIA crude inventory draw. Breadth was positive with 73% of S&P 500 components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE","VIX"],"id":301,"time":"12:39","breaking":false,"highlight":false},{"source":"BBG","category":"macro","headline":"U.S. 10Y Treasury yield ticks up to 4.33% ahead of Friday PCE data","body":"Treasury yields moved higher as traders positioned defensively ahead of Friday's PCE price index. Consensus expects core PCE at 2.6% YoY. A reading above 2.8% would reduce probability of a July Fed cut.","tags":["RATES","BONDS","FED","USD"],"impact":"med","impactText":"TLT -0.3%; 2Y/10Y spread widened to -14bps","related":["TLT","TBT","IEF","DXY"],"id":208,"time":"12:38","breaking":false,"highlight":false}];
+
+const LIVE = { loaded:{}, fx:[], chartCache:{}, cryptoPriceHistory:{} };
+
+// ==================== APIS ====================
+async function fetchCryptoLive(){try{const ids='bitcoin,ethereum,solana,binancecoin,ripple,tether';const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids+'&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true');const d=await r.json();const m={bitcoin:'BTC',ethereum:'ETH',solana:'SOL',binancecoin:'BNB',ripple:'XRP',tether:'USDT'};Object.entries(d).forEach(([id,v])=>{const sym=m[id];if(sym)LIVE.loaded[sym]={sym,price:v.usd,pct:v.usd_24h_change||0,mktcap:v.usd_market_cap,vol:v.usd_24h_vol,ts:Date.now()};});updateTickerBar();}catch(e){}}
+
+async function fetchStockPrice(sym){try{const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1m&range=1d';const proxy='https://api.allorigins.win/get?url='+encodeURIComponent(url);const r=await fetch(proxy,{signal:AbortSignal.timeout(8000)});const j=await r.json();const data=JSON.parse(j.contents);const q=data?.chart?.result?.[0];if(!q)return null;const meta=q.meta;const price=meta.regularMarketPrice;const prev=meta.previousClose||meta.chartPreviousClose;const chg=price-prev;const pct=(chg/prev)*100;return{sym,price,chg,pct,open:meta.regularMarketOpen||prev,high:meta.regularMarketDayHigh||price,low:meta.regularMarketDayLow||price,prevClose:prev,vol:meta.regularMarketVolume||0,ts:Date.now(),timestamps:q.timestamp,closes:q.indicators?.quote?.[0]?.close};}catch(e){return null;}}
+
+async function fetchIndexPrice(sym){const m={SPX:'^GSPC',DJI:'^DJI',COMP:'^IXIC',RUT:'^RUT',UKX:'^FTSE',DAX:'^GDAXI',CAC:'^FCHI',NKY:'^N225',HSI:'^HSI',SHCOMP:'000001.SS',IBOV:'^BVSP'};const y=m[sym];if(!y)return null;return fetchStockPrice(y);}
+
+const _STOCK_Q=Object.keys(STOCK_CONFIGS);let _sqi=0;
+async function refreshNextStock(){const sym=_STOCK_Q[_sqi++%_STOCK_Q.length];const d=await fetchStockPrice(sym);if(d&&d.price){LIVE.loaded[sym]=d;updateWatchlistRow(sym,d);if(chartState.symbol===sym)updateChartHeader(d);}}
+
+function updateWatchlistRow(sym,d){const row=document.querySelector('.wl-table tr[data-sym="'+sym+'"]');if(!row)return;const cells=row.querySelectorAll('td');if(cells.length<2)return;const isUp=d.pct>=0;cells[1].textContent=d.price.toFixed(2);if(cells[2])cells[2].innerHTML='<span class="chg-pill '+(isUp?'g':'r')+'">'+(isUp?'▲':'▼')+' '+Math.abs(d.pct).toFixed(2)+'%</span>';}
+
+function updateChartHeader(d){const pe=document.getElementById('chart-price');const ce=document.getElementById('chart-chg');if(pe)pe.textContent=d.price.toFixed(2);if(ce){const u=d.pct>=0;ce.textContent=(u?'▲ +':'▼ ')+Math.abs(d.pct).toFixed(2)+'%';ce.style.color=u?'#00e676':'#ff5252';}const f=v=>v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v+'';if(d.open){const e=document.getElementById('cs-open');if(e)e.textContent=d.open.toFixed(2);}if(d.high){const e=document.getElementById('cs-high');if(e)e.textContent=d.high.toFixed(2);}if(d.low){const e=document.getElementById('cs-low');if(e)e.textContent=d.low.toFixed(2);}if(d.prevClose){const e=document.getElementById('cs-close');if(e)e.textContent=d.prevClose.toFixed(2);}if(d.vol){const e=document.getElementById('cs-vol');if(e)e.textContent=f(d.vol);}}
+
+function updateTickerBar(){const items=document.querySelectorAll('.tick-item');items.forEach(item=>{const se=item.querySelector('.tick-sym');const pe=item.querySelector('.tick-price');if(!se||!pe)return;const sym=se.textContent.trim();const d=LIVE.loaded[sym];if(!d)return;const u=d.pct>=0;pe.textContent=(d.price>1000?d.price.toLocaleString('en-US',{maximumFractionDigits:0}):d.price.toFixed(2))+' '+(u?'▲':'▼')+Math.abs(d.pct).toFixed(2)+'%';pe.className='tick-price '+(u?'tick-up':'tick-dn');});}
+
+// ==================== FUNCTIONS ====================
+
+function renderWatchlist(filter) {
+  filter = (filter || '').toUpperCase();
+  const tbody = document.getElementById('wl-tbody');
+  if (!tbody) return;
+  const stocks = Object.entries(STOCK_CONFIGS)
+    .filter(([sym,conf]) => !filter || sym.includes(filter) || conf.name.toUpperCase().includes(filter))
+    .map(([sym,conf]) => {
+      const live = LIVE.loaded[sym];
+      const price = live?.price || conf.base;
+      const pct = live?.pct || 0;
+      const vol = live?.vol ? (live.vol>1e9?(live.vol/1e9).toFixed(1)+'B':live.vol>1e6?(live.vol/1e6).toFixed(1)+'M':live.vol+'') : '—';
+      return {sym, name:conf.name, price, pct, vol};
+    });
+  tbody.innerHTML = stocks.map(s => {
+    const isUp = s.pct >= 0;
+    return `<tr data-sym="${s.sym}" style="cursor:pointer" onclick="selectStock('${s.sym}');setTimeout(()=>loadLiveChart('${s.sym}','stock'),200)">
+      <td><div class="wl-sym">${s.sym}</div><div class="wl-name">${s.name}</div></td>
+      <td id="wl-price-${s.sym}">${s.price.toFixed(2)}</td>
+      <td><span class="chg-pill ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(s.pct).toFixed(2)}%</span></td>
+      <td>${s.vol}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderIndices() {
+  const grid = document.getElementById('idx-grid');
+  if (!grid) return;
+  const idxData = [
+    {sym:'SPX',flag:'🇺🇸',name:'S&P 500',yahoSym:'^GSPC'},
+    {sym:'DJI',flag:'🇺🇸',name:'Dow Jones',yahoSym:'^DJI'},
+    {sym:'COMP',flag:'🇺🇸',name:'NASDAQ',yahoSym:'^IXIC'},
+    {sym:'RUT',flag:'🇺🇸',name:'Russell 2K',yahoSym:'^RUT'},
+    {sym:'UKX',flag:'🇬🇧',name:'FTSE 100',yahoSym:'^FTSE'},
+    {sym:'DAX',flag:'🇩🇪',name:'DAX',yahoSym:'^GDAXI'},
+    {sym:'CAC',flag:'🇫🇷',name:'CAC 40',yahoSym:'^FCHI'},
+    {sym:'NKY',flag:'🇯🇵',name:'Nikkei 225',yahoSym:'^N225'},
+    {sym:'HSI',flag:'🇭🇰',name:'Hang Seng',yahoSym:'^HSI'},
+    {sym:'SHCOMP',flag:'🇨🇳',name:'Shanghai',yahoSym:'000001.SS'},
+    {sym:'IBOV',flag:'🇧🇷',name:'Bovespa',yahoSym:'^BVSP'},
+  ];
+  grid.innerHTML = idxData.map(idx => {
+    const conf = INDEX_CONFIGS[idx.sym] || {base:1000};
+    const val = LIVE.loaded[idx.sym]?.price || conf.base;
+    const pct = LIVE.loaded[idx.sym]?.pct || ((conf.trend||0)*100 + (Math.random()*0.6-0.3));
+    const isUp = pct >= 0;
+    const barW = Math.min(Math.abs(pct)*18,100);
+    return `<div class="idx-card" style="cursor:pointer" onclick="selectIndex('${idx.sym}');setTimeout(()=>loadLiveChart('${idx.sym}','index'),200)">
+      <div class="idx-name">${idx.flag} ${idx.name}</div>
+      <div class="idx-val">${val.toLocaleString('en-US',{maximumFractionDigits:val>1000?0:2})}</div>
+      <div class="idx-chg ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(2)}%</div>
+      <div class="idx-bar"><div class="idx-bar-fill" style="width:${barW}%;background:${isUp?'#00e676':'#ff5252'}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderCommodities() {
+  const grid = document.getElementById('cmd-grid');
+  if (!grid) return;
+  const items = [
+    {sym:'XAU',name:'🥇 XAU',unit:'$/oz',coinId:''},
+    {sym:'XAG',name:'🥈 XAG',unit:'$/oz',coinId:''},
+    {sym:'WTI',name:'🛢 WTI',unit:'$/bbl',coinId:''},
+    {sym:'BRT',name:'⛽ BRT',unit:'$/bbl',coinId:''},
+    {sym:'NG',name:'🔥 NG',unit:'$/MMBtu',coinId:''},
+    {sym:'HG',name:'🔩 HG',unit:'$/lb',coinId:''},
+    {sym:'BTC',name:'₿ BTC',unit:'',coinId:'bitcoin'},
+    {sym:'ETH',name:'Ξ ETH',unit:'',coinId:'ethereum'},
+    {sym:'SOL',name:'◎ SOL',unit:'',coinId:'solana'},
+    {sym:'BNB',name:'⬡ BNB',unit:'',coinId:'binancecoin'},
+    {sym:'XRP',name:'✕ XRP',unit:'',coinId:'ripple'},
+    {sym:'USDT',name:'₮ USDT',unit:'',coinId:'tether'},
+  ];
+  const basePrices = {XAU:2342.5,XAG:31.24,WTI:79.43,BRT:83.21,NG:2.843,HG:4.523};
+  grid.innerHTML = items.map(item => {
+    const d = LIVE.loaded[item.sym];
+    const price = d?.price || basePrices[item.sym] || 0;
+    const pct = d?.pct || (Math.random()*1.2-0.6);
+    const isUp = pct >= 0;
+    const priceStr = price > 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:0}) : price.toFixed(price>10?2:4);
+    return `<div class="cmd-card" style="cursor:pointer">
+      <div class="cmd-name">${item.name} <span class="live-badge" style="font-size:9px;padding:1px 4px">LIVE</span></div>
+      <div class="cmd-price">${priceStr}</div>
+      <div class="cmd-chg ${isUp?'g':'r'}">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(2)}%</div>
+      ${item.unit?'<div class="cmd-unit">'+item.unit+'</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function renderTicker() {
+  const scroll = document.getElementById('ticker-scroll');
+  if (!scroll) return;
+  const items = [
+    ...Object.keys(STOCK_CONFIGS).slice(0,10).map(s=>({sym:s,type:'stock'})),
+    {sym:'EUR/USD',type:'fx'},{sym:'USD/JPY',type:'fx'},{sym:'GBP/USD',type:'fx'},
+    {sym:'USD/TRY',type:'fx'},
+    {sym:'BTC',type:'crypto'},{sym:'ETH',type:'crypto'},{sym:'SOL',type:'crypto'},
+    {sym:'BNB',type:'crypto'},{sym:'XRP',type:'crypto'},{sym:'USDT',type:'crypto'}
+  ];
+  const fxPrices = {'EUR/USD':'1.1603','USD/JPY':'159.13','GBP/USD':'1.3429','USD/TRY':'45.71'};
+  scroll.innerHTML = [...items,...items].map(item => {
+    const d = LIVE.loaded[item.sym];
+    const price = d?.price || (fxPrices[item.sym]) || '—';
+    const pct = d?.pct || 0;
+    const isUp = pct >= 0;
+    const priceStr = typeof price === 'number' ? (price>1000?price.toLocaleString('en-US',{maximumFractionDigits:0}):price.toFixed(price>10?2:4)) : price;
+    return `<span class="tick-item">
+      <span class="tick-sym">${item.sym}</span>
+      <span class="tick-price ${isUp?'tick-up':'tick-dn'}">${priceStr} ${pct?((isUp?'▲':'▼')+Math.abs(pct).toFixed(2)+'%'):''}</span>
+    </span>`;
+  }).join('');
+}
+
+function updateClock() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const dateStr = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' EST';
+  const tEl = document.getElementById('clock-time');
+  const dEl = document.getElementById('clock-date');
+  if (tEl) tEl.textContent = timeStr;
+  if (dEl) dEl.textContent = dateStr;
+  
+  // NYSE saatleri (EST: 9:30-16:00)
+  const h = now.getUTCHours() - 5; // EST = UTC-5
+  const m = now.getUTCMinutes();
+  const totalMins = h * 60 + m;
+  const isWeekday = now.getUTCDay() > 0 && now.getUTCDay() < 6;
+  const isNYSEOpen = isWeekday && totalMins >= 570 && totalMins < 960; // 9:30 - 16:00
+  
+  const dotEl = document.getElementById('status-dot');
+  const textEl = document.getElementById('market-status-text');
+  const sbNyse = document.getElementById('sb-nyse');
+  if (dotEl) dotEl.style.background = isNYSEOpen ? '#00e676' : '#ff9800';
+  if (textEl) textEl.textContent = isNYSEOpen ? 'NYSE OPEN' : 'NYSE CLOSED';
+  if (sbNyse) sbNyse.innerHTML = `<span class="sb-dot" style="background:${isNYSEOpen?'#00e676':'#ff9800'}"></span>NYSE: ${isNYSEOpen?'OPEN':'CLOSED'}`;
+  
+  const luEl = document.getElementById('sb-lastupdate');
+  if (luEl) luEl.textContent = 'Last update: ' + now.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+const fmt = function(n, dec){ dec = dec === undefined ? 2 : dec; return n.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}); };
+const genChartData = function(base, n, vol, trend, range){
+  var v = vol * 0.5; // dampen
+  var t = (trend||0) * 0.3;
+  var pts = [], p = base;
+  for(var i=0;i<n;i++){
+    // Average of 3 randoms → central limit → narrow gaussian-ish
+    var r = (Math.random()+Math.random()+Math.random()-1.5)/1.5;
+    var move = r * v + t * v;
+    // Hard clamp: max 1.5× vol per step
+    move = Math.max(-v*1.5, Math.min(v*1.5, move));
+    var o=p, c=p+move;
+    var wick=(Math.abs(move)*0.4 + v*0.15)*Math.random();
+    pts.push({t:i, o:o, h:Math.max(o,c)+wick, l:Math.min(o,c)-wick, c:c});
+    p=c;
+  }
+  return pts;
+};
+const getDateLabels = function(range) {
+  var now = new Date();
+  var labels = [];
+  if(range === '1D') {
+    return ['09:30','10:30','11:30','12:30','13:30','14:30','15:30'];
+  }
+  if(range === '5D') {
+    for(var i=4;i>=0;i--){
+      var d=new Date(now); d.setDate(d.getDate()-i);
+      labels.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    }
+    return labels;
+  }
+  if(range === '1M') {
+    for(var i=0;i<6;i++){
+      var d=new Date(now); d.setDate(d.getDate() - (30 - i*6));
+      labels.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    }
+    return labels;
+  }
+  if(range === '3M') {
+    for(var i=0;i<6;i++){
+      var d=new Date(now); d.setDate(d.getDate() - (90 - i*18));
+      labels.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    }
+    return labels;
+  }
+  if(range === 'YTD') {
+    var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var curMonth = now.getMonth();
+    for(var i=0;i<=Math.min(curMonth,5);i++){
+      labels.push(months[i]);
+    }
+    while(labels.length<6) labels.push(months[labels.length]);
+    return labels.slice(0,6);
+  }
+  if(range === '1Y') {
+    for(var i=11;i>=0;i--){
+      var d=new Date(now); d.setMonth(d.getMonth()-i);
+      labels.push(d.toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+    }
+    return [labels[0],labels[2],labels[4],labels[6],labels[8],labels[10]];
+  }
+  return ['','','','','',''];
+};
+function drawChart()  {
+  const canvas = document.getElementById('mainChart');
+  if (!canvas) return;
+
+  const par = canvas.parentElement;
+  const W = par.clientWidth || 562;
+  const H = par.clientHeight || 400;
+  if (W < 50 || H < 50) return;
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext('2d');
+  const data = window.chartState && window.chartState.data;
+  const rk = (window.chartState && window.chartState.range) || '1D';
+
+  if (!data || data.length < 2) {
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H); return;
+  }
+
+  // Live fiyatı al (her zaman doğru kaynak)
+  const livePriceEl = document.getElementById('chart-price');
+  const livePrice = livePriceEl ? parseFloat(livePriceEl.textContent.replace(/,/g, '')) : null;
+
+  // Data'dan close fiyatları
+  const closes = data.map(d => d.c).filter(p => typeof p === 'number' && !isNaN(p) && p > 0);
+  if (closes.length === 0) return;
+
+  const dataLastPrice = closes[closes.length - 1];
+
+  // Scale faktörü: live fiyat ile data son fiyatı arasındaki oran
+  // Bunu tüm data'ya uygula → grafiğin son noktası = live fiyata denk gelir
+  let scaleFactor = 1;
+  if (livePrice && livePrice > 0 && dataLastPrice > 0) {
+    const ratio = livePrice / dataLastPrice;
+    // Her zaman scale et (sadece büyük fark değil)
+    scaleFactor = ratio;
+  }
+
+  // Normalize edilmiş data
+  const normCloses = closes.map(c => c * scaleFactor);
+  const normData = data.map((d, i) => {
+    const idx = data.filter((x, j) => j <= i && typeof x.c === 'number' && !isNaN(x.c) && x.c > 0).length - 1;
+    const sf = scaleFactor;
+    return {
+      ...d,
+      _c: typeof d.c === 'number' && !isNaN(d.c) && d.c > 0 ? d.c * sf : null,
+      _h: typeof d.h === 'number' && !isNaN(d.h) && d.h > 0 ? d.h * sf : null,
+      _l: typeof d.l === 'number' && !isNaN(d.l) && d.l > 0 ? d.l * sf : null,
+    };
+  });
+
+  let minP = Math.min(...normCloses);
+  let maxP = Math.max(...normCloses);
+  let priceRange = maxP - minP;
+  if (priceRange < maxP * 0.001) { priceRange = maxP * 0.02; minP = maxP - priceRange; }
+
+  const padPct = 0.18;
+  minP -= priceRange * padPct;
+  maxP += priceRange * padPct;
+  priceRange = maxP - minP;
+
+  const PAD = { top: 28, right: 76, bottom: 42, left: 76 };
+  const CW = W - PAD.left - PAD.right;
+  const CH = H - PAD.top - PAD.bottom;
+
+  const xPos = i => PAD.left + (i / Math.max(normData.length - 1, 1)) * CW;
+  const yPos = p => PAD.top + CH - ((p - minP) / priceRange) * CH;
+
+  // Arka plan
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Yatay grid + Y etiketi
+  const gridN = 5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  
+  function fmtPrice(p) {
+    if (p >= 10000) return p.toFixed(0);
+    if (p >= 1000) return p.toFixed(1);
+    if (p >= 10) return p.toFixed(2);
+    return p.toFixed(4);
+  }
+
+  for (let g = 0; g <= gridN; g++) {
+    const gp = minP + (priceRange * (gridN - g) / gridN);
+    const gy = PAD.top + (g / gridN) * CH;
+    ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
+    
+    ctx.fillStyle = 'rgba(160,172,190,0.85)';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmtPrice(gp), PAD.left - 5, gy + 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(100,110,130,0.6)';
+    ctx.fillText(fmtPrice(gp), W - PAD.right + 4, gy + 4);
+  }
+
+  // Renk
+  const firstC = normData.find(d => d._c) ? normData.find(d => d._c)._c : normCloses[0];
+  const lastC = livePrice || normCloses[normCloses.length - 1]; // Her zaman live fiyat kullan
+  const isUp = lastC >= firstC;
+  const lineColor = isUp ? '#00e676' : '#ff5252';
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + CH);
+  grad.addColorStop(0, isUp ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)');
+  grad.addColorStop(1, 'rgba(13,17,23,0.01)');
+
+  // Alan
+  ctx.beginPath();
+  let firstIdx = normData.findIndex(d => d._c);
+  if (firstIdx < 0) return;
+  ctx.moveTo(xPos(firstIdx), yPos(normData[firstIdx]._c));
+  for (let i = firstIdx + 1; i < normData.length; i++) {
+    if (!normData[i]._c) continue;
+    ctx.lineTo(xPos(i), yPos(normData[i]._c));
+  }
+  ctx.lineTo(xPos(normData.length - 1), PAD.top + CH);
+  ctx.lineTo(xPos(firstIdx), PAD.top + CH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Çizgi
+  ctx.beginPath();
+  let fd2 = true;
+  for (let i = 0; i < normData.length; i++) {
+    if (!normData[i]._c) continue;
+    fd2 ? (ctx.moveTo(xPos(i), yPos(normData[i]._c)), fd2 = false) : ctx.lineTo(xPos(i), yPos(normData[i]._c));
+  }
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Son fiyat çizgisi (live fiyata göre)
+  const liveY = yPos(lastC);
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = lineColor + '80';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, liveY);
+  ctx.lineTo(W - PAD.right, liveY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Badge (live fiyat)
+  const badgeStr = fmtPrice(lastC);
+  ctx.font = 'bold 11px monospace';
+  const bw = ctx.measureText(badgeStr).width + 14;
+  ctx.fillStyle = lineColor;
+  if (ctx.roundRect) {
+    ctx.beginPath(); ctx.roundRect(W - PAD.right + 2, liveY - 10, bw, 20, 3); ctx.fill();
+  } else {
+    ctx.fillRect(W - PAD.right + 2, liveY - 10, bw, 20);
+  }
+  ctx.fillStyle = '#0d1117';
+  ctx.textAlign = 'left';
+  ctx.fillText(badgeStr, W - PAD.right + 7, liveY + 4);
+
+  // X ekseni etiketleri
+  ctx.fillStyle = 'rgba(130,142,160,0.8)';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  const maxLbls = Math.max(4, Math.floor(CW / 72));
+  const lStep = Math.max(1, Math.floor(normData.length / maxLbls));
+
+  for (let i = 0; i < normData.length; i += lStep) {
+    const d = normData[i];
+    let lbl = d.label || '';
+    if (!lbl && d.ts) {
+      const tsv = typeof d.ts === 'string' ? new Date(d.ts) : new Date(d.ts);
+      if (!isNaN(tsv.getTime())) {
+        if (rk === '1D') lbl = tsv.getHours() + ':' + String(tsv.getMinutes()).padStart(2, '0');
+        else if (rk === '5D') lbl = (tsv.getMonth()+1)+'/'+tsv.getDate()+' '+tsv.getHours()+'h';
+        else lbl = (tsv.getMonth()+1)+'/'+tsv.getDate();
+      }
+    }
+    if (!lbl) continue;
+    const xp = xPos(i);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top + CH); ctx.stroke();
+    ctx.fillStyle = 'rgba(130,142,160,0.8)';
+    ctx.fillText(lbl, xp, H - 9);
+  }
+
+  // Sol border
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, PAD.top);
+  ctx.lineTo(PAD.left, PAD.top + CH);
+  ctx.stroke();
+}
+function setRange(rk,el){document.querySelectorAll('.chart-tab').forEach(t=>t.classList.toggle('active',t.textContent.trim()===rk));chartState.range=rk;loadLiveChart(chartState.symbol,selectedType);}
+function selectStock(sym){selectedSym=sym;selectedType='stock';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(STOCK_CONFIGS[sym]?.name||sym);loadLiveChart(sym,'stock');}
+function selectIndex(sym){selectedSym=sym;selectedType='index';chartState.symbol=sym;const el=document.getElementById('chart-symbol');if(el)el.textContent=sym+' — '+(INDEX_CONFIGS[sym]?.name||sym);loadLiveChart(sym,'index');}
+
+async function loadLiveChart(sym, type) {
+  sym  = sym  || selectedSym  || 'SPX';
+  type = type || selectedType || 'index';
+  
+  const cached = LIVE.chartCache[sym];
+  if (cached && (Date.now() - (cached._fetchedAt||0)) < 60000) {
+    chartState.data = cached;
+    drawChart();
+    return;
+  }
+  
+  let result = null;
+  if (type === 'stock') {
+    result = await fetchStockPrice(sym);
+  } else if (type === 'index') {
+    result = await fetchIndexPrice(sym);
+  } else {
+    // crypto veya diğerleri: genChartData kullan
+    const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
+    const n = RANGE_CONFIGS[chartState.range] || 78;
+    chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
+    drawChart();
+    return;
+  }
+  
+  if (result && result.timestamps && result.closes) {
+    // Yahoo Finance'den gerçek 1D veri
+    const data = [];
+    for (let i = 0; i < result.timestamps.length; i++) {
+      if (result.closes[i] == null) continue;
+      const ts = result.timestamps[i] * 1000;
+      const dt = new Date(ts);
+      data.push({
+        t: i,
+        ts: ts,
+        o: result.closes[i],
+        h: result.closes[i] * 1.001,
+        l: result.closes[i] * 0.999,
+        c: result.closes[i],
+        label: dt.getHours()+':'+(dt.getMinutes()<10?'0':'')+dt.getMinutes()
+      });
+    }
+    if (data.length > 0) {
+      data._fetchedAt = Date.now();
+      LIVE.chartCache[sym] = data;
+      chartState.data = data;
+      updateChartHeader(result);
+      drawChart();
+      return;
+    }
+  }
+  
+  // Fallback: simüle veri
+  const conf = STOCK_CONFIGS[sym] || INDEX_CONFIGS[sym] || {base: LIVE.loaded[sym]?.price||100, vol:2, trend:0};
+  const n = RANGE_CONFIGS[chartState.range] || 78;
+  chartState.data = genChartData(conf.base, n, conf.vol, conf.trend, chartState.range);
+  drawChart();
+}
+function renderNews(cat)  {
+  const body = document.getElementById('news-body');
+  if (!body) return;
+  
+  const filter = catFilter || window._newsCatFilter || 'all';
+  window._newsCatFilter = filter;
+
+  const srcColors = {
+    BBG: '#f57c00', RTR: '#1565c0', WSJ: '#212121',
+    DJN: '#6a1b9a', CNBC: '#c62828', FT: '#f8bbd0',
+    AA: '#1b5e20', TRT: '#880e4f'
+  };
+
+  const catLabel = {macro:'MACRO',equities:'EQUİTİES',crypto:'CRYPTO',fx:'FX',commodities:'CMDTY',turkey:'TÜRKİYE'};
+  const catColor = {macro:'#58a6ff',equities:'#00e676',crypto:'#ff9800',fx:'#ab47bc',commodities:'#8d6e63',turkey:'#ef5350'};
+  const impactBg = {high:'rgba(239,83,80,0.12)',med:'rgba(255,152,0,0.1)',low:'rgba(88,166,255,0.08)'};
+  const impactDot = {high:'#ef5350',med:'#ffa726',low:'#58a6ff'};
+  const impactLabel = {high:'HIGH IMPACT',med:'MED IMPACT',low:'LOW IMPACT'};
+
+  const items = window.newsData.filter(n => filter === 'all' || n.category === filter);
+
+  body.innerHTML = items.map(n => {
+    const srcBg = srcColors[n.source] || '#333';
+    const catBg = catColor[n.category] || '#666';
+    const catTxt = catLabel[n.category] || n.category.toUpperCase();
+    const iBg = impactBg[n.impact] || impactBg.low;
+    const iDot = impactDot[n.impact] || '#aaa';
+    const iLbl = impactLabel[n.impact] || '';
+    const tagsHtml = (n.tags || []).map(t => `<span class="news-tag">#${t}</span>`).join('');
+    const relatedHtml = (n.related || []).map(r =>
+      `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:3px;padding:1px 7px;font-size:11px;font-family:monospace;font-weight:700;color:#58a6ff;margin:2px 2px 0 0;cursor:pointer" onclick="window._searchSelect && window._searchSelect('${r}','stock')">${r}</span>`
+    ).join('');
+
+    return `
+    <div class="news-item${n.breaking?' breaking':''}${n.highlight?' highlight':''}" 
+         style="border-left:3px solid ${n.breaking?'#ef5350':catBg};margin-bottom:0;border-bottom:1px solid #21262d;padding:10px 12px;cursor:pointer;transition:background 0.15s"
+         onclick="window._toggleNewsExpand(this, ${n.id})"
+         onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+         onmouseout="this.style.background=''">
+      
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+        <span style="background:${srcBg};color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">${n.source}</span>
+        <span style="color:#8b949e;font-size:11px;font-weight:600">${n.time}</span>
+        <span style="background:${catBg}22;color:${catBg};border:1px solid ${catBg}44;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;letter-spacing:0.3px">${catTxt}</span>
+        ${n.breaking ? '<span style="background:#ef5350;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:3px;animation:none;letter-spacing:0.5px">🔴 BREAKING</span>' : ''}
+        <span style="display:flex;align-items:center;gap:3px;margin-left:auto;background:${iBg};border:1px solid ${iDot}33;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;color:${iDot}">
+          <span style="width:5px;height:5px;border-radius:50%;background:${iDot};display:inline-block"></span>${iLbl}
+        </span>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:#e6edf3;line-height:1.45;margin-bottom:5px">${n.headline}</div>
+
+      <div class="news-expand-body" id="news-body-${n.id}" style="display:none;margin-top:6px">
+        <div style="font-size:12px;color:#c9d1d9;line-height:1.65;margin-bottom:8px;padding:8px;background:#0d1117;border-radius:4px;border:1px solid #21262d">${n.body}</div>
+        
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;padding:6px 8px;background:${iBg};border-radius:4px;border:1px solid ${iDot}22">
+          <span style="color:${iDot};font-size:11px;font-weight:700">📊 MARKET IMPACT:</span>
+          <span style="color:#c9d1d9;font-size:11px">${n.impactText}</span>
+        </div>
+
+        ${n.related && n.related.length > 0 ? `
+        <div style="margin-top:4px">
+          <span style="font-size:10px;color:#8b949e;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">İLGİLİ SEMBOLLER → </span>
+          ${relatedHtml}
+        </div>` : ''}
+      </div>
+
+      <div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap">
+        <div class="news-tags" style="flex:1">${tagsHtml}</div>
+        <span style="font-size:10px;color:#444;transition:color 0.15s" id="news-arrow-${n.id}">▼ detay</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function filterNews(cat)  {
+  document.querySelectorAll('.news-filter').forEach(b => b.classList.remove('active'));
+  const catMap = {'All':'all','Macro':'macro','Equities':'equities','Crypto':'crypto','FX':'fx','Commodities':'commodities'};
+  document.querySelectorAll('.news-filter').forEach(b => {
+    const bc = catMap[b.textContent.trim()] || b.textContent.trim().toLowerCase();
+    b.classList.toggle('active', bc === cat || (cat === 'all' && b.textContent.trim() === 'All'));
+  });
+  window.renderNews(cat);
+}
+function filterWatchlist(v){renderWatchlist(v);}
+function switchTab(tab)  {
+  const overlay = document.getElementById('tab-overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayBody = document.getElementById('overlay-body');
+  const navTabs = document.querySelectorAll('.nav-tab');
+  
+  // Tüm tabları deaktive et
+  navTabs.forEach(t => t.classList.remove('active'));
+  
+  if (tab === 'markets') {
+    // Overlay'i kapat
+    if (overlay) overlay.classList.remove('visible');
+    // Markets tabını aktif et
+    navTabs[0] && navTabs[0].classList.add('active');
+  } else if (tab === 'crypto') {
+    if (overlay) overlay.classList.add('visible');
+    if (overlayTitle) overlayTitle.textContent = '₿ Kripto Para Piyasaları';
+    navTabs[1] && navTabs[1].classList.add('active');
+    window.renderCryptoView();
+  } else if (tab === 'fx') {
+    if (overlay) overlay.classList.add('visible');
+    if (overlayTitle) overlayTitle.textContent = '💱 Döviz Piyasaları (FX)';
+    navTabs[2] && navTabs[2].classList.add('active');
+    window.renderFXView();
+  } else if (tab === 'watchlist') {
+    if (overlay) overlay.classList.add('visible');
+    if (overlayTitle) overlayTitle.textContent = '📋 Watchlist Yönetimi';
+    navTabs[3] && navTabs[3].classList.add('active');
+    window.renderWatchlistManage();
+  }
+}
+function renderCryptoView()  {
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  
+  const cryptoData = [
+    { sym: 'BTC', name: 'Bitcoin', icon: '₿' },
+    { sym: 'ETH', name: 'Ethereum', icon: 'Ξ' },
+    { sym: 'SOL', name: 'Solana', icon: '◎' },
+    { sym: 'BNB', name: 'BNB', icon: '⬡' },
+    { sym: 'XRP', name: 'Ripple', icon: '✕' },
+    { sym: 'ADA', name: 'Cardano', icon: '₳' },
+    { sym: 'AVAX', name: 'Avalanche', icon: '▲' },
+    { sym: 'DOT', name: 'Polkadot', icon: '●' },
+    { sym: 'MATIC', name: 'Polygon', icon: '⬡' },
+    { sym: 'LINK', name: 'Chainlink', icon: '⬡' },
+    { sym: 'UNI', name: 'Uniswap', icon: '🦄' },
+    { sym: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
+    { sym: 'SHIB', name: 'Shiba Inu', icon: '🐕' },
+    { sym: 'LTC', name: 'Litecoin', icon: 'Ł' },
+    { sym: 'USDT', name: 'Tether', icon: '₮' },
+    { sym: 'USDC', name: 'USD Coin', icon: '$' },
+  ];
+  
+  // CoinGecko'dan gelen live data kullan
+  const liveData = {};
+  if (window.MDATA && window.MDATA.crypto) {
+    window.MDATA.crypto.forEach(c => { liveData[c.sym] = c; });
+  }
+  
+  // BNB ve XRP için LIVE verisini tickerbar'dan al
+  const livePrices = {};
+  if (window.LIVE && window.LIVE.loaded) {
+    Object.keys(window.LIVE.loaded).forEach(k => {
+      livePrices[k] = window.LIVE.loaded[k];
+    });
+  }
+  
+  // Commodities section'dan crypto prices
+  const cmdCards = document.querySelectorAll('.cmd-card');
+  const cmdPrices = {};
+  cmdCards.forEach(card => {
+    const nameEl = card.querySelector('.cmd-name');
+    const priceEl = card.querySelector('.cmd-price');
+    const chgEl = card.querySelector('.cmd-chg');
+    if (nameEl && priceEl) {
+      const sym = nameEl.textContent.replace(/[^A-Z]/g, '');
+      if (sym) {
+        cmdPrices[sym] = {
+          price: parseFloat(priceEl.textContent.replace(/,/g, '')),
+          pct: parseFloat(chgEl ? chgEl.textContent.replace('%','').replace('▼','-').replace('▲','') : 0)
+        };
+      }
+    }
+  });
+  
+  let html = '<div class="crypto-grid">';
+  cryptoData.forEach(c => {
+    let price = '—', pct = 0, mktcap = '', vol = '';
+    
+    if (liveData[c.sym]) {
+      const d = liveData[c.sym];
+      price = d.price ? d.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: d.price > 100 ? 2 : 6}) : '—';
+      pct = d.chg24h || 0;
+      if (d.mktcap) mktcap = 'Mkt Cap: $' + (d.mktcap/1e9).toFixed(1) + 'B';
+      if (d.volume24h) vol = 'Vol: $' + (d.volume24h/1e9).toFixed(1) + 'B';
+    } else if (cmdPrices[c.sym]) {
+      const d = cmdPrices[c.sym];
+      price = d.price ? d.price.toLocaleString('en-US', {minimumFractionDigits: 2}) : '—';
+      pct = d.pct || 0;
+    }
+    
+    const isUp = pct >= 0;
+    const chgColor = isUp ? '#00e676' : '#ff5252';
+    const arrow = isUp ? '▲' : '▼';
+    
+    html += `
+      <div class="crypto-card" onclick="window.selectStock('${c.sym}'); window.switchTab('markets');">
+        <div class="crypto-card-sym">${c.icon} ${c.sym}</div>
+        <div class="crypto-card-name">${c.name}</div>
+        <div class="crypto-card-price">$${price}</div>
+        <div class="crypto-card-chg" style="color:${chgColor}">${arrow} ${Math.abs(pct).toFixed(2)}%</div>
+        ${mktcap ? `<div class="crypto-card-meta">${mktcap}</div>` : ''}
+        ${vol ? `<div class="crypto-card-meta">${vol}</div>` : ''}
+      </div>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+function renderFXView()  {
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  
+  // LIVE.fx'ten gerçek veri al
+  const fxLiveMap = {};
+  if (window.LIVE && window.LIVE.fx) {
+    (Array.isArray(window.LIVE.fx) ? window.LIVE.fx : []).forEach(item => {
+      if (item.pair) fxLiveMap[item.pair] = item.rate;
+    });
+  }
+  
+  // Tüm FX pairs
+  const allPairs = [
+    // Major
+    { pair: 'EUR/USD', desc: 'Euro / US Dollar', section: 'MAJÖR' },
+    { pair: 'GBP/USD', desc: 'British Pound / US Dollar', section: 'MAJÖR' },
+    { pair: 'USD/JPY', desc: 'US Dollar / Japanese Yen', section: 'MAJÖR' },
+    { pair: 'USD/CHF', desc: 'US Dollar / Swiss Franc', section: 'MAJÖR' },
+    { pair: 'AUD/USD', desc: 'Avustralya Doları / ABD Doları', section: 'MAJÖR' },
+    { pair: 'NZD/USD', desc: 'Yeni Zelanda Doları / ABD Doları', section: 'MAJÖR' },
+    { pair: 'USD/CAD', desc: 'US Dollar / Canadian Dollar', section: 'MAJÖR' },
+    // EM
+    { pair: 'USD/TRY', desc: 'ABD Doları / Türk Lirası', section: 'GELİŞEN' },
+    { pair: 'USD/CNY', desc: 'ABD Doları / Çin Yuanı', section: 'GELİŞEN' },
+    { pair: 'EUR/TRY', desc: 'Euro / Türk Lirası', section: 'GELİŞEN' },
+    { pair: 'USD/BRL', desc: 'ABD Doları / Brezilya Reali', section: 'GELİŞEN' },
+    { pair: 'USD/INR', desc: 'ABD Doları / Hindistan Rupisi', section: 'GELİŞEN' },
+    { pair: 'USD/MXN', desc: 'ABD Doları / Meksika Pesosu', section: 'GELİŞEN' },
+    // Cross
+    { pair: 'EUR/GBP', desc: 'Euro / British Pound', section: 'ÇAPRAZ' },
+    { pair: 'EUR/JPY', desc: 'Euro / Japanese Yen', section: 'ÇAPRAZ' },
+    { pair: 'GBP/JPY', desc: 'British Pound / Japanese Yen', section: 'ÇAPRAZ' },
+    { pair: 'EUR/CHF', desc: 'Euro / Swiss Franc', section: 'ÇAPRAZ' },
+  ];
+  
+  const sections = {};
+  allPairs.forEach(p => {
+    if (!sections[p.section]) sections[p.section] = [];
+    sections[p.section].push(p);
+  });
+  
+  let html = '';
+  for (const [sName, pairs] of Object.entries(sections)) {
+    const titles = {'MAJÖR': '📊 Majör Pariteler', 'GELİŞEN': '🌍 Gelişen Piyasalar', 'ÇAPRAZ': '↔️ Çapraz Pariteler'};
+    html += `<div class="fx-section-title">${titles[sName] || sName}</div><div class="fx-grid">`;
+    pairs.forEach(p => {
+      let rate = fxLiveMap[p.pair];
+      if (!rate) {
+        // Approximate from known values
+        const [base, quote] = p.pair.split('/');
+        if (base === 'EUR' && quote === 'USD') rate = fxLiveMap['EUR/USD'];
+        else if (base === 'GBP' && quote === 'USD') rate = fxLiveMap['GBP/USD'];
+        else if (base === 'USD' && quote === 'JPY') rate = fxLiveMap['USD/JPY'];
+        else if (base === 'AUD' && quote === 'USD') rate = 0.6421;
+        else if (base === 'NZD' && quote === 'USD') rate = 0.5891;
+        else if (base === 'EUR' && quote === 'GBP') rate = (fxLiveMap['EUR/USD'] || 1.16) / (fxLiveMap['GBP/USD'] || 1.34);
+        else if (base === 'EUR' && quote === 'JPY') rate = (fxLiveMap['EUR/USD'] || 1.16) * (fxLiveMap['USD/JPY'] || 159.1);
+        else if (base === 'GBP' && quote === 'JPY') rate = (fxLiveMap['GBP/USD'] || 1.34) * (fxLiveMap['USD/JPY'] || 159.1);
+        else if (base === 'EUR' && quote === 'CHF') rate = (fxLiveMap['EUR/USD'] || 1.16) * (fxLiveMap['USD/CHF'] || 0.786);
+        else if (base === 'USD' && quote === 'BRL') rate = 5.03;
+        else if (base === 'USD' && quote === 'INR') rate = 83.92;
+        else if (base === 'USD' && quote === 'MXN') rate = 17.15;
+      }
+      
+      const rateStr = rate ? rate.toFixed(rate > 100 ? 2 : 4) : '—';
+      const noise = (Math.random() * 0.3 - 0.15);
+      const pct = noise.toFixed(2);
+      const isUp = noise >= 0;
+      const color = isUp ? '#00e676' : '#ff5252';
+      const live = fxLiveMap[p.pair] ? ' <span style="font-size:9px;color:#00e676;background:rgba(0,230,118,0.1);padding:1px 4px;border-radius:3px;vertical-align:middle">LIVE</span>' : '';
+      
+      html += `<div class="fx-card">
+        <div class="fx-card-pair">${p.pair}${live}</div>
+        <div style="font-size:10px;color:#8b949e;margin-bottom:4px">${p.desc}</div>
+        <div class="fx-card-price" style="font-family:monospace;font-size:18px;font-weight:700;color:#e6edf3">${rateStr}</div>
+        <div class="fx-card-chg" style="color:${color};font-size:12px;font-weight:600">${isUp?'▲':'▼'} ${Math.abs(parseFloat(pct))}%</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  
+  body.innerHTML = html;
+}
+function renderWatchlistManage()  {
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  
+  const lists = window.loadWatchlists();
+  
+  let html = `
+    <div class="wl-manage-header">
+      <input type="text" id="new-wl-name" placeholder="Yeni watchlist adı... (ör: Teknoloji Hisseleri)" />
+      <button onclick="window.createWatchlist()">+ Oluştur</button>
+    </div>
+    <div class="wl-lists" id="wl-lists-container">`;
+  
+  if (lists.length === 0) {
+    html += '<div style="color:#8b949e;padding:16px;text-align:center;">Henüz watchlist yok. Yukarıdan yeni bir tane oluşturun.</div>';
+  } else {
+    lists.forEach((wl, idx) => {
+      html += `
+        <div class="wl-list-card" id="wl-card-${wl.id}">
+          <div class="wl-list-card-header">
+            <span class="wl-list-card-name">
+              ${wl.name}
+              ${wl.active ? '<span class="wl-active-badge">AKTİF</span>' : ''}
+            </span>
+            <button class="wl-list-card-btn wl-activate-btn" onclick="window.activateWatchlist('${wl.id}')" ${wl.active ? 'disabled style="opacity:0.5"' : ''}>Aktif Et</button>
+            <button class="wl-list-card-btn danger" onclick="window.deleteWatchlist('${wl.id}')">Sil</button>
+          </div>
+          <div class="wl-list-items" id="wl-items-${wl.id}">
+            ${wl.symbols.length === 0 ? '<span class="wl-empty">Sembol yok — aşağıdan ekle</span>' : ''}
+            ${wl.symbols.map(s => `
+              <div class="wl-sym-chip">
+                <span onclick="window.selectStock('${s}'); window.switchTab('markets');" style="cursor:pointer" title="Grafiği gör">${s}</span>
+                <button onclick="window.removeFromWatchlist('${wl.id}', '${s}')" title="Kaldır">×</button>
+              </div>`).join('')}
+          </div>
+          <div class="wl-add-sym">
+            <input type="text" id="wl-input-${wl.id}" placeholder="Sembol ekle (ör: TSLA)" onkeydown="if(event.key==='Enter') window.addToWatchlist('${wl.id}')" />
+            <button onclick="window.addToWatchlist('${wl.id}')">Ekle</button>
+          </div>
+        </div>`;
+    });
+  }
+  
+  html += '</div>';
+  body.innerHTML = html;
+}
+function createWatchlist()  {
+  const input = document.getElementById('new-wl-name');
+  const name = input ? input.value.trim() : '';
+  if (!name) { alert('Watchlist adı girin!'); return; }
+  const lists = window.loadWatchlists();
+  lists.push({ id: 'wl_' + Date.now(), name: name, symbols: [], active: lists.length === 0 });
+  window.saveWatchlists(lists);
+  input.value = '';
+  window.renderWatchlistManage();
+}
+function deleteWatchlist(id)  {
+  if (!confirm('Bu watchlist silinsin mi?')) return;
+  let lists = window.loadWatchlists().filter(w => w.id !== id);
+  if (lists.length > 0 && !lists.some(w => w.active)) lists[0].active = true;
+  window.saveWatchlists(lists);
+  window.renderWatchlistManage();
+}
+function activateWatchlist(id)  {
+  const lists = window.loadWatchlists().map(w => ({...w, active: w.id === id}));
+  window.saveWatchlists(lists);
+  window.renderWatchlistManage();
+  // Sol panelde aktif watchlist'i göster
+  const active = lists.find(w => w.active);
+  if (active && window.MDATA) {
+    // aktif watchlist sembollerini sol panelde öne çıkar
+  }
+}
+function addToWatchlist(id)  {
+  const input = document.getElementById('wl-input-' + id);
+  const sym = input ? input.value.trim().toUpperCase() : '';
+  if (!sym) return;
+  const lists = window.loadWatchlists();
+  const wl = lists.find(w => w.id === id);
+  if (wl && !wl.symbols.includes(sym)) {
+    wl.symbols.push(sym);
+    window.saveWatchlists(lists);
+    window.renderWatchlistManage();
+  } else if (wl && wl.symbols.includes(sym)) {
+    if (input) { input.style.borderColor = '#ff7b72'; setTimeout(() => { input.style.borderColor = ''; }, 1000); }
+  }
+}
+function removeFromWatchlist(id,sym)  {
+  const lists = window.loadWatchlists();
+  const wl = lists.find(w => w.id === id);
+  if (wl) {
+    wl.symbols = wl.symbols.filter(s => s !== sym);
+    window.saveWatchlists(lists);
+    window.renderWatchlistManage();
+  }
+}
+function loadWatchlists()  {
+  try {
+    const data = localStorage.getItem(window.WL_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch(e) {
+    return [];
+  }
+}
+function saveWatchlists(lists)  {
+  try {
+    localStorage.setItem(window.WL_STORAGE_KEY, JSON.stringify(lists));
+  } catch(e) {}
+}
+function _toggleNewsExpand(el,id)  {
+  const expandBody = document.getElementById('news-body-' + id);
+  const arrow = document.getElementById('news-arrow-' + id);
+  if (!expandBody) return;
+  const isOpen = expandBody.style.display !== 'none';
+  expandBody.style.display = isOpen ? 'none' : 'block';
+  if (arrow) { arrow.textContent = isOpen ? '▼ detay' : '▲ kapat'; arrow.style.color = isOpen ? '#444' : '#58a6ff'; }
+}
+function _searchSelect(sym,type)  {
+  const dropdown = document.getElementById('search-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  const searchInput = document.querySelector('.search-input');
+  if (searchInput) searchInput.value = '';
+  window.filterWatchlist('');
+  
+  if (type === 'crypto') {
+    window.switchTab('crypto');
+  } else if (type === 'index') {
+    window.selectIndex(sym);
+    setTimeout(() => window.loadLiveChart(sym, 'index'), 200);
+  } else {
+    window.selectStock(sym);
+    setTimeout(() => window.loadLiveChart(sym, 'stock'), 200);
+  }
+}
+
+const _allSearchSymbols = [
+  ...Object.entries(STOCK_CONFIGS).map(([sym,conf])=>({sym,name:conf.name,type:'stock'})),
+  ...Object.entries(INDEX_CONFIGS).map(([sym,conf])=>({sym,name:conf.name,type:'index'})),
+  ...[{sym:'BTC',name:'Bitcoin'},{sym:'ETH',name:'Ethereum'},{sym:'SOL',name:'Solana'},
+      {sym:'BNB',name:'BNB'},{sym:'XRP',name:'Ripple'},{sym:'DOGE',name:'Dogecoin'},
+      {sym:'ADA',name:'Cardano'},{sym:'AVAX',name:'Avalanche'}].map(c=>({...c,type:'crypto'}))
+];
+
+function handleSearch(val) {
+  filterWatchlist(val.toUpperCase());
+  const dropdown = document.getElementById('search-dropdown');
+  if (!val || val.length < 1) { dropdown.style.display='none'; return; }
+  const matches = _allSearchSymbols.filter(s=>s.sym.toLowerCase().includes(val.toLowerCase())||s.name.toLowerCase().includes(val.toLowerCase())).slice(0,8);
+  if (!matches.length) { dropdown.style.display='none'; return; }
+  const inp = document.getElementById('search-input');
+  const box = inp ? inp.getBoundingClientRect() : null;
+  if (box) { dropdown.style.left=box.left+'px'; dropdown.style.top=(box.bottom+4)+'px'; dropdown.style.width=Math.max(220,box.width)+'px'; }
+  const typeIcon = {stock:'📈',index:'📊',crypto:'₿'};
+  dropdown.innerHTML = matches.map(m=>`<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background=''" onclick="_searchSelect('${m.sym}','${m.type}')"><span>${typeIcon[m.type]||'📈'}</span><span style="font-weight:700;color:#e6edf3;font-family:monospace">${m.sym}</span><span style="color:#8b949e;font-size:12px;flex:1">${m.name}</span><span style="font-size:10px;color:#8b949e;background:#21262d;padding:1px 5px;border-radius:3px">${m.type}</span></div>`).join('');
+  dropdown.style.display='block';
+}
+
+function handleSearchKey(e) {
+  if (e.key==='Escape') { document.getElementById('search-dropdown').style.display='none'; e.target.value=''; filterWatchlist(''); }
+}
+document.addEventListener('click',e=>{const d=document.getElementById('search-dropdown');const i=document.getElementById('search-input');if(d&&i&&!i.contains(e.target)&&!d.contains(e.target))d.style.display='none';});
+
+// ==================== INIT ====================
+async function init() {
+  // Saat başlat
+  updateClock();
+  setInterval(updateClock, 1000);
+  
+  // Watchlist kayıtlı değilse varsayılan oluştur
+  if (!localStorage.getItem(WL_STORAGE_KEY)) {
+    saveWatchlists([
+      {id:'wl_default',name:'My Watchlist',symbols:['AAPL','MSFT','GOOGL','NVDA','TSLA'],active:true}
+    ]);
+  }
+  
+  // İlk render
+  renderWatchlist('');
+  renderIndices();
+  renderCommodities();
+  renderTicker();
+  renderNews('all');
+  
+  // News count badge
+  document.getElementById('news-count-badge').textContent = newsData.length;
+  
+  // Crypto fiyatlarını al
+  await fetchCryptoLive();
+  renderCommodities();
+  renderTicker();
+  
+  // S&P 500'ü yükle
+  await loadLiveChart('SPX', 'index');
+  
+  // Chart symbol başlığı
+  document.getElementById('chart-symbol').textContent = 'SPX — S&P 500 Index';
+  
+  // Stok fiyatlarını sırayla güncelle (her 4 saniyede bir sonraki)
+  setInterval(refreshNextStock, 4000);
+  
+  // Crypto her 60 saniyede bir güncelle
+  setInterval(async () => {
+    await fetchCryptoLive();
+    renderCommodities();
+    updateTickerBar();
+  }, 60000);
+  
+  // renderIndices her 30 saniyede bir
+  setInterval(() => { renderIndices(); updateTickerBar(); }, 30000);
+  
+  // Chart 5 saniyede bir yenile
+  setInterval(() => {
+    if (document.getElementById('tab-overlay')?.classList.contains('visible')) return;
+    if (chartState.data?.length > 0) drawChart();
+  }, 5000);
+  
+  // Canlı haber akışı - 40 saniyede bir
+  const liveNewsPool = [{"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain 'reasonable' if core PCE continues declining toward 2%. He emphasized the Fed is data-dependent, noting strong employment gives the FOMC flexibility.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"]},{"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta traded in positive territory. Breadth positive with 73% of components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE"]},{"source":"WSJ","category":"macro","headline":"U.S. consumer confidence rises to 103.2 — highest since February 2025","body":"The Conference Board Consumer Confidence Index climbed to 103.2 in May from 97.0 in April, topping the consensus of 99.5. The Present Situation Index rose 8.1 points.","tags":["CONSUMER","MACRO","USD"],"impact":"med","impactText":"Retail ETF XRT +0.5%; XLY +0.4%","related":["XRT","XLY","AMZN","WMT"]},{"source":"BBG","category":"crypto","headline":"Bitcoin ETF inflows hit $620M — BlackRock IBIT leads institutional demand","body":"U.S. spot Bitcoin ETFs recorded $620M combined net inflows, led by BlackRock IBIT ($398M) and Fidelity FBTC ($112M). Total AUM crossed $65B. Options OI on IBIT hit a record $4.2B.","tags":["BTC","ETF","IBIT","BLACKROCK"],"impact":"high","impactText":"BTC +2.1%; COIN +5.2%; MSTR +4.8%","related":["IBIT","FBTC","COIN","MSTR"]},{"source":"WSJ","category":"equities","headline":"Amazon AWS revenue +32% YoY — AI workloads now $6B+ annual run rate","body":"AWS Q1 2026 revenue hit $29.3B, up 32% YoY, beating consensus by $900M. CEO Jassy said generative AI services exceeded $6B annualized run rate. Operating margin expanded to 38.7%.","tags":["AMZN","AWS","AI","CLOUD"],"impact":"high","impactText":"AMZN +3.4% afterhours; MSFT -0.3%; GOOGL flat","related":["AMZN","MSFT","GOOGL","NVDA"]},{"source":"CNBC","category":"macro","headline":"U.S. durable goods orders +2.3% in April — core capital goods beat consensus","body":"Durable goods orders rose 2.3% MoM in April, exceeding +0.8% forecast. Core capital goods shipments rose 0.4%, a proxy for business investment.","tags":["DURABLEGOODS","MACRO","CAPEX"],"impact":"med","impactText":"DXY +0.15%; XLI +0.4%; CAT +0.6%","related":["XLI","CAT","DE","HON"]},{"source":"BBG","category":"equities","headline":"Meta AI assistant reaches 1B users — Zuckerberg announces open-source Llama 4","body":"Meta Platforms announced its AI assistant crossed 1 billion MAU across WhatsApp, Instagram, Facebook, and Messenger. Llama 4 open-source release benchmarks above GPT-4o on reasoning tasks.","tags":["META","AI","LLAMA"],"impact":"high","impactText":"META +2.8%; MSFT -0.4%; GOOGL -0.2%","related":["META","MSFT","GOOGL","NVDA"]}];
+  let _liveId = 500;
+  setInterval(() => {
+    const n = liveNewsPool[Math.floor(Math.random()*liveNewsPool.length)];
+    const now = new Date();
+    const t = now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+    newsData.unshift({...n, id:++_liveId, time:t, breaking:Math.random()<0.08, highlight:Math.random()<0.2});
+    if (newsData.length > 40) newsData.pop();
+    renderNews(_newsCatFilter||'all');
+    const badge = document.getElementById('feed-badge');
+    if (badge) {
+      badge.style.background='#00e676'; badge.style.color='#0d1117'; badge.textContent='● LIVE';
+      setTimeout(()=>{badge.style.background='#238636';badge.style.color='#fff';badge.textContent='● FEED';},3000);
+    }
+    document.getElementById('news-count-badge').textContent = newsData.length;
+  }, 40000);
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
