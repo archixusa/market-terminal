@@ -383,6 +383,89 @@ body { background: rgb(13, 17, 23); color: rgb(230, 237, 243); font-family: Inte
 /* ========== Hint badges ========== */
 .hint-badge { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; background:#1f6feb; color:#fff; font-size:9px; font-weight:700; margin-left:4px; cursor:help; vertical-align:middle; }
 
+/* ========== Responsive: keep the topbar on a single line ========== */
+#topbar { white-space: nowrap; flex-wrap: nowrap !important; gap: 6px; }
+#topbar .nav-tabs { flex-wrap: nowrap; gap: 1px; }
+#topbar .topbar-right { flex-wrap: nowrap; }
+#topbar .nav-tab { white-space: nowrap; }
+#topbar .clock-box { white-space: nowrap; }
+#topbar .clock-time, #topbar .clock-date { white-space: nowrap; line-height: 1.2; }
+#topbar .market-status { white-space: nowrap; }
+#topbar .logo-text, #topbar .logo-sub { white-space: nowrap; }
+#fng-widget, #fng-widget-stocks { white-space: nowrap; flex-shrink: 0; }
+
+/* Medium laptops — 1600px and below: compact spacing */
+@media (max-width: 1600px) {
+  #topbar { padding: 0 10px !important; gap: 4px; }
+  #topbar .nav-tab { padding: 5px 10px !important; font-size: 11px !important; }
+  #topbar .search-input { width: 140px !important; font-size: 11px !important; }
+  #topbar .search-input:focus { width: 160px !important; }
+  #fng-widget, #fng-widget-stocks { padding: 2px 6px !important; gap: 4px !important; }
+  #fng-widget-stocks span:nth-child(1) span:nth-child(1),
+  #fng-widget span:nth-child(1) span:nth-child(1) { font-size: 7px !important; }
+}
+
+/* Small laptops — 1400px and below: drop logo subtitle, compact tabs */
+@media (max-width: 1400px) {
+  #topbar .logo-sub { display: none; }
+  #topbar .logo-text { font-size: 14px !important; }
+  #topbar .nav-tab { padding: 4px 8px !important; font-size: 11px !important; }
+  #topbar .search-input { width: 120px !important; padding: 4px 8px 4px 26px !important; }
+  #topbar .search-input:focus { width: 150px !important; }
+  #topbar .clock-time { font-size: 13px !important; }
+  #topbar .clock-date { font-size: 9px !important; }
+}
+
+/* Common laptops — 1366 / 1280: aggressively compact */
+@media (max-width: 1366px) {
+  #topbar { padding: 0 8px !important; gap: 3px; height: 50px; }
+  #topbar .logo { gap: 6px !important; }
+  #topbar .logo-icon { width: 26px !important; height: 26px !important; font-size: 12px !important; border-radius: 6px !important; }
+  #topbar .logo-text { font-size: 13px !important; }
+  #topbar .nav-tab { padding: 4px 7px !important; font-size: 10px !important; }
+  #topbar .nav-tab:not([onclick*="switchTab"]) { padding: 3px 5px !important; }
+  #topbar .search-input { width: 100px !important; font-size: 10px !important; padding: 3px 6px 3px 22px !important; }
+  #topbar .search-input:focus { width: 130px !important; }
+  #topbar .search-icon { font-size: 10px !important; left: 6px !important; }
+  /* Compact F&G widgets — drop the secondary label */
+  #fng-widget-stocks > div:first-child > span:nth-child(2),
+  #fng-widget > div:first-child > span:nth-child(2) { display: none !important; }
+  #fng-widget-stocks > div:first-child > span:nth-child(1),
+  #fng-widget > div:first-child > span:nth-child(1) { font-size: 7px !important; }
+  #fng-stocks-val, #fng-val { font-size: 12px !important; }
+  #fng-stocks-lbl, #fng-lbl { font-size: 7px !important; }
+  /* Compact market status */
+  #market-status { padding: 3px 6px !important; }
+  #market-status span:last-child { font-size: 10px !important; }
+  /* Compact clock */
+  .clock-box { padding: 2px 6px !important; }
+  .clock-time { font-size: 12px !important; }
+  .clock-date { font-size: 8px !important; }
+  /* Tighten ticker bar font */
+  .tick-item { font-size: 10px !important; padding: 0 12px !important; }
+}
+
+/* Very small — 1200px and below: drop some optional icons + further compact */
+@media (max-width: 1200px) {
+  #topbar .nav-tab[title="Position size calculator"],
+  #topbar .nav-tab[title*="Order book"],
+  #topbar .nav-tab[title*="Settings"] { display: none; }
+  #topbar .nav-tab[onclick*="kb"] { display: none; }
+  /* Hide the live badge text, keep just the dot */
+  #topbar .live-badge { padding: 2px 5px !important; font-size: 8px !important; }
+  #topbar .nav-tab { padding: 3px 6px !important; font-size: 10px !important; }
+  /* Compact F&G — hide labels under value */
+  #fng-stocks-lbl, #fng-lbl { display: none !important; }
+}
+
+/* Tiny screens — 1024 and below: allow wrap */
+@media (max-width: 1024px) {
+  #topbar { height: auto !important; flex-wrap: wrap !important; padding: 6px 8px !important; }
+  #topbar .logo { flex: 0 0 auto; }
+  #topbar .nav-tabs { order: 3; flex-basis: 100%; justify-content: center; padding-top: 4px; border-top: 1px solid #21262d; }
+  #topbar .topbar-right { flex: 1 1 auto; justify-content: flex-end; }
+}
+
 /* Beginner mode: hide advanced features */
 body.beginner #chart-toolbar .chart-tool-btn[data-type="candle"],
 body.beginner #chart-toolbar .chart-tool-btn[data-ind="sma50"],
