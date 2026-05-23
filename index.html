@@ -1701,6 +1701,51 @@ async function fetchFundamentals(sym){
   cacheSet('fund_'+sym, j);
   return j;
 }
+async function fetchInsiderTransactions(sym){
+  if (!getApiKeys().finnhub) return null;
+  const cached = cacheGet('insider_'+sym, 6 * 60 * 60 * 1000); // 6h cache
+  if (cached) return cached;
+  const today = new Date().toISOString().slice(0,10);
+  const from = new Date(Date.now() - 180 * 86400000).toISOString().slice(0,10);
+  const j = await fhFetch('stock/insider-transactions', { symbol: sym, from, to: today });
+  if (!j || !j.data) return null;
+  cacheSet('insider_'+sym, j.data);
+  return j.data;
+}
+async function fetchIPOCalendar(){
+  if (!getApiKeys().finnhub) return [];
+  const cached = cacheGet('ipo_cal', 6 * 60 * 60 * 1000);
+  if (cached && cached.length) return cached;
+  const today = new Date().toISOString().slice(0,10);
+  const to = new Date(Date.now() + 60 * 86400000).toISOString().slice(0,10);
+  const j = await fhFetch('calendar/ipo', { from: today, to });
+  if (!j || !j.ipoCalendar) return [];
+  if (j.ipoCalendar.length) cacheSet('ipo_cal', j.ipoCalendar);
+  return j.ipoCalendar;
+}
+async function fetchEarningsCalendar(){
+  if (!getApiKeys().finnhub) return [];
+  const cached = cacheGet('earnings_cal', 6 * 60 * 60 * 1000);
+  if (cached && cached.length) return cached;
+  const today = new Date().toISOString().slice(0,10);
+  const to = new Date(Date.now() + 60 * 86400000).toISOString().slice(0,10);
+  const j = await fhFetch('calendar/earnings', { from: today, to });
+  if (!j || !j.earningsCalendar) return [];
+  // Prefer events with EPS estimate (means analysts cover it = bigger company)
+  const ranked = j.earningsCalendar
+    .filter(e => e.symbol && e.symbol.indexOf('.') === -1)
+    .sort((a, b) => {
+      // Has estimate first, then by symbol popularity
+      const ae = a.epsEstimate ? 1 : 0;
+      const be = b.epsEstimate ? 1 : 0;
+      if (ae !== be) return be - ae;
+      return a.date.localeCompare(b.date);
+    })
+    .slice(0, 40); // top 40 by relevance
+  if (ranked.length) cacheSet('earnings_cal', ranked);
+  return ranked;
+}
+
 async function fetchAnalyst(sym){
   if (!getApiKeys().finnhub) return null;
   const cached = cacheGet('analyst_'+sym, 6 * 60 * 60 * 1000); // 6h cache
@@ -1737,7 +1782,7 @@ async function renderFundamentalsForSymbol(sym){
   bar.style.display = 'flex';
   fEl.innerHTML = '<span style="color:#6e7681">Loading fundamentals…</span>';
   aEl.innerHTML = '';
-  const [f, a, p] = await Promise.all([fetchFundamentals(sym), fetchAnalyst(sym), fetchProfile(sym)]);
+  const [f, a, p, insiders] = await Promise.all([fetchFundamentals(sym), fetchAnalyst(sym), fetchProfile(sym), fetchInsiderTransactions(sym)]);
   const m = f?.metric || {};
   const cell = (lbl, val, tip) => '<span data-tip="'+(tip||lbl)+'"><span style="color:#6e7681">'+lbl+'</span> <span style="color:#e6edf3;font-weight:600">'+(val ?? '—')+'</span></span>';
   const fmt = (v, d) => v == null || !isFinite(v) ? '—' : v.toFixed(d ?? 2);
@@ -1785,6 +1830,29 @@ async function renderFundamentalsForSymbol(sym){
         '<span style="color:'+color+';font-weight:700">'+consensus+'</span>' +
         '<span style="color:#6e7681;font-size:10px">'+total+' analysts</span></span>';
     }
+  }
+  // Insider summary — last 90 days net change
+  if (insiders && insiders.length) {
+    const recent = insiders.slice(0, 50);
+    const totalBuy  = recent.filter(t => t.change > 0).reduce((s,t) => s + t.change, 0);
+    const totalSell = recent.filter(t => t.change < 0).reduce((s,t) => s + Math.abs(t.change), 0);
+    const net = totalBuy - totalSell;
+    const netColor = net >= 0 ? '#22c55e' : '#ef4444';
+    const fmt = v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toString();
+    // Build a hover tooltip with recent transactions
+    const lines = recent.slice(0, 8).map(t => {
+      const dir = t.change > 0 ? '+' : '';
+      const px = t.transactionPrice ? ' @ $' + t.transactionPrice : '';
+      return (t.transactionDate || t.filingDate) + '  ' + (t.name || 'insider').slice(0,24) + '  ' + dir + t.change.toLocaleString() + px;
+    }).join('\n');
+    const tipText = 'Insider activity last 180 days (shares):\nBought: ' + fmt(totalBuy) + '\nSold: ' + fmt(totalSell) + '\nNet: ' + (net>=0?'+':'') + fmt(net) + '\n\nRecent transactions:\n' + lines;
+    aEl.insertAdjacentHTML('beforeend',
+      '<span data-tip="'+tipText.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;gap:6px;margin-left:12px;border-left:1px solid #30363d;padding-left:12px">' +
+        '<span style="color:#6e7681">Insiders</span>' +
+        '<span style="color:'+netColor+';font-weight:700">' + (net>=0?'+':'') + fmt(net) + '</span>' +
+        '<span style="color:#6e7681;font-size:10px">net 180d</span>' +
+      '</span>'
+    );
   }
 }
 
@@ -5468,17 +5536,48 @@ const CALENDAR_EVENTS = [
   { date:'2026-07-30', time:'16:00', country:'US', flag:'🇺🇸', event:'Amazon (AMZN) — Q2 earnings',  imp:3, forecast:'EPS $1.39', prior:'EPS $1.26', type:'earnings' },
 ];
 
-function renderCalendar(){
+async function renderCalendar(){
+  const body = document.getElementById('overlay-body');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:20px;color:#6e7681">Loading calendar…</div>';
+  // Fetch live IPO + earnings in parallel
+  const [ipos, liveEarnings] = await Promise.all([fetchIPOCalendar(), fetchEarningsCalendar()]);
+  _renderCalendarBody(ipos, liveEarnings);
+}
+function _renderCalendarBody(ipos, liveEarnings){
   const body = document.getElementById('overlay-body');
   if (!body) return;
   const today = new Date();
-  const events = CALENDAR_EVENTS.slice().sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  // Convert live earnings into our format
+  const liveEarn = (liveEarnings || []).map(e => ({
+    date: e.date, time: e.hour === 'bmo' ? '07:00' : e.hour === 'amc' ? '16:00' : (e.hour || '16:00'),
+    country:'US', flag:'🇺🇸',
+    event: e.symbol + ' — Q' + e.quarter + ' earnings' + (e.epsEstimate ? ' (est EPS $' + e.epsEstimate.toFixed(2) + ')' : ''),
+    imp: 2, forecast: e.epsEstimate ? 'EPS $' + e.epsEstimate.toFixed(2) : '—',
+    prior: '—', type:'earnings', _live: true, _sym: e.symbol
+  }));
+  // IPO events
+  const ipoEvents = (ipos || []).slice(0, 30).map(i => ({
+    date: i.date, time: '09:30', country:'US', flag:'🇺🇸',
+    event: 'IPO: ' + (i.name || i.symbol) + ' (' + i.symbol + ')' + (i.exchange ? ' on ' + i.exchange : ''),
+    imp: 2, forecast: i.price ? '$' + i.price : '—', prior: i.numberOfShares ? (i.numberOfShares/1e6).toFixed(1)+'M sh' : '—',
+    type:'ipo', _ipo: true, _sym: i.symbol
+  }));
+  const all = CALENDAR_EVENTS.concat(liveEarn).concat(ipoEvents);
+  // Dedupe: prefer live earnings over static (by date+symbol)
+  const seen = new Set();
+  const events = all.filter(e => {
+    const k = e.date + '|' + (e._sym || e.event.slice(0,30));
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   // Group by date
   const groups = {};
   events.forEach(e => { (groups[e.date] = groups[e.date] || []).push(e); });
   const impDot = i => '<span style="display:inline-flex;gap:2px">' + ['','●','●●','●●●'][i].split('').map(d => '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+(i===3?'#ef4444':i===2?'#f97316':'#22c55e')+'"></span>').join('') + '</span>';
-  const typeColor = { macro:'#58a6ff', central:'#f97316', earnings:'#22c55e' };
-  let html = '<div style="padding:0 4px 12px;color:#8b949e;font-size:12px">Schedule of high-impact macro events, central bank decisions, and major earnings. All times in US Eastern.</div>';
+  const typeColor = { macro:'#58a6ff', central:'#f97316', earnings:'#22c55e', ipo:'#a78bfa' };
+  let html = '<div style="padding:0 4px 12px;color:#8b949e;font-size:12px">Schedule of macro events, central bank decisions, earnings, and IPOs. All times in US Eastern. Earnings + IPOs are live from Finnhub.</div>';
   for (const [date, evts] of Object.entries(groups)) {
     const d = new Date(date + 'T12:00:00Z');
     const diffDays = Math.round((d - today) / (1000*60*60*24));
