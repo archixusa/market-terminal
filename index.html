@@ -3782,86 +3782,75 @@ function switchTab(tab)  {
 function renderCryptoView()  {
   const body = document.getElementById('overlay-body');
   if (!body) return;
-  
+
   const cryptoData = [
-    { sym: 'BTC', name: 'Bitcoin', icon: '₿' },
-    { sym: 'ETH', name: 'Ethereum', icon: 'Ξ' },
-    { sym: 'SOL', name: 'Solana', icon: '◎' },
-    { sym: 'BNB', name: 'BNB', icon: '⬡' },
-    { sym: 'XRP', name: 'Ripple', icon: '✕' },
-    { sym: 'ADA', name: 'Cardano', icon: '₳' },
-    { sym: 'AVAX', name: 'Avalanche', icon: '▲' },
-    { sym: 'DOT', name: 'Polkadot', icon: '●' },
-    { sym: 'MATIC', name: 'Polygon', icon: '⬡' },
-    { sym: 'LINK', name: 'Chainlink', icon: '⬡' },
-    { sym: 'UNI', name: 'Uniswap', icon: '🦄' },
-    { sym: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
-    { sym: 'SHIB', name: 'Shiba Inu', icon: '🐕' },
-    { sym: 'LTC', name: 'Litecoin', icon: 'Ł' },
-    { sym: 'USDT', name: 'Tether', icon: '₮' },
-    { sym: 'USDC', name: 'USD Coin', icon: '$' },
+    { sym: 'BTC',  name: 'Bitcoin',    icon: '₿' },
+    { sym: 'ETH',  name: 'Ethereum',   icon: 'Ξ' },
+    { sym: 'SOL',  name: 'Solana',     icon: '◎' },
+    { sym: 'BNB',  name: 'BNB',        icon: '⬡' },
+    { sym: 'XRP',  name: 'Ripple',     icon: '✕' },
+    { sym: 'ADA',  name: 'Cardano',    icon: '₳' },
+    { sym: 'AVAX', name: 'Avalanche',  icon: '▲' },
+    { sym: 'DOT',  name: 'Polkadot',   icon: '●' },
+    { sym: 'MATIC',name: 'Polygon',    icon: '⬡' },
+    { sym: 'LINK', name: 'Chainlink',  icon: '⬡' },
+    { sym: 'UNI',  name: 'Uniswap',    icon: '🦄' },
+    { sym: 'DOGE', name: 'Dogecoin',   icon: 'Ð' },
+    { sym: 'SHIB', name: 'Shiba Inu',  icon: '🐕' },
+    { sym: 'LTC',  name: 'Litecoin',   icon: 'Ł' },
+    { sym: 'USDT', name: 'Tether',     icon: '₮' },
+    { sym: 'USDC', name: 'USD Coin',   icon: '$' }
   ];
-  
-  // CoinGecko'dan gelen live data kullan
-  const liveData = {};
-  if (window.MDATA && window.MDATA.crypto) {
-    window.MDATA.crypto.forEach(c => { liveData[c.sym] = c; });
+
+  const fmtPrice = p => {
+    if (!isFinite(p) || p <= 0) return '—';
+    if (p >= 1000)  return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    if (p >= 1)     return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (p >= 0.01)  return p.toFixed(4);
+    return p.toFixed(8);
+  };
+
+  // Global market summary if loaded
+  let summaryHtml = '';
+  if (LIVE.cryptoGlobal) {
+    const g = LIVE.cryptoGlobal;
+    const upCol = g.mcapPct24h >= 0 ? '#22c55e' : '#ef4444';
+    summaryHtml = `
+      <div style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:12px">
+        <div><span style="color:#6e7681">Total Market Cap</span> <span style="color:#e6edf3;font-weight:700;font-size:14px">$${(g.totalMcap/1e12).toFixed(2)}T</span> <span style="color:${upCol}">${g.mcapPct24h>=0?'+':''}${g.mcapPct24h.toFixed(2)}%</span></div>
+        <div><span style="color:#6e7681">24h Volume</span> <span style="color:#e6edf3;font-weight:700">$${(g.totalVol/1e9).toFixed(1)}B</span></div>
+        <div><span style="color:#6e7681">BTC Dominance</span> <span style="color:#f97316;font-weight:700">${g.btcD.toFixed(1)}%</span></div>
+        <div><span style="color:#6e7681">ETH Dominance</span> <span style="color:#a78bfa;font-weight:700">${g.ethD.toFixed(1)}%</span></div>
+        <div><span style="color:#6e7681">Stablecoins</span> <span style="color:#58a6ff;font-weight:700">${g.stablecoinShare.toFixed(1)}%</span></div>
+        <div><span style="color:#6e7681">Active coins</span> <span style="color:#e6edf3;font-weight:700">${g.activeCoins||'—'}</span></div>
+      </div>`;
   }
-  
-  // BNB ve XRP için LIVE verisini tickerbar'dan al
-  const livePrices = {};
-  if (window.LIVE && window.LIVE.loaded) {
-    Object.keys(window.LIVE.loaded).forEach(k => {
-      livePrices[k] = window.LIVE.loaded[k];
-    });
-  }
-  
-  // Commodities section'dan crypto prices
-  const cmdCards = document.querySelectorAll('.cmd-card');
-  const cmdPrices = {};
-  cmdCards.forEach(card => {
-    const nameEl = card.querySelector('.cmd-name');
-    const priceEl = card.querySelector('.cmd-price');
-    const chgEl = card.querySelector('.cmd-chg');
-    if (nameEl && priceEl) {
-      const sym = nameEl.textContent.replace(/[^A-Z]/g, '');
-      if (sym) {
-        cmdPrices[sym] = {
-          price: parseFloat(priceEl.textContent.replace(/,/g, '')),
-          pct: parseFloat(chgEl ? chgEl.textContent.replace('%','').replace('▼','-').replace('▲','') : 0)
-        };
-      }
-    }
-  });
-  
-  let html = '<div class="crypto-grid">';
+
+  let html = summaryHtml + '<div class="crypto-grid">';
   cryptoData.forEach(c => {
-    let price = '—', pct = 0, mktcap = '', vol = '';
-    
-    if (liveData[c.sym]) {
-      const d = liveData[c.sym];
-      price = d.price ? d.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: d.price > 100 ? 2 : 6}) : '—';
-      pct = d.chg24h || 0;
-      if (d.mktcap) mktcap = 'Mkt Cap: $' + (d.mktcap/1e9).toFixed(1) + 'B';
-      if (d.volume24h) vol = 'Vol: $' + (d.volume24h/1e9).toFixed(1) + 'B';
-    } else if (cmdPrices[c.sym]) {
-      const d = cmdPrices[c.sym];
-      price = d.price ? d.price.toLocaleString('en-US', {minimumFractionDigits: 2}) : '—';
-      pct = d.pct || 0;
-    }
-    
+    const d = LIVE.loaded[c.sym];
+    const price = d?.price;
+    const pct   = d?.pct || 0;
+    const mktcap = d?.mktcap;
+    const vol    = d?.vol;
     const isUp = pct >= 0;
-    const chgColor = isUp ? '#00e676' : '#ff5252';
+    const chgColor = isUp ? '#22c55e' : '#ef4444';
     const arrow = isUp ? '▲' : '▼';
-    
+    const live = LIVE.sourceFor[c.sym] === 'live';
+    const badge = live
+      ? '<span style="font-size:9px;color:#22c55e;background:rgba(34,197,94,0.12);padding:1px 5px;border-radius:3px;font-weight:700;margin-left:auto">LIVE</span>'
+      : '<span style="font-size:9px;color:#8b949e;background:#21262d;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:auto">SIM</span>';
     html += `
       <div class="crypto-card" onclick="window.selectStock('${c.sym}'); window.switchTab('markets');">
-        <div class="crypto-card-sym">${c.icon} ${c.sym}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div class="crypto-card-sym">${c.icon} ${c.sym}</div>
+          ${badge}
+        </div>
         <div class="crypto-card-name">${c.name}</div>
-        <div class="crypto-card-price">$${price}</div>
-        <div class="crypto-card-chg" style="color:${chgColor}">${arrow} ${Math.abs(pct).toFixed(2)}%</div>
-        ${mktcap ? `<div class="crypto-card-meta">${mktcap}</div>` : ''}
-        ${vol ? `<div class="crypto-card-meta">${vol}</div>` : ''}
+        <div class="crypto-card-price">$${fmtPrice(price)}</div>
+        <div class="crypto-card-chg" style="color:${chgColor}">${arrow} ${Math.abs(pct).toFixed(2)}% <span style="color:#6e7681;font-size:10px">24h</span></div>
+        ${mktcap ? `<div class="crypto-card-meta">Mkt Cap $${(mktcap/1e9).toFixed(1)}B</div>` : ''}
+        ${vol ? `<div class="crypto-card-meta">Vol 24h $${(vol/1e9).toFixed(1)}B</div>` : ''}
       </div>`;
   });
   html += '</div>';
