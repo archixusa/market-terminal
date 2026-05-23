@@ -2227,12 +2227,12 @@ async function fetchStockFearGreed(){
     const lbl = data.rating || '';
     const el = document.getElementById('fng-stocks-val');
     const lblEl = document.getElementById('fng-stocks-lbl');
-    if (!el || !lblEl) return;
+    if (!el) return;
     el.textContent = val;
-    lblEl.textContent = lbl.toUpperCase();
+    if (lblEl) lblEl.textContent = lbl.toUpperCase();
     const color = val < 25 ? '#ef4444' : val < 45 ? '#f97316' : val < 55 ? '#a3a3a3' : val < 75 ? '#84cc16' : '#22c55e';
     el.style.color = color;
-    lblEl.style.color = color;
+    if (lblEl) lblEl.style.color = color;
     const widget = document.getElementById('fng-widget-stocks');
     if (widget) {
       widget.style.borderColor = color + '55';
@@ -2462,13 +2462,12 @@ async function fetchFearGreed(){
     const lbl = data.value_classification;
     const el = document.getElementById('fng-val');
     const lblEl = document.getElementById('fng-lbl');
-    if (!el || !lblEl) return;
+    if (!el) return;
     el.textContent = val;
-    lblEl.textContent = lbl.toUpperCase();
-    // Color: 0-25 extreme fear (red), 25-45 fear (orange), 45-55 neutral (gray), 55-75 greed (lime), 75-100 extreme greed (green)
+    if (lblEl) lblEl.textContent = lbl.toUpperCase();
     const color = val < 25 ? '#ef4444' : val < 45 ? '#f97316' : val < 55 ? '#a3a3a3' : val < 75 ? '#84cc16' : '#22c55e';
     el.style.color = color;
-    lblEl.style.color = color;
+    if (lblEl) lblEl.style.color = color;
     const widget = document.getElementById('fng-widget');
     if (widget) widget.style.borderColor = color + '55';
   } catch(e) {}
