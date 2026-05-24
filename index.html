@@ -1544,27 +1544,29 @@ async function fetchCryptoLive(){
 // We fetch the ETF and present it as the underlying index/instrument
 // (scaled where needed). The ETF tracks the index closely enough for
 // retail viewing; precision-traded products use the real future.
+// Calibrated scales — ETF price × scale ≈ underlying index value.
+// Re-verified May 2026 against live ETF closes. NKY/UKX/HSI/VIX recalibrated.
 const ETF_PROXIES = {
   // US indices
   SPX:    { etf:'SPY',  scale:10.05,  note:'S&P 500 via SPY ETF' },
   DJI:    { etf:'DIA',  scale:100,    note:'Dow Jones via DIA ETF' },
-  COMP:   { etf:'QQQ',  scale:46.5,   note:'Nasdaq Composite via QQQ ETF (≈Nasdaq 100)' },
+  COMP:   { etf:'QQQ',  scale:36,     note:'Nasdaq via QQQ ETF (Nasdaq-100 proxy)' },
   RUT:    { etf:'IWM',  scale:13.5,   note:'Russell 2000 via IWM ETF' },
-  // International indices
-  UKX:    { etf:'EWU',  scale:284,    note:'FTSE 100 via EWU ETF (UK)' },
-  DAX:    { etf:'EWG',  scale:660,    note:'DAX via EWG ETF (Germany)' },
-  NKY:    { etf:'EWJ',  scale:836,    note:'Nikkei 225 via EWJ ETF (Japan)' },
-  HSI:    { etf:'EWH',  scale:1308,   note:'Hang Seng via EWH ETF (Hong Kong)' },
-  CAC:    { etf:'EWQ',  scale:218,    note:'CAC 40 via EWQ ETF (France)' },
-  SHCOMP: { etf:'FXI',  scale:108,    note:'Shanghai via FXI ETF (China)' },
-  IBOV:   { etf:'EWZ',  scale:6125,   note:'Bovespa via EWZ ETF (Brazil)' },
-  XU100:  { etf:'TUR',  scale:392,    note:'BIST 100 via TUR ETF (Türkiye)' },
+  // International indices (recalibrated)
+  UKX:    { etf:'EWU',  scale:236,    note:'FTSE 100 via EWU ETF (UK)' },
+  DAX:    { etf:'EWG',  scale:684,    note:'DAX via EWG ETF (Germany)' },
+  NKY:    { etf:'EWJ',  scale:414,    note:'Nikkei 225 via EWJ ETF (Japan) — recalibrated' },
+  HSI:    { etf:'EWH',  scale:1100,   note:'Hang Seng via EWH ETF (Hong Kong)' },
+  CAC:    { etf:'EWQ',  scale:216,    note:'CAC 40 via EWQ ETF (France)' },
+  SHCOMP: { etf:'FXI',  scale:110,    note:'Shanghai via FXI ETF (China)' },
+  IBOV:   { etf:'EWZ',  scale:5185,   note:'Bovespa via EWZ ETF (Brazil)' },
+  XU100:  { etf:'TUR',  scale:366,    note:'BIST 100 via TUR ETF (Türkiye)' },
   // Macro
-  VIX:    { etf:'VXX',  scale:1,      note:'VIX via VXX ETF (volatility)' },
+  VIX:    { etf:'VXX',  scale:0.5,    note:'VIX via VXX ETF (volatility) — approx' },
   DXY:    { etf:'UUP',  scale:3.6,    note:'Dollar Index via UUP ETF' },
   // Futures (use index ETF as proxy)
   ES:     { etf:'SPY',  scale:10.05,  note:'ES future via SPY ETF' },
-  NQ:     { etf:'QQQ',  scale:46.5,   note:'NQ future via QQQ ETF' },
+  NQ:     { etf:'QQQ',  scale:36,     note:'NQ future via QQQ ETF' },
   YM:     { etf:'DIA',  scale:100,    note:'YM future via DIA ETF' },
   RTY:    { etf:'IWM',  scale:13.5,   note:'RTY future via IWM ETF' }
 };
@@ -2058,12 +2060,13 @@ async function renderFundamentalsForSymbol(sym){
       '</span>'
     );
   }
-  // ⚡ EDGE button — always visible in fundamentals bar
-  aEl.insertAdjacentHTML('beforeend',
-    '<span onclick="openEdgeScore(\''+sym+'\')" data-tip="Open EdgeScore — multi-factor bullish/bearish scorecard for ' + sym + '." style="display:flex;align-items:center;gap:6px;margin-left:12px;border-left:1px solid #30363d;padding-left:12px;cursor:pointer;color:#f97316;font-weight:700;background:rgba(249,115,22,0.12);border:1px solid #f97316;padding:3px 10px;border-radius:5px;transition:background 0.12s" onmouseover="this.style.background=\'rgba(249,115,22,0.22)\'" onmouseout="this.style.background=\'rgba(249,115,22,0.12)\'">' +
-      '<span style="font-size:14px">⚡</span><span style="letter-spacing:0.5px">EDGE SCORE</span>' +
-    '</span>'
-  );
+  // ⚡ EDGE button — always visible in fundamentals bar (defensive: use any available container)
+  const edgeBtnHtml = '<span onclick="openEdgeScore(\''+sym+'\')" data-tip="Open EdgeScore — multi-factor bullish/bearish scorecard for ' + sym + '." style="display:inline-flex;align-items:center;gap:6px;margin-left:12px;cursor:pointer;color:#f97316;font-weight:700;background:rgba(249,115,22,0.15);border:1px solid #f97316;padding:4px 12px;border-radius:5px;transition:background 0.12s;white-space:nowrap" onmouseover="this.style.background=\'rgba(249,115,22,0.28)\'" onmouseout="this.style.background=\'rgba(249,115,22,0.15)\'">' +
+      '<span style="font-size:14px">⚡</span><span style="letter-spacing:0.5px;font-size:12px">EDGE SCORE</span>' +
+    '</span>';
+  // Try aEl first, fall back to fEl, then bar
+  const target = aEl || fEl || bar;
+  if (target) target.insertAdjacentHTML('beforeend', edgeBtnHtml);
 }
 
 // ==================== F&G HISTORICAL CHART ====================
@@ -5141,6 +5144,7 @@ const COMMANDS = [
   { cmd: '/csv',      desc: 'Export watchlist or portfolio to CSV — /csv portfolio' },
   { cmd: '/share',    desc: 'Copy a share URL with your current chart + watchlist setup' },
   { cmd: '/voice',    desc: 'Start voice command listening (mic)' },
+  { cmd: '/reset',    desc: 'Clear all cached prices and reload — fixes stale data' },
   { cmd: '/sec',      desc: 'SEC EDGAR filings for a symbol — /sec AAPL' },
   { cmd: '/edge',     desc: 'EdgeScore — multi-factor bullish/bearish scorecard — /edge AAPL' },
   { cmd: '/search',   desc: 'Open TradingView-style symbol search (or just press /)' },
@@ -5430,6 +5434,16 @@ function runCommand(raw) {
     }
     case '/share': shareWorkspaceURL(); return;
     case '/voice': case '/mic': toggleVoice(); return;
+    case '/reset': case '/clear-cache': {
+      sessionStorage.clear();
+      _sessionCache = {};
+      _fngHistCache = {};
+      _insiderScanResults = null;
+      _finnhubSearchCache = {};
+      showToast('Cache cleared', 'Reloading…', 'ok');
+      setTimeout(() => location.reload(), 600);
+      return;
+    }
     case '/sec': openSecView((args[0]||chartState.symbol).toUpperCase()); return;
     case '/edge': openEdgeScore((args[0]||chartState.symbol).toUpperCase()); return;
     case '/search': case '/find': openTradingViewSearch(); return;
