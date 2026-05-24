@@ -942,9 +942,11 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
   </div>
 </div>
 </div>
-<div id="news-ticker" style="background:#0a0d12;border-top:1px solid #1a1f26;height:24px;display:flex;align-items:center;overflow:hidden;flex-shrink:0">
-  <span style="background:#dc2626;color:#fff;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:0.5px;margin-right:8px;flex-shrink:0">● BREAKING</span>
-  <div id="news-ticker-scroll" style="display:inline-flex;white-space:nowrap;animation:news-ticker-scroll 240s linear infinite;font-size:11px;color:#c9d1d9;font-family:Inter,sans-serif"></div>
+<div id="news-ticker" style="background:#0a0d12;border-top:1px solid #1a1f26;height:24px;display:flex;align-items:center;flex-shrink:0;position:relative">
+  <span style="background:#dc2626;color:#fff;padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:0.5px;flex-shrink:0;height:100%;display:inline-flex;align-items:center;border-right:2px solid #0a0d12;box-shadow:6px 0 8px -2px #0a0d12;z-index:2;position:relative">● BREAKING</span>
+  <div style="flex:1;overflow:hidden;position:relative">
+    <div id="news-ticker-scroll" style="display:inline-flex;white-space:nowrap;animation:news-ticker-scroll 240s linear infinite;font-size:11px;color:#c9d1d9;font-family:Inter,sans-serif;padding-left:8px"></div>
+  </div>
 </div>
 <style>
 @keyframes news-ticker-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
