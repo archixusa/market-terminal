@@ -949,7 +949,7 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
   </div>
 </div>
 <style>
-@keyframes news-ticker-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+@keyframes news-ticker-scroll { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
 #news-ticker:hover #news-ticker-scroll { animation-play-state: paused; }
 .nti { padding: 0 28px; cursor: pointer; }
 .nti:hover { color: #f97316; }
@@ -2348,11 +2348,19 @@ function renderNewsTicker(){
   if (!el) return;
   const items = (window.newsData || newsData).slice(0, 30);
   if (!items.length) { el.innerHTML = '<span class="nti" style="color:#6e7681">Loading news…</span>'; return; }
-  el.innerHTML = items.map(n => {
+  // Render headlines TWICE so the translateX(0% → -50%) loop is seamless
+  const html = items.map(n => {
     const t = n.time || '';
     const href = (n.url || '').replace(/'/g,'%27');
     return '<span class="nti" onclick="window.open(\''+href+'\',\'_blank\',\'noopener\')"><b style="color:#f97316;font-family:JetBrains Mono,monospace">'+t+'</b> · '+n.headline+'</span><span class="nti-sep">◆</span>';
   }).join('');
+  el.innerHTML = html + html;
+  // Re-time animation based on content width (faster = more responsive)
+  requestAnimationFrame(() => {
+    const w = el.scrollWidth / 2; // single-pass width
+    const seconds = Math.max(60, Math.min(360, w / 80)); // ~80px/sec
+    el.style.animationDuration = seconds + 's';
+  });
 }
 async function loadLiveNewsIntoFeed(){
   // If user is viewing company-specific news, refresh that instead
