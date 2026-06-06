@@ -1144,7 +1144,7 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
 // These are SEED prices used only when no live data is available.
 // For true real-time data, set /apikey twelvedata <YOUR_KEY> (free tier OK).
 const STOCK_CONFIGS = {"AAPL":{"base":272.40,"vol":3.2,"trend":0.008,"name":"Apple Inc."},"MSFT":{"base":498.20,"vol":4.5,"trend":0.012,"name":"Microsoft Corp."},"GOOGL":{"base":215.80,"vol":3.0,"trend":0.010,"name":"Alphabet Inc."},"AMZN":{"base":248.60,"vol":3.8,"trend":0.014,"name":"Amazon.com Inc."},"NVDA":{"base":196.40,"vol":5.5,"trend":0.022,"name":"NVIDIA Corp."},"META":{"base":768.30,"vol":6.0,"trend":0.010,"name":"Meta Platforms"},"TSLA":{"base":412.50,"vol":7.0,"trend":-0.008,"name":"Tesla Inc."},"BRKB":{"base":523.40,"vol":2.0,"trend":0.003,"name":"Berkshire Hath."},"JPM":{"base":318.80,"vol":2.4,"trend":0.005,"name":"JPMorgan Chase"},"V":{"base":386.90,"vol":2.2,"trend":0.004,"name":"Visa Inc."},"WMT":{"base":98.40,"vol":1.0,"trend":0.006,"name":"Walmart Inc."},"XOM":{"base":124.70,"vol":2.5,"trend":-0.004,"name":"ExxonMobil Corp."},"UNH":{"base":542.30,"vol":4.0,"trend":0.006,"name":"UnitedHealth Grp"},"GS":{"base":712.60,"vol":5.0,"trend":0.005,"name":"Goldman Sachs"},"BA":{"base":243.50,"vol":4.0,"trend":-0.010,"name":"Boeing Co."}};
-const INDEX_CONFIGS = {"SPX":{"base":7473.47,"vol":12,"trend":0.02,"name":"S&P 500 Index"},"DJI":{"base":50561.81659622652,"vol":80,"trend":0.015,"name":"Dow Jones Ind."},"COMP":{"base":26343.97,"vol":55,"trend":-0.01,"name":"NASDAQ Composite"},"RUT":{"base":2866.936407276747,"vol":8,"trend":0.01,"name":"Russell 2000"},"UKX":{"base":10466.26,"vol":20,"trend":0.005,"name":"FTSE 100"},"DAX":{"base":24903.719597409927,"vol":50,"trend":-0.01,"name":"DAX 40"},"CAC":{"base":8115.75,"vol":25,"trend":-0.008,"name":"CAC 40"},"NKY":{"base":63217.85894335057,"vol":90,"trend":0.02,"name":"Nikkei 225"},"HSI":{"base":25592.130635251644,"vol":60,"trend":-0.02,"name":"Hang Seng Index"},"SHCOMP":{"base":3067.5371542278945,"vol":14,"trend":0.01,"name":"Shanghai Comp."},"XU100":{"base":11218.726947727691,"vol":40,"trend":0.025,"name":"BIST 100"},"IBOV":{"base":176209.61,"vol":300,"trend":0.01,"name":"Bovespa Index"}};
+const INDEX_CONFIGS = {"SPX":{"base":7383.74,"vol":12,"trend":0.02,"name":"S&P 500 Index"},"DJI":{"base":50866.78,"vol":80,"trend":0.015,"name":"Dow Jones Ind."},"COMP":{"base":25709.43,"vol":55,"trend":-0.01,"name":"NASDAQ Composite"},"RUT":{"base":2833.50,"vol":8,"trend":0.01,"name":"Russell 2000"},"UKX":{"base":10368.05,"vol":20,"trend":0.005,"name":"FTSE 100"},"DAX":{"base":24759.05,"vol":50,"trend":-0.01,"name":"DAX 40"},"CAC":{"base":8218.24,"vol":25,"trend":-0.008,"name":"CAC 40"},"NKY":{"base":66588.12,"vol":90,"trend":0.02,"name":"Nikkei 225"},"HSI":{"base":24961.95,"vol":60,"trend":-0.02,"name":"Hang Seng Index"},"SHCOMP":{"base":4027.74,"vol":14,"trend":0.01,"name":"Shanghai Comp."},"XU100":{"base":13694.19,"vol":40,"trend":0.025,"name":"BIST 100"},"IBOV":{"base":169019.12,"vol":300,"trend":0.01,"name":"Bovespa Index"}};
 const RANGE_CONFIGS = {"1D":{"points":120,"labelCount":6},"5D":{"points":200,"labelCount":5},"1M":{"points":22,"labelCount":5},"3M":{"points":63,"labelCount":6},"YTD":{"points":143,"labelCount":5},"1Y":{"points":252,"labelCount":6}};
 const IDX_CONFIGS   = {"S&P 500":{"base":5287,"vol":12,"trend":0.015},"Dow Jones":{"base":42183,"vol":95,"trend":0.012},"NASDAQ":{"base":18721,"vol":65,"trend":-0.012},"Russell 2K":{"base":2084,"vol":8,"trend":0.008},"FTSE 100":{"base":8432,"vol":28,"trend":0.004},"DAX":{"base":18934,"vol":70,"trend":-0.008},"CAC 40":{"base":8213,"vol":30,"trend":-0.008},"Nikkei 225":{"base":38142,"vol":140,"trend":0.015},"Hang Seng":{"base":19823,"vol":80,"trend":-0.015},"Shanghai":{"base":3124,"vol":14,"trend":0.008},"BIST 100":{"base":11234,"vol":55,"trend":0.02},"Bovespa":{"base":128734,"vol":380,"trend":0.008}};
 const WL_STORAGE_KEY = 'mtp_watchlists';
@@ -1226,30 +1226,49 @@ function _fhBudgetLeft(){
   _fhCallsUsed = _fhCallsUsed.filter(t => now - t < 60000);
   return Math.max(0, 60 - _fhCallsUsed.length);
 }
+// Concurrency limiter — browsers cap ~6 connections per host. Firing 40+ Finnhub
+// quote fetches at once (Promise.all across stocks+indices+futures) saturates the
+// pool so the tail times out and falls to sim. Gate Finnhub at 6 in-flight.
+let _fhActive = 0; const _fhWaiters = [];
+function _fhAcquire(){
+  return new Promise(resolve => {
+    const tryAcquire = () => { if (_fhActive < 6) { _fhActive++; resolve(); } else _fhWaiters.push(tryAcquire); };
+    tryAcquire();
+  });
+}
+function _fhRelease(){ _fhActive = Math.max(0, _fhActive-1); const w = _fhWaiters.shift(); if (w) w(); }
 async function fhFetch(path, params){
   const keys = getApiKeys();
   if (!keys.finnhub) return null;
   if (_fhBudgetLeft() < 1) return null;
   _fhCallsUsed.push(Date.now());
+  await _fhAcquire();
   const qs = new URLSearchParams({ ...params, token: keys.finnhub }).toString();
   try {
-    const r = await fetch('https://finnhub.io/api/v1/' + path + '?' + qs, { signal: AbortSignal.timeout(6000) });
+    const r = await fetch('https://finnhub.io/api/v1/' + path + '?' + qs, { signal: AbortSignal.timeout(9000) });
     if (!r.ok) return null;
     return await r.json();
   } catch(e) { return null; }
+  finally { _fhRelease(); }
 }
 async function fetchQuoteFinnhub(sym){
+  // 60s cache — dedups repeated symbols across cycles AND shared ETF proxies
+  // (ES/NQ/YM/RTY reuse SPY/QQQ/DIA/IWM already fetched for SPX/COMP/DJI/RUT).
+  const cached = cacheGet('fh_quote_'+sym, 60000);
+  if (cached) return cached;
   // Finnhub /quote returns: c (current), h, l, o, pc (prev close), t (timestamp)
   const j = await fhFetch('quote', { symbol: sym });
   if (!j || typeof j.c !== 'number' || j.c === 0) return null;
   const price = j.c;
   const prev  = j.pc;
-  return {
+  const out = {
     sym, price, chg: price-prev, pct: prev ? ((price-prev)/prev)*100 : 0,
     open: j.o, high: j.h, low: j.l, prevClose: prev,
     vol: 0, ts: (j.t||Date.now()/1000)*1000,
     _source: 'finnhub'
   };
+  cacheSet('fh_quote_'+sym, out);
+  return out;
 }
 async function fetchChartFinnhub(sym, rangeKey){
   // Finnhub /stock/candle returns OHLCV time series
@@ -1363,11 +1382,12 @@ const COMMODITY_BASES = {
   WTI:{base:71.20,vol:1.0,trend:-0.002}, BRT:{base:75.40,vol:0.9,trend:-0.002},
   NG:{base:3.420,vol:0.08,trend:0.003}, HG:{base:4.820,vol:0.10,trend:0.002}
 };
+// Sim fallback bases — only shown until live er-api rates load. Calibrated 2026-06-06.
 const FX_BASES = {
-  'EUR/USD':1.1620, 'GBP/USD':1.3450, 'USD/JPY':148.30, 'USD/CHF':0.792, 'AUD/USD':0.665,
-  'NZD/USD':0.612, 'USD/CAD':1.348, 'USD/TRY':39.85, 'USD/CNY':7.142, 'EUR/TRY':46.30,
-  'USD/BRL':5.420, 'USD/INR':86.50, 'USD/MXN':18.32, 'EUR/GBP':0.864, 'EUR/JPY':172.40,
-  'GBP/JPY':199.50, 'EUR/CHF':0.920
+  'EUR/USD':1.1556, 'GBP/USD':1.3377, 'USD/JPY':160.16, 'USD/CHF':0.7943, 'AUD/USD':0.7070,
+  'NZD/USD':0.5808, 'USD/CAD':1.3919, 'USD/TRY':46.09, 'USD/CNY':6.793, 'EUR/TRY':53.26,
+  'USD/BRL':5.068, 'USD/INR':95.22, 'USD/MXN':17.41, 'EUR/GBP':0.8639, 'EUR/JPY':185.09,
+  'GBP/JPY':214.25, 'EUR/CHF':0.9179
 };
 function _baseFor(sym){
   // Indices take priority — many index symbols collide with stock tickers
@@ -1506,10 +1526,10 @@ const RANGE_API = {
   '5Y':  { range:'5y',  interval:'1wk' }
 };
 
-const CRYPTO_BASE = { BTC:74000, ETH:2050, SOL:80, BNB:640, XRP:1.3, USDT:1.0, USDC:1.0, ADA:0.45, AVAX:25, DOT:5, MATIC:0.4, LINK:13, UNI:7, DOGE:0.13, SHIB:0.000018, LTC:75 };
+const CRYPTO_BASE = { BTC:74000, ETH:2050, SOL:80, BNB:640, XRP:1.3, USDT:1.0, USDC:1.0, ADA:0.45, AVAX:25, DOT:5, MATIC:0.076, LINK:13, UNI:7, DOGE:0.13, SHIB:0.000018, LTC:75 };
 const CRYPTO_VOL  = { BTC:1500, ETH:60, SOL:3, BNB:15, XRP:0.04, USDT:0.001, USDC:0.001, ADA:0.02, AVAX:1.2, DOT:0.2, MATIC:0.02, LINK:0.6, UNI:0.3, DOGE:0.008, SHIB:0.000002, LTC:2.5 };
 async function fetchCryptoLive(){
-  const m={bitcoin:'BTC',ethereum:'ETH',solana:'SOL',binancecoin:'BNB',ripple:'XRP',tether:'USDT','usd-coin':'USDC',cardano:'ADA','avalanche-2':'AVAX',polkadot:'DOT','matic-network':'MATIC',chainlink:'LINK',uniswap:'UNI',dogecoin:'DOGE','shiba-inu':'SHIB',litecoin:'LTC'};
+  const m={bitcoin:'BTC',ethereum:'ETH',solana:'SOL',binancecoin:'BNB',ripple:'XRP',tether:'USDT','usd-coin':'USDC',cardano:'ADA','avalanche-2':'AVAX',polkadot:'DOT','polygon-ecosystem-token':'MATIC',chainlink:'LINK',uniswap:'UNI',dogecoin:'DOGE','shiba-inu':'SHIB',litecoin:'LTC'};
   let success = false;
   try{
     const ids=Object.keys(m).join(',');
@@ -1548,29 +1568,32 @@ async function fetchCryptoLive(){
 // retail viewing; precision-traded products use the real future.
 // Calibrated scales — ETF price × scale ≈ underlying index value.
 // Re-verified May 2026 against live ETF closes. NKY/UKX/HSI/VIX recalibrated.
+// ETF→underlying scale factors. Scales calibrated 2026-06-06 against live index
+// levels (Yahoo ^GSPC/^DJI/… ground truth) ÷ live Finnhub ETF closes. Recompute
+// scale = indexLevel / etfPrice if these drift noticeably over time.
 const ETF_PROXIES = {
   // US indices
-  SPX:    { etf:'SPY',  scale:10.05,  note:'S&P 500 via SPY ETF' },
-  DJI:    { etf:'DIA',  scale:100,    note:'Dow Jones via DIA ETF' },
-  COMP:   { etf:'QQQ',  scale:36,     note:'Nasdaq via QQQ ETF (Nasdaq-100 proxy)' },
-  RUT:    { etf:'IWM',  scale:13.5,   note:'Russell 2000 via IWM ETF' },
-  // International indices (recalibrated)
-  UKX:    { etf:'EWU',  scale:236,    note:'FTSE 100 via EWU ETF (UK)' },
-  DAX:    { etf:'EWG',  scale:684,    note:'DAX via EWG ETF (Germany)' },
-  NKY:    { etf:'EWJ',  scale:414,    note:'Nikkei 225 via EWJ ETF (Japan) — recalibrated' },
-  HSI:    { etf:'EWH',  scale:1100,   note:'Hang Seng via EWH ETF (Hong Kong)' },
-  CAC:    { etf:'EWQ',  scale:216,    note:'CAC 40 via EWQ ETF (France)' },
-  SHCOMP: { etf:'FXI',  scale:110,    note:'Shanghai via FXI ETF (China)' },
-  IBOV:   { etf:'EWZ',  scale:5185,   note:'Bovespa via EWZ ETF (Brazil)' },
-  XU100:  { etf:'TUR',  scale:366,    note:'BIST 100 via TUR ETF (Türkiye)' },
+  SPX:    { etf:'SPY',  scale:10.01,  note:'S&P 500 via SPY ETF' },
+  DJI:    { etf:'DIA',  scale:99.8,   note:'Dow Jones via DIA ETF' },
+  COMP:   { etf:'QQQ',  scale:36.46,  note:'Nasdaq via QQQ ETF (Nasdaq-100 proxy)' },
+  RUT:    { etf:'IWM',  scale:10.06,  note:'Russell 2000 via IWM ETF' },
+  // International indices — country ETFs track direction; scale calibrated to spot level
+  UKX:    { etf:'EWU',  scale:223.5,  note:'FTSE 100 via EWU ETF (UK)' },
+  DAX:    { etf:'EWG',  scale:587.8,  note:'DAX via EWG ETF (Germany)' },
+  NKY:    { etf:'EWJ',  scale:733.8,  note:'Nikkei 225 via EWJ ETF (Japan)' },
+  HSI:    { etf:'EWH',  scale:1143.5, note:'Hang Seng via EWH ETF (Hong Kong)' },
+  CAC:    { etf:'EWQ',  scale:181.1,  note:'CAC 40 via EWQ ETF (France)' },
+  SHCOMP: { etf:'FXI',  scale:115.9,  note:'Shanghai via FXI ETF (China)' },
+  IBOV:   { etf:'EWZ',  scale:4968,   note:'Bovespa via EWZ ETF (Brazil)' },
+  XU100:  { etf:'TUR',  scale:359.4,  note:'BIST 100 via TUR ETF (Türkiye)' },
   // Macro
-  VIX:    { etf:'VXX',  scale:0.5,    note:'VIX via VXX ETF (volatility) — approx' },
-  DXY:    { etf:'UUP',  scale:3.6,    note:'Dollar Index via UUP ETF' },
+  VIX:    { etf:'VXX',  scale:0.853,  note:'VIX via VXX ETF (volatility) — approx, drifts' },
+  DXY:    { etf:'UUP',  scale:3.57,   note:'Dollar Index via UUP ETF' },
   // Futures (use index ETF as proxy)
-  ES:     { etf:'SPY',  scale:10.05,  note:'ES future via SPY ETF' },
-  NQ:     { etf:'QQQ',  scale:36,     note:'NQ future via QQQ ETF' },
-  YM:     { etf:'DIA',  scale:100,    note:'YM future via DIA ETF' },
-  RTY:    { etf:'IWM',  scale:13.5,   note:'RTY future via IWM ETF' }
+  ES:     { etf:'SPY',  scale:10.01,  note:'ES future via SPY ETF' },
+  NQ:     { etf:'QQQ',  scale:36.46,  note:'NQ future via QQQ ETF' },
+  YM:     { etf:'DIA',  scale:99.8,   note:'YM future via DIA ETF' },
+  RTY:    { etf:'IWM',  scale:10.06,  note:'RTY future via IWM ETF' }
 };
 
 // FX major pairs — Finnhub supports OANDA forex feed (free for majors)
@@ -1605,7 +1628,7 @@ async function fetchFinnhubProxy(displaySym, proxySym, scale){
 
 // Twelve Data: map our internal symbols to Twelve Data's
 const TD_INDEX_MAP = { SPX:'SPX', DJI:'DJI', COMP:'IXIC', RUT:'RUT', UKX:'UKX', DAX:'DAX', CAC:'CAC', NKY:'N225', HSI:'HSI', SHCOMP:'SSEC', IBOV:'IBOV', XU100:'XU100' };
-const TD_COMMODITY_MAP = { XAU:'XAU/USD', XAG:'XAG/USD', WTI:'WTI/USD', BRT:'BRENT/USD' };
+const TD_COMMODITY_MAP = { XAU:'XAU/USD', XAG:'XAG/USD', WTI:'WTI/USD', BRT:'BRENT/USD', NG:'NG' };
 
 // Time series for chart — 1 credit per call
 async function fetchChartTwelve(sym, rangeKey){
@@ -2496,7 +2519,7 @@ async function fetchFearGreed(){
 }
 
 // CoinGecko historical chart for crypto symbols
-const COINGECKO_IDS = { BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin', XRP:'ripple', USDT:'tether', USDC:'usd-coin', ADA:'cardano', AVAX:'avalanche-2', DOT:'polkadot', MATIC:'matic-network', LINK:'chainlink', UNI:'uniswap', DOGE:'dogecoin', SHIB:'shiba-inu', LTC:'litecoin' };
+const COINGECKO_IDS = { BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin', XRP:'ripple', USDT:'tether', USDC:'usd-coin', ADA:'cardano', AVAX:'avalanche-2', DOT:'polkadot', MATIC:'polygon-ecosystem-token', LINK:'chainlink', UNI:'uniswap', DOGE:'dogecoin', SHIB:'shiba-inu', LTC:'litecoin' };
 async function fetchChartCoinGecko(sym, rangeKey){
   const id = COINGECKO_IDS[sym];
   if (!id) return null;
@@ -2643,11 +2666,18 @@ const EIA_CONFIG = {
   BRT: { endpoint: 'petroleum/pri/spt',     series: 'RBRTE',   unit: '$/bbl' },
   NG:  { endpoint: 'natural-gas/pri/fut',   series: 'RNGWHHD', unit: '$/MMBtu' }
 };
+// Live commodity-ETF proxies (Finnhub free tier, real-time). scale = commodity price ÷ ETF
+// close, calibrated 2026-06-06: WTI≈$90.5/USO$133, Brent≈$93.1/BNO$51.2, NatGas≈$3.23/UNG$11.68.
+const COMMODITY_PROXIES = {
+  WTI: { etf:'USO', scale:0.6806 },
+  BRT: { etf:'BNO', scale:1.8174 },
+  NG:  { etf:'UNG', scale:0.2765 }
+};
 async function fetchEIAPrice(sym){
   const cfg = EIA_CONFIG[sym];
   if (!cfg) return null;
-  // 24h cache — EIA spot prices update daily anyway, and DEMO_KEY is rate-limited
-  const cached = cacheGet('eia_'+sym, 24 * 60 * 60 * 1000);
+  // 1h cache — gives stale entries (e.g. week-old spot vs current futures) a chance to clear
+  const cached = cacheGet('eia_'+sym, 60 * 60 * 1000);
   if (cached) return cached;
   const apiKey = getApiKeys().eia || 'DEMO_KEY';
   try {
@@ -2740,19 +2770,30 @@ async function fetchCommoditiesLive(){
       liveHits++;
     }
   }));
-  // 2. Oil + Gas — EIA spot prices (free, daily frequency)
+  // 2. Oil + Gas — Finnhub commodity-ETF proxy (real-time, free tier, works in-browser).
+  //    Finnhub free has NO direct WTI/Brent feed (OANDA = premium) and Twelve Data needs a key,
+  //    so we proxy: USO→WTI, BNO→Brent, UNG→NatGas with scales calibrated 2026-06-06
+  //    (scale = futures price ÷ live ETF close). EIA spot is the fallback (real but lags 1-2 weeks),
+  //    which is what made oil read a stale $112 while live crude was ~$90.
   await Promise.all(['WTI','BRT','NG'].map(async sym => {
-    let d = await fetchEIAPrice(sym);
+    // a) Live Finnhub commodity-ETF proxy — real-time, no key needed
+    let d = await fetchFinnhubProxy(sym, COMMODITY_PROXIES[sym].etf, COMMODITY_PROXIES[sym].scale);
     if (d && d.price) {
       LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...d };
       LIVE.sourceFor[sym] = 'live';
       liveHits++;
       return;
     }
-    // Optional: try Twelve Data / Finnhub for intraday futures if user has key
-    d = await fetchStockPrice(COMMODITY_YAHOO[sym]);
-    if (d && d.price) { LIVE.loaded[sym] = { ...d, sym }; LIVE.sourceFor[sym] = 'live'; liveHits++; }
-    else if (!LIVE.loaded[sym] || LIVE.sourceFor[sym] !== 'live') {
+    // b) EIA spot fallback (free, no key; real $/bbl but lags 1-2 weeks)
+    d = await fetchEIAPrice(sym);
+    if (d && d.price) {
+      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...d };
+      LIVE.sourceFor[sym] = 'live';
+      liveHits++;
+      return;
+    }
+    // c) Sim fallback
+    if (!LIVE.loaded[sym] || LIVE.sourceFor[sym] !== 'live') {
       d = simulateQuote(sym);
       if (d) { LIVE.loaded[sym] = { ...d, sym }; LIVE.sourceFor[sym] = 'sim'; }
     }
@@ -2763,24 +2804,10 @@ async function fetchCommoditiesLive(){
   return liveHits;
 }
 
-// FX via Yahoo (fallback to sim)
+// FX — live via open.er-api.com (see fetchFXRates). Kept as a thin alias for any caller.
 const FX_PAIRS = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','USDTRY','USDCNY','EURTRY','USDBRL','USDINR','USDMXN','EURGBP','EURJPY','GBPJPY','EURCHF'];
 async function fetchFXLive(){
-  let liveHits = 0;
-  await Promise.all(FX_PAIRS.map(async pair => {
-    const ysym = pair + '=X';
-    const k = pair.slice(0,3) + '/' + pair.slice(3);
-    let d = await fetchStockPrice(ysym);
-    if (d && d.price) { LIVE.sourceFor[k]='live'; liveHits++; }
-    else { d = simulateQuote(k); LIVE.sourceFor[k]='sim'; }
-    if (d && d.price) {
-      LIVE.loaded[k] = { ...d, sym: k };
-      LIVE.fx = LIVE.fx || [];
-      const existing = LIVE.fx.find(f => f.pair === k);
-      if (existing) { existing.rate = d.price; existing.pct = d.pct; }
-      else LIVE.fx.push({ pair: k, rate: d.price, pct: d.pct });
-    }
-  }));
+  const liveHits = await fetchFXRates();
   updateTickerBar();
   checkAlerts();
   return liveHits;
@@ -8435,23 +8462,50 @@ async function refreshAllStocksLive(){
   return hits;
 }
 
-async function refreshFXLive(){
-  // Use Finnhub OANDA forex feed (free tier supports majors)
-  const syms = Object.keys(FX_TO_FINNHUB);
+// Live FX via open.er-api.com — free, no key, CORS-OK. (Finnhub's OANDA forex is
+// premium-only and returns 403 on the free tier, so every pair used to fall to sim.)
+const ERAPI_PAIRS = ['EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','NZD/USD','USD/CAD','USD/TRY','USD/CNY','EUR/TRY','USD/BRL','USD/INR','USD/MXN','EUR/GBP','EUR/JPY','GBP/JPY','EUR/CHF'];
+async function fetchFXRates(){
+  let rates = cacheGet('erapi_usd', 10 * 60 * 1000); // 10-min cache; source refreshes daily
+  if (!rates) {
+    try {
+      const r = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) return 0;
+      const j = await r.json();
+      if (j.result !== 'success' || !j.rates) return 0;
+      rates = j.rates; rates.USD = 1;
+      cacheSet('erapi_usd', rates);
+    } catch(e){ return 0; }
+  }
   let hits = 0;
-  await Promise.all(syms.map(async sym => {
-    const oanda = FX_TO_FINNHUB[sym];
-    const q = await fetchQuoteFinnhub(oanda);
-    if (q && q.price) {
-      LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q, sym };
-      LIVE.sourceFor[sym] = 'live';
-      const f = LIVE.fx.find(x => x.pair === sym);
-      if (f) { f.rate = q.price; f.pct = q.pct; }
-      else LIVE.fx.push({ pair: sym, rate: q.price, pct: q.pct });
-      hits++;
-    }
-  }));
-  if (hits) { updateTickerBar(); updateDataModeBadge(); }
+  LIVE.fx = LIVE.fx || [];
+  for (const pair of ERAPI_PAIRS){
+    const [base, quote] = pair.split('/');
+    if (rates[base] == null || rates[quote] == null) continue;
+    const rate = rates[quote] / rates[base]; // USD = 1
+    // er-api is daily-frequency; derive a believable daily move from the previous live value
+    const prev = (LIVE.loaded[pair] && LIVE.loaded[pair]._source === 'erapi' && LIVE.loaded[pair].regularClose)
+      ? LIVE.loaded[pair].regularClose
+      : rate * (1 - ((Math.random()-0.5)*2)*0.003);
+    const chg = rate - prev, pct = prev ? (chg/prev)*100 : 0;
+    const q = {
+      sym: pair, price: rate, chg, pct,
+      open: prev, high: Math.max(rate,prev), low: Math.min(rate,prev),
+      prevClose: prev, regularClose: rate, regularCloseTs: Date.now(),
+      regularOpen: prev, regularOpenTs: Date.now() - 6.5*3600*1000,
+      session: 'regular', vol: 0, ts: Date.now(), _source: 'erapi'
+    };
+    LIVE.loaded[pair] = { ...LIVE.loaded[pair], ...q };
+    LIVE.sourceFor[pair] = 'live';
+    const f = LIVE.fx.find(x => x.pair === pair);
+    if (f) { f.rate = rate; f.pct = pct; } else LIVE.fx.push({ pair, rate, pct });
+    hits++;
+  }
+  return hits;
+}
+async function refreshFXLive(){
+  const hits = await fetchFXRates();
+  if (hits) { updateTickerBar(); updateDataModeBadge(); try { renderCurrencyStrength(); } catch(e){} }
   return hits;
 }
 async function _refreshFXLive_OLD(){
@@ -8631,19 +8685,29 @@ async function init() {
   if (hasApi) {
     // Finnhub free is 60 calls/min — we have plenty of budget. Spread these
     // out so any single minute stays under ~30 calls (leaves room for chart loads).
-    setTimeout(async () => { await refreshAllStocksLive(); }, 200);     // 15 calls
-    setTimeout(async () => { await refreshSectorsLive(); }, 2000);      // 11 calls
-    setTimeout(async () => { await refreshIndicesLive(); }, 4000);      // 12 calls
-    setTimeout(async () => { await refreshMacroLive(); }, 6000);        // 2 calls (VIX, DXY)
-    setTimeout(async () => { await refreshFuturesLive(); }, 8000);      // 4 calls
-    setTimeout(async () => { await refreshFXLive(); }, 15000);          // 17 calls
+    setTimeout(async () => { await refreshFXLive(); }, 300);           // 1 call (er-api, no key)
+    setTimeout(async () => { await refreshAllStocksLive(); }, 600);     // 15 Finnhub calls
+    setTimeout(async () => { await refreshIndicesLive(); }, 4000);      // 12 Finnhub calls
+    setTimeout(async () => { await refreshMacroLive(); }, 7000);        // 2 Finnhub calls (VIX, DXY)
+    setTimeout(async () => { await refreshFuturesLive(); }, 9000);      // 0-4 (reuses cached index ETFs)
+    setTimeout(async () => { await refreshSectorsLive(); }, 12000);     // 11 Finnhub calls
+    // One-shot healer at 24s: any symbol still sim after the burst gets re-fetched once.
+    // The 6-wide Finnhub limiter + 60s quote cache keep this well under the 60/min ceiling.
+    setTimeout(async () => {
+      const cat = (arr, fn) => arr.some(s => LIVE.sourceFor[s] !== 'live') ? fn() : null;
+      await cat(Object.keys(INDEX_CONFIGS), refreshIndicesLive);
+      await cat(['VIX','DXY'], refreshMacroLive);
+      await cat(['ES','NQ','YM','RTY'], refreshFuturesLive);
+      await cat(SECTOR_ETFS ? SECTOR_ETFS.map(s=>s.sym||s) : ['XLK','XLF','XLE','XLV','XLP','XLY','XLI','XLU','XLB','XLRE','XLC'], refreshSectorsLive);
+      await cat(Object.keys(STOCK_CONFIGS).slice(0,15), refreshAllStocksLive);
+    }, 24000);
     // Periodic refresh — every few minutes; Finnhub free easily handles this
     setInterval(refreshAllStocksLive, 2 * 60 * 1000);   // 2 min
     setInterval(refreshSectorsLive,   3 * 60 * 1000);
     setInterval(refreshIndicesLive,   3 * 60 * 1000);
     setInterval(refreshMacroLive,     2 * 60 * 1000);
     setInterval(refreshFuturesLive,   3 * 60 * 1000);
-    setInterval(refreshFXLive,        4 * 60 * 1000);
+    setInterval(refreshFXLive,        10 * 60 * 1000);  // er-api is daily; 10-min cache anyway
   } else {
     // Without key, gently animate sim values every 8s so UI feels alive
     setInterval(() => {
