@@ -1261,10 +1261,13 @@ async function fetchQuoteFinnhub(sym){
   if (!j || typeof j.c !== 'number' || j.c === 0) return null;
   const price = j.c;
   const prev  = j.pc;
+  const tsMs = (j.t||Date.now()/1000)*1000;
   const out = {
     sym, price, chg: price-prev, pct: prev ? ((price-prev)/prev)*100 : 0,
     open: j.o, high: j.h, low: j.l, prevClose: prev,
-    vol: 0, ts: (j.t||Date.now()/1000)*1000,
+    // Fresh session fields so merges don't keep a stale sim regularClose (the "Close N @ time" line)
+    regularClose: price, regularCloseTs: tsMs, regularOpen: j.o, regularOpenTs: tsMs,
+    vol: 0, ts: tsMs,
     _source: 'finnhub'
   };
   cacheSet('fh_quote_'+sym, out);
@@ -1486,10 +1489,16 @@ function simulateSeries(sym, rangeKey){
   const now = Date.now();
   const startTs = now - stepMs * (n - 1);
 
-  let p = conf.base * (1 - (conf.trend||0) * 0.1);
+  // Anchor to the live quote when we have one. Finnhub free has no candle endpoint,
+  // so the *series shape* is simulated — but its level must track the real current
+  // price, not a hardcoded base that drifts out of date as the market moves.
+  const _liveQ = (LIVE.loaded[sym] && LIVE.sourceFor[sym] === 'live' && +LIVE.loaded[sym].price > 0) ? LIVE.loaded[sym] : null;
+  const anchor = _liveQ ? +_liveQ.price : conf.base;
+  const volScale = conf.base ? anchor / conf.base : 1;
+  let p = anchor * (1 - (conf.trend||0) * 0.1);
   const data = [];
-  const drift = (conf.trend||0) * (conf.base * 0.0003);
-  const v = conf.vol * 0.45;
+  const drift = (conf.trend||0) * (anchor * 0.0003);
+  const v = conf.vol * 0.45 * volScale;
   for (let i = 0; i < n; i++) {
     const ts = startTs + i * stepMs;
     const dt = new Date(ts);
@@ -1508,8 +1517,23 @@ function simulateSeries(sym, rangeKey){
     data.push({ t:i, ts, o, h, l, c, v: vol, label: lbl });
     p = c;
   }
-  // Make the last bar match the simulated quote
-  const q = simulateQuote(sym);
+  // Rescale the whole series so its last close equals the anchor (the live price when
+  // available), preserving the simulated intraday shape and % moves.
+  const lastC = data[data.length-1].c;
+  if (lastC > 0 && isFinite(lastC)) { const k = anchor / lastC; data.forEach(b => { b.o*=k; b.h*=k; b.l*=k; b.c*=k; }); }
+  // Prefer the live quote for the header so price + % change are real, not simulated.
+  let q;
+  if (_liveQ) {
+    const pct = +_liveQ.pct || 0;
+    const prevClose = (+_liveQ.prevClose > 0) ? +_liveQ.prevClose : (anchor / (1 + pct/100));
+    q = { sym, price: anchor, pct, chg: anchor - prevClose, prevClose,
+          open: (+_liveQ.open > 0 ? +_liveQ.open : data[0].o),
+          high: (+_liveQ.high > 0 ? +_liveQ.high : anchor),
+          low:  (+_liveQ.low  > 0 ? +_liveQ.low  : anchor),
+          vol: _liveQ.vol || 0, _source: _liveQ._source || 'live', _proxy: _liveQ._proxy };
+  } else {
+    q = simulateQuote(sym);
+  }
   if (q) { data[data.length-1].c = q.price; }
   return { data, quote: q };
 }
@@ -1620,6 +1644,9 @@ async function fetchFinnhubProxy(displaySym, proxySym, scale){
     open: q.open * scale,
     high: q.high * scale,
     low: q.low * scale,
+    // scale session fields too, else the "Close N @ time" header shows the raw ETF price
+    regularClose: q.regularClose != null ? q.regularClose * scale : undefined,
+    regularOpen:  q.regularOpen  != null ? q.regularOpen  * scale : undefined,
     _proxy: proxySym,
     _proxyScale: scale
   };
@@ -4380,6 +4407,28 @@ function highlightWatchlistRow(sym){
   document.querySelectorAll('.wl-table tbody tr').forEach(tr=>tr.classList.toggle('wl-row-selected', tr.dataset.sym===sym));
 }
 
+// Re-anchor the currently-displayed chart to a freshly-arrived live quote WITHOUT
+// reshuffling its shape: rescale the existing series so its last close = live price,
+// then refresh the header. Called after proxy refreshes so the headline (esp. indices,
+// whose chart is always simulated) tracks the real price instead of a stale base.
+function _reanchorChart(sym){
+  if (!sym || (typeof chartState==='undefined') || chartState.symbol !== sym) return;
+  const q = LIVE.loaded[sym];
+  if (!q || LIVE.sourceFor[sym] !== 'live' || !(+q.price > 0)) return;
+  const d = chartState.data;
+  if (d && d.length) {
+    const lastC = d[d.length-1].c;
+    if (lastC > 0) {
+      const k = (+q.price) / lastC;
+      if (Math.abs(k-1) > 0.0002) {
+        d.forEach(b => { b.o*=k; b.h*=k; b.l*=k; b.c*=k; });
+        Object.keys(LIVE.chartCache||{}).forEach(key => { if (key.indexOf(sym+'_')===0) try{ delete LIVE.chartCache[key]; }catch(e){} });
+      }
+    }
+    try { drawChart(); } catch(e){}
+  }
+  try { updateChartHeader(q); } catch(e){}
+}
 async function loadLiveChart(sym, type) {
   sym  = sym  || selectedSym  || 'SPX';
   type = type || selectedType || 'index';
@@ -4443,11 +4492,14 @@ async function loadLiveChart(sym, type) {
     LIVE.chartCache[cacheKey] = sim.data;
     chartState.data = sim.data;
     if (sim.quote) {
-      // Synchronize price header + LIVE.loaded so the chart's last bar aligns
-      LIVE.loaded[sym] = LIVE.loaded[sym] || sim.quote;
-      LIVE.loaded[sym].price = sim.quote.price;
-      LIVE.loaded[sym].pct = sim.quote.pct;
-      LIVE.sourceFor[sym] = LIVE.sourceFor[sym] || 'sim';
+      // Synchronize price header + LIVE.loaded so the chart's last bar aligns.
+      // sim.quote is anchored to the live quote when one exists, so this no longer
+      // clobbers a live price with a simulated one (the prior bug: SPX/AAPL headline
+      // showing a stale sim value while the live quote was correct).
+      const wasLive = LIVE.sourceFor[sym] === 'live';
+      const quoteIsLive = sim.quote._source && sim.quote._source !== 'sim';
+      LIVE.loaded[sym] = { ...(LIVE.loaded[sym] || {}), ...sim.quote };
+      LIVE.sourceFor[sym] = (wasLive || quoteIsLive) ? 'live' : 'sim';
       updateChartHeader(sim.quote);
     }
     drawChart();
@@ -8387,7 +8439,7 @@ async function refreshIndicesLive(){
       hits++;
     }
   }));
-  if (hits) { renderIndices(); updateTickerBar(); updateDataModeBadge(); }
+  if (hits) { renderIndices(); updateTickerBar(); updateDataModeBadge(); _reanchorChart(chartState.symbol); }
   return hits;
 }
 
@@ -8404,7 +8456,7 @@ async function refreshMacroLive(){
       hits++;
     }
   }));
-  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); }
+  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); _reanchorChart(chartState.symbol); }
   return hits;
 }
 
@@ -8421,7 +8473,7 @@ async function refreshFuturesLive(){
       hits++;
     }
   }));
-  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); }
+  if (hits) { renderSectors(); updateTickerBar(); updateDataModeBadge(); _reanchorChart(chartState.symbol); }
   return hits;
 }
 
@@ -8454,7 +8506,7 @@ async function refreshAllStocksLive(){
       LIVE.loaded[sym] = { ...LIVE.loaded[sym], ...q, sym };
       LIVE.sourceFor[sym] = 'live';
       updateWatchlistRow(sym, LIVE.loaded[sym]);
-      if (chartState.symbol === sym) updateChartHeader(LIVE.loaded[sym]);
+      if (chartState.symbol === sym) _reanchorChart(sym);
       hits++;
     }
   }));
@@ -8727,7 +8779,7 @@ async function init() {
     }, 8000);
   }
   // Re-render sectors + movers + strength periodically so live values flow through
-  setInterval(() => { renderSectors(); renderTopMovers(); renderCurrencyStrength(); }, 6000);
+  setInterval(() => { renderSectors(); renderTopMovers(); renderCurrencyStrength(); try { renderRecentView(); } catch(e){} }, 6000);
 
   // First-visit tour
   setTimeout(maybeStartTour, 800);
