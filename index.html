@@ -1131,7 +1131,7 @@ body.beginner .wl-table td, body.beginner .wl-table th { font-size:13px; }
 <div id="tab-overlay">
   <div class="overlay-header">
     <span class="overlay-title" id="overlay-title">Crypto</span>
-    <button class="overlay-close" onclick="switchTab('markets')">✕ Markets'a Dön</button>
+    <button class="overlay-close" onclick="switchTab('markets')">✕ Back to Markets</button>
   </div>
   <div class="overlay-body" id="overlay-body"></div>
 </div>
@@ -4736,22 +4736,22 @@ function switchTab(tab)  {
   const overlayBody = document.getElementById('overlay-body');
   const navTabs = document.querySelectorAll('.nav-tab');
   
-  // Tüm tabları deaktive et
+  // Deactivate all tabs
   navTabs.forEach(t => t.classList.remove('active'));
-  
+
   if (tab === 'markets') {
-    // Overlay'i kapat
+    // Close overlay
     if (overlay) overlay.classList.remove('visible');
-    // Markets tabını aktif et
+    // Activate markets tab
     navTabs[0] && navTabs[0].classList.add('active');
   } else if (tab === 'crypto') {
     if (overlay) overlay.classList.add('visible');
-    if (overlayTitle) overlayTitle.textContent = '₿ Kripto Para Piyasaları';
+    if (overlayTitle) overlayTitle.textContent = '₿ Crypto Markets';
     navTabs[1] && navTabs[1].classList.add('active');
     window.renderCryptoView();
   } else if (tab === 'fx') {
     if (overlay) overlay.classList.add('visible');
-    if (overlayTitle) overlayTitle.textContent = '💱 Döviz Piyasaları (FX)';
+    if (overlayTitle) overlayTitle.textContent = '💱 Foreign Exchange (FX)';
     navTabs[2] && navTabs[2].classList.add('active');
     window.renderFXView();
   } else if (tab === 'heatmap') {
@@ -4786,7 +4786,7 @@ function switchTab(tab)  {
     window.renderCalendar();
   } else if (tab === 'watchlist') {
     if (overlay) overlay.classList.add('visible');
-    if (overlayTitle) overlayTitle.textContent = '📋 Watchlist Yönetimi';
+    if (overlayTitle) overlayTitle.textContent = '📋 Watchlist Manager';
     navTabs[9] && navTabs[9].classList.add('active');
     window.renderWatchlistManage();
   }
@@ -4888,28 +4888,28 @@ function renderFXView()  {
     }
   });
   
-  // Tüm FX pairs
+  // All FX pairs
   const allPairs = [
     // Major
-    { pair: 'EUR/USD', desc: 'Euro / US Dollar', section: 'MAJÖR' },
-    { pair: 'GBP/USD', desc: 'British Pound / US Dollar', section: 'MAJÖR' },
-    { pair: 'USD/JPY', desc: 'US Dollar / Japanese Yen', section: 'MAJÖR' },
-    { pair: 'USD/CHF', desc: 'US Dollar / Swiss Franc', section: 'MAJÖR' },
-    { pair: 'AUD/USD', desc: 'Avustralya Doları / ABD Doları', section: 'MAJÖR' },
-    { pair: 'NZD/USD', desc: 'Yeni Zelanda Doları / ABD Doları', section: 'MAJÖR' },
-    { pair: 'USD/CAD', desc: 'US Dollar / Canadian Dollar', section: 'MAJÖR' },
+    { pair: 'EUR/USD', desc: 'Euro / US Dollar', section: 'MAJOR' },
+    { pair: 'GBP/USD', desc: 'British Pound / US Dollar', section: 'MAJOR' },
+    { pair: 'USD/JPY', desc: 'US Dollar / Japanese Yen', section: 'MAJOR' },
+    { pair: 'USD/CHF', desc: 'US Dollar / Swiss Franc', section: 'MAJOR' },
+    { pair: 'AUD/USD', desc: 'Australian Dollar / US Dollar', section: 'MAJOR' },
+    { pair: 'NZD/USD', desc: 'New Zealand Dollar / US Dollar', section: 'MAJOR' },
+    { pair: 'USD/CAD', desc: 'US Dollar / Canadian Dollar', section: 'MAJOR' },
     // EM
-    { pair: 'USD/TRY', desc: 'ABD Doları / Türk Lirası', section: 'GELİŞEN' },
-    { pair: 'USD/CNY', desc: 'ABD Doları / Çin Yuanı', section: 'GELİŞEN' },
-    { pair: 'EUR/TRY', desc: 'Euro / Türk Lirası', section: 'GELİŞEN' },
-    { pair: 'USD/BRL', desc: 'ABD Doları / Brezilya Reali', section: 'GELİŞEN' },
-    { pair: 'USD/INR', desc: 'ABD Doları / Hindistan Rupisi', section: 'GELİŞEN' },
-    { pair: 'USD/MXN', desc: 'ABD Doları / Meksika Pesosu', section: 'GELİŞEN' },
+    { pair: 'USD/TRY', desc: 'US Dollar / Turkish Lira', section: 'EMERGING' },
+    { pair: 'USD/CNY', desc: 'US Dollar / Chinese Yuan', section: 'EMERGING' },
+    { pair: 'EUR/TRY', desc: 'Euro / Turkish Lira', section: 'EMERGING' },
+    { pair: 'USD/BRL', desc: 'US Dollar / Brazilian Real', section: 'EMERGING' },
+    { pair: 'USD/INR', desc: 'US Dollar / Indian Rupee', section: 'EMERGING' },
+    { pair: 'USD/MXN', desc: 'US Dollar / Mexican Peso', section: 'EMERGING' },
     // Cross
-    { pair: 'EUR/GBP', desc: 'Euro / British Pound', section: 'ÇAPRAZ' },
-    { pair: 'EUR/JPY', desc: 'Euro / Japanese Yen', section: 'ÇAPRAZ' },
-    { pair: 'GBP/JPY', desc: 'British Pound / Japanese Yen', section: 'ÇAPRAZ' },
-    { pair: 'EUR/CHF', desc: 'Euro / Swiss Franc', section: 'ÇAPRAZ' },
+    { pair: 'EUR/GBP', desc: 'Euro / British Pound', section: 'CROSS' },
+    { pair: 'EUR/JPY', desc: 'Euro / Japanese Yen', section: 'CROSS' },
+    { pair: 'GBP/JPY', desc: 'British Pound / Japanese Yen', section: 'CROSS' },
+    { pair: 'EUR/CHF', desc: 'Euro / Swiss Franc', section: 'CROSS' },
   ];
   
   const sections = {};
@@ -4920,7 +4920,7 @@ function renderFXView()  {
   
   let html = '';
   for (const [sName, pairs] of Object.entries(sections)) {
-    const titles = {'MAJÖR': '📊 Majör Pariteler', 'GELİŞEN': '🌍 Gelişen Piyasalar', 'ÇAPRAZ': '↔️ Çapraz Pariteler'};
+    const titles = {'MAJOR': '📊 Major Pairs', 'EMERGING': '🌍 Emerging Markets', 'CROSS': '↔️ Cross Pairs'};
     html += `<div class="fx-section-title">${titles[sName] || sName}</div><div class="fx-grid">`;
     pairs.forEach(p => {
       let rate = fxLiveMap[p.pair];
@@ -4953,13 +4953,13 @@ function renderWatchlistManage()  {
   
   let html = `
     <div class="wl-manage-header">
-      <input type="text" id="new-wl-name" placeholder="Yeni watchlist adı... (ör: Teknoloji Hisseleri)" />
-      <button onclick="window.createWatchlist()">+ Oluştur</button>
+      <input type="text" id="new-wl-name" placeholder="New watchlist name… (e.g. Tech Stocks)" />
+      <button onclick="window.createWatchlist()">+ Create</button>
     </div>
     <div class="wl-lists" id="wl-lists-container">`;
-  
+
   if (lists.length === 0) {
-    html += '<div style="color:#8b949e;padding:16px;text-align:center;">Henüz watchlist yok. Yukarıdan yeni bir tane oluşturun.</div>';
+    html += '<div style="color:#8b949e;padding:16px;text-align:center;">No watchlists yet. Create one above.</div>';
   } else {
     lists.forEach((wl, idx) => {
       html += `
@@ -4967,22 +4967,22 @@ function renderWatchlistManage()  {
           <div class="wl-list-card-header">
             <span class="wl-list-card-name">
               ${wl.name}
-              ${wl.active ? '<span class="wl-active-badge">AKTİF</span>' : ''}
+              ${wl.active ? '<span class="wl-active-badge">ACTIVE</span>' : ''}
             </span>
-            <button class="wl-list-card-btn wl-activate-btn" onclick="window.activateWatchlist('${wl.id}')" ${wl.active ? 'disabled style="opacity:0.5"' : ''}>Aktif Et</button>
-            <button class="wl-list-card-btn danger" onclick="window.deleteWatchlist('${wl.id}')">Sil</button>
+            <button class="wl-list-card-btn wl-activate-btn" onclick="window.activateWatchlist('${wl.id}')" ${wl.active ? 'disabled style="opacity:0.5"' : ''}>Activate</button>
+            <button class="wl-list-card-btn danger" onclick="window.deleteWatchlist('${wl.id}')">Delete</button>
           </div>
           <div class="wl-list-items" id="wl-items-${wl.id}">
-            ${wl.symbols.length === 0 ? '<span class="wl-empty">Sembol yok — aşağıdan ekle</span>' : ''}
+            ${wl.symbols.length === 0 ? '<span class="wl-empty">No symbols — add below</span>' : ''}
             ${wl.symbols.map(s => `
               <div class="wl-sym-chip">
-                <span onclick="window.selectStock('${s}'); window.switchTab('markets');" style="cursor:pointer" title="Grafiği gör">${s}</span>
-                <button onclick="window.removeFromWatchlist('${wl.id}', '${s}')" title="Kaldır">×</button>
+                <span onclick="window.selectStock('${s}'); window.switchTab('markets');" style="cursor:pointer" title="View chart">${s}</span>
+                <button onclick="window.removeFromWatchlist('${wl.id}', '${s}')" title="Remove">×</button>
               </div>`).join('')}
           </div>
           <div class="wl-add-sym">
-            <input type="text" id="wl-input-${wl.id}" placeholder="Sembol ekle (ör: TSLA)" onkeydown="if(event.key==='Enter') window.addToWatchlist('${wl.id}')" />
-            <button onclick="window.addToWatchlist('${wl.id}')">Ekle</button>
+            <input type="text" id="wl-input-${wl.id}" placeholder="Add symbol (e.g. TSLA)" onkeydown="if(event.key==='Enter') window.addToWatchlist('${wl.id}')" />
+            <button onclick="window.addToWatchlist('${wl.id}')">Add</button>
           </div>
         </div>`;
     });
@@ -4994,7 +4994,7 @@ function renderWatchlistManage()  {
 function createWatchlist()  {
   const input = document.getElementById('new-wl-name');
   const name = input ? input.value.trim() : '';
-  if (!name) { alert('Watchlist adı girin!'); return; }
+  if (!name) { alert('Enter a watchlist name!'); return; }
   const lists = window.loadWatchlists();
   lists.push({ id: 'wl_' + Date.now(), name: name, symbols: [], active: lists.length === 0 });
   window.saveWatchlists(lists);
@@ -5002,7 +5002,7 @@ function createWatchlist()  {
   window.renderWatchlistManage();
 }
 function deleteWatchlist(id)  {
-  if (!confirm('Bu watchlist silinsin mi?')) return;
+  if (!confirm('Delete this watchlist?')) return;
   let lists = window.loadWatchlists().filter(w => w.id !== id);
   if (lists.length > 0 && !lists.some(w => w.active)) lists[0].active = true;
   window.saveWatchlists(lists);
@@ -5012,10 +5012,10 @@ function activateWatchlist(id)  {
   const lists = window.loadWatchlists().map(w => ({...w, active: w.id === id}));
   window.saveWatchlists(lists);
   window.renderWatchlistManage();
-  // Sol panelde aktif watchlist'i göster
+  // Reflect the active watchlist in the left panel
   const active = lists.find(w => w.active);
   if (active && window.MDATA) {
-    // aktif watchlist sembollerini sol panelde öne çıkar
+    // surface active watchlist symbols in the left panel
   }
 }
 function addToWatchlist(id)  {
@@ -8838,7 +8838,7 @@ async function init() {
     setTimeout(() => { try { Notification.requestPermission(); } catch(e){} }, 4000);
   }
   
-  // Canlı haber akışı - 40 saniyede bir
+  // Live news rotation — every 40 seconds
   const liveNewsPool = [
     {"source":"BBG","category":"macro","headline":"Fed's Waller: Two rate cuts in 2026 'reasonable' if inflation continues to cool","body":"Fed Governor Christopher Waller said two 25bp rate cuts in 2026 remain 'reasonable' if core PCE continues declining toward 2%. He emphasized the Fed is data-dependent, noting strong employment gives the FOMC flexibility.","tags":["FED","RATES","INFLATION","USD"],"impact":"high","impactText":"2Y yield -4bps; DXY -0.2%; S&P 500 futures +0.3%","related":["TLT","SPY","DXY","GLD"]},
     {"source":"CNBC","category":"equities","headline":"S&P 500 hits session high — tech and energy sectors lead broad-based rally","body":"The S&P 500 extended gains to a fresh session high as technology stocks continued their AI-driven advance. NVIDIA, Microsoft, and Meta traded in positive territory. Breadth positive with 73% of components advancing.","tags":["SPX","TECH","ENERGY","AI"],"impact":"med","impactText":"SPY +0.4%; XLK +0.6%; XLE +0.8%; VIX -1.2 to 13.4","related":["SPY","QQQ","XLK","XLE"]},
