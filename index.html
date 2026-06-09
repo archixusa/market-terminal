@@ -1265,8 +1265,11 @@ async function fetchQuoteFinnhub(sym){
   const out = {
     sym, price, chg: price-prev, pct: prev ? ((price-prev)/prev)*100 : 0,
     open: j.o, high: j.h, low: j.l, prevClose: prev,
-    // Fresh session fields so merges don't keep a stale sim regularClose (the "Close N @ time" line)
+    // Fresh session fields so a spread-merge over a prior sim quote can't keep stale
+    // values: regularClose (the "Close N @ time" line) and a phantom AH/PM badge.
     regularClose: price, regularCloseTs: tsMs, regularOpen: j.o, regularOpenTs: tsMs,
+    session: (typeof getMarketSession === 'function' ? getMarketSession() : 'regular'),
+    extendedPct: null, extendedChg: null,
     vol: 0, ts: tsMs,
     _source: 'finnhub'
   };
@@ -1957,6 +1960,13 @@ async function fetchFundamentals(sym){
   const j = await fhFetch('stock/metric', { symbol: sym, metric: 'all' });
   if (!j || !j.metric) return null;
   cacheSet('fund_'+sym, j);
+  // Populate the REAL 52-week range onto the live quote so the chart header shows
+  // actual highs/lows instead of the simulator's synthetic ±22% band.
+  if (LIVE.loaded[sym]) {
+    const hi = j.metric['52WeekHigh'], lo = j.metric['52WeekLow'];
+    if (hi > 0) LIVE.loaded[sym].week52High = hi;
+    if (lo > 0) LIVE.loaded[sym].week52Low = lo;
+  }
   return j;
 }
 async function fetchInsiderTransactions(sym){
@@ -2125,19 +2135,23 @@ async function renderFundamentalsForSymbol(sym){
 let _fngHistCache = {};
 async function fetchFngHistory(which){
   if (_fngHistCache[which]) return _fngHistCache[which];
-  if (which === 'stocks') {
-    const r = await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata');
-    const j = await r.json();
-    const series = (j.fear_and_greed_historical?.data || []).map(d => ({ t: d.x, v: d.y, rating: d.rating }));
-    _fngHistCache.stocks = series;
-    return series;
-  } else {
-    const r = await fetch('https://api.alternative.me/fng/?limit=365');
-    const j = await r.json();
-    const series = (j.data || []).reverse().map(d => ({ t: d.timestamp * 1000, v: parseInt(d.value, 10), rating: d.value_classification }));
-    _fngHistCache.crypto = series;
-    return series;
-  }
+  try {
+    if (which === 'stocks') {
+      const r = await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata', { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) return [];
+      const j = await r.json();
+      const series = (j.fear_and_greed_historical?.data || []).map(d => ({ t: d.x, v: d.y, rating: d.rating }));
+      _fngHistCache.stocks = series;
+      return series;
+    } else {
+      const r = await fetch('https://api.alternative.me/fng/?limit=365', { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) return [];
+      const j = await r.json();
+      const series = (j.data || []).reverse().map(d => ({ t: d.timestamp * 1000, v: parseInt(d.value, 10), rating: d.value_classification }));
+      _fngHistCache.crypto = series;
+      return series;
+    }
+  } catch(e) { return []; }
 }
 
 async function openFngChart(which){
@@ -4177,9 +4191,14 @@ async function loadMiniChart(slotIdx){
   const quote = result || LIVE.loaded[sym] || simulateQuote(sym);
   const price = quote?.price ?? data[data.length-1].c;
   const pct   = quote?.pct ?? 0;
-  document.getElementById('m-sym-' + slotIdx).textContent = symbolName(sym).slice(0, 16);
-  document.getElementById('m-px-' + slotIdx).textContent = price >= 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:2}) : price.toFixed(2);
+  // Guard: split view may have been toggled off while the async fetch was in flight,
+  // removing these slots from the DOM (getElementById → null).
+  const symEl = document.getElementById('m-sym-' + slotIdx);
+  const pxEl  = document.getElementById('m-px-' + slotIdx);
   const pctEl = document.getElementById('m-pct-' + slotIdx);
+  if (!symEl || !pxEl || !pctEl) return;
+  symEl.textContent = symbolName(sym).slice(0, 16);
+  pxEl.textContent = price >= 1000 ? price.toLocaleString('en-US',{maximumFractionDigits:2}) : price.toFixed(2);
   pctEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
   pctEl.style.color = pct >= 0 ? '#22c55e' : '#ef4444';
   // Draw mini chart
@@ -4853,13 +4872,21 @@ function renderFXView()  {
   const body = document.getElementById('overlay-body');
   if (!body) return;
   
-  // LIVE.fx'ten gerçek veri al
-  const fxLiveMap = {};
-  if (window.LIVE && window.LIVE.fx) {
-    (Array.isArray(window.LIVE.fx) ? window.LIVE.fx : []).forEach(item => {
-      if (item.pair) fxLiveMap[item.pair] = item.rate;
-    });
-  }
+  // Read live FX. NOTE: LIVE is a top-level const, NOT a window property — `window.LIVE`
+  // is always undefined, which is why this view used to show "—" / stale fallbacks.
+  const fxLiveMap = {}, fxPctMap = {}, fxLiveSet = {};
+  (Array.isArray(LIVE.fx) ? LIVE.fx : []).forEach(item => {
+    if (item.pair) { fxLiveMap[item.pair] = item.rate; if (item.pct != null) fxPctMap[item.pair] = item.pct; }
+  });
+  // LIVE.loaded is canonical (carries price + pct + source) — prefer it
+  Object.keys(LIVE.loaded || {}).forEach(k => {
+    const d = LIVE.loaded[k];
+    if (k.includes('/') && d && +d.price > 0) {
+      fxLiveMap[k] = +d.price;
+      if (d.pct != null) fxPctMap[k] = +d.pct;
+      if (LIVE.sourceFor[k] === 'live') fxLiveSet[k] = true;
+    }
+  });
   
   // Tüm FX pairs
   const allPairs = [
@@ -4897,29 +4924,14 @@ function renderFXView()  {
     html += `<div class="fx-section-title">${titles[sName] || sName}</div><div class="fx-grid">`;
     pairs.forEach(p => {
       let rate = fxLiveMap[p.pair];
-      if (!rate) {
-        // Approximate from known values
-        const [base, quote] = p.pair.split('/');
-        if (base === 'EUR' && quote === 'USD') rate = fxLiveMap['EUR/USD'];
-        else if (base === 'GBP' && quote === 'USD') rate = fxLiveMap['GBP/USD'];
-        else if (base === 'USD' && quote === 'JPY') rate = fxLiveMap['USD/JPY'];
-        else if (base === 'AUD' && quote === 'USD') rate = 0.665;
-        else if (base === 'NZD' && quote === 'USD') rate = 0.612;
-        else if (base === 'EUR' && quote === 'GBP') rate = (fxLiveMap['EUR/USD'] || 1.162) / (fxLiveMap['GBP/USD'] || 1.345);
-        else if (base === 'EUR' && quote === 'JPY') rate = (fxLiveMap['EUR/USD'] || 1.162) * (fxLiveMap['USD/JPY'] || 148.3);
-        else if (base === 'GBP' && quote === 'JPY') rate = (fxLiveMap['GBP/USD'] || 1.345) * (fxLiveMap['USD/JPY'] || 148.3);
-        else if (base === 'EUR' && quote === 'CHF') rate = (fxLiveMap['EUR/USD'] || 1.162) * (fxLiveMap['USD/CHF'] || 0.792);
-        else if (base === 'USD' && quote === 'BRL') rate = 5.42;
-        else if (base === 'USD' && quote === 'INR') rate = 86.50;
-        else if (base === 'USD' && quote === 'MXN') rate = 18.32;
-      }
-      
+      if (!rate) rate = FX_BASES[p.pair]; // calibrated fallback (not random literals)
       const rateStr = rate ? rate.toFixed(rate > 100 ? 2 : 4) : '—';
-      const noise = (Math.random() * 0.3 - 0.15);
-      const pct = noise.toFixed(2);
-      const isUp = noise >= 0;
+      // Real daily % change from the live quote — NOT random noise
+      const realPct = (fxPctMap[p.pair] != null) ? +fxPctMap[p.pair] : 0;
+      const pct = realPct.toFixed(2);
+      const isUp = realPct >= 0;
       const color = isUp ? '#00e676' : '#ff5252';
-      const live = fxLiveMap[p.pair] ? ' <span style="font-size:9px;color:#00e676;background:rgba(0,230,118,0.1);padding:1px 4px;border-radius:3px;vertical-align:middle">LIVE</span>' : '';
+      const live = fxLiveSet[p.pair] ? ' <span style="font-size:9px;color:#00e676;background:rgba(0,230,118,0.1);padding:1px 4px;border-radius:3px;vertical-align:middle">LIVE</span>' : '';
       
       html += `<div class="fx-card">
         <div class="fx-card-pair">${p.pair}${live}</div>
@@ -7182,6 +7194,10 @@ function initWebSocket(){
             if (!LIVE.loaded[sym]) return;
             const prev = LIVE.loaded[sym].price;
             LIVE.loaded[sym].price = t.p;
+            // Recompute chg/pct off prevClose so the % and up/down color track the live
+            // tick instead of staying frozen at the last REST-poll value.
+            const _pc = LIVE.loaded[sym].prevClose;
+            if (_pc) { LIVE.loaded[sym].chg = t.p - _pc; LIVE.loaded[sym].pct = (t.p - _pc) / _pc * 100; }
             LIVE.loaded[sym].vol  = (LIVE.loaded[sym].vol || 0) + (t.v || 0);
             LIVE.loaded[sym].ts = t.t;
             LIVE.sourceFor[sym] = 'live';
@@ -7322,7 +7338,7 @@ function exportPortfolioCSV(){
       value: value.toFixed(2),
       costBasis: cost.toFixed(2),
       pnl: (value - cost).toFixed(2),
-      pnlPct: (((value - cost)/cost)*100).toFixed(2)
+      pnlPct: (cost ? ((value - cost)/cost)*100 : 0).toFixed(2)
     };
   });
   exportCSV('portfolio_' + new Date().toISOString().slice(0,10) + '.csv', rows);
@@ -8011,20 +8027,31 @@ async function runScreener(){
   _screenerState.maxPE = parseFloat(document.getElementById('scrn-pe').value) || 1000;
   _screenerState.minPct = parseFloat(document.getElementById('scrn-pct').value) || -100;
   const out = document.getElementById('scrn-results');
-  out.innerHTML = '<div style="padding:14px;color:#6e7681">Running screener… checking ' + SCREENER_UNIVERSE.length + ' symbols (may take a few seconds)</div>';
+  out.innerHTML = '<div style="padding:14px;color:#6e7681">Running screener… loading fundamentals</div>';
+  // 1) Cheap pre-filter on price/sector/pct (no fundamentals needed yet)
+  let candidates = SCREENER_UNIVERSE.filter(sym => {
+    const live = LIVE.loaded[sym];
+    if ((live?.pct || 0) < _screenerState.minPct) return false;
+    if (_screenerState.sector !== 'all' && SYMBOL_SECTOR[sym] !== _screenerState.sector) return false;
+    return true;
+  });
+  // 2) Proactively fetch fundamentals for the top movers (budget-safe: capped + 6-wide
+  //    Finnhub limiter + 60s/60min caches). Previously fundamentals were only populated
+  //    if the user had clicked a stock, so every column showed "—" on a fresh screener.
+  candidates.sort((a,b) => Math.abs(LIVE.loaded[b]?.pct||0) - Math.abs(LIVE.loaded[a]?.pct||0));
+  const FETCH_CAP = 24;
+  const toFetch = candidates.slice(0, FETCH_CAP).filter(sym => !cacheGet('fund_'+sym, 60*60*1000));
+  await Promise.all(toFetch.map(sym => fetchFundamentals(sym).catch(()=>null)));
+  // 3) Build results, applying fundamental filters only when we actually have the data
   const results = [];
-  for (const sym of SCREENER_UNIVERSE) {
+  for (const sym of candidates) {
     const live = LIVE.loaded[sym];
     const pct = live?.pct || 0;
-    if (pct < _screenerState.minPct) continue;
-    if (_screenerState.sector !== 'all' && SYMBOL_SECTOR[sym] !== _screenerState.sector) continue;
-    // Get fundamentals (cached)
-    let metric = null;
     const cached = cacheGet('fund_'+sym, 60 * 60 * 1000);
-    if (cached) metric = cached.metric;
+    const metric = cached?.metric;
     const mcap = (metric?.marketCapitalization || 0) * 1e6;
     const pe = metric?.peNormalizedAnnual || metric?.peBasicExclExtraTTM;
-    if (mcap < _screenerState.minMcap) continue;
+    if (_screenerState.minMcap > 0 && (!mcap || mcap < _screenerState.minMcap)) continue;
     if (pe && pe > _screenerState.maxPE) continue;
     const beta = metric?.beta;
     if (_screenerState.betaMax != null && beta != null && beta > _screenerState.betaMax) continue;
@@ -8285,9 +8312,13 @@ function _renderCalendarBody(ipos, liveEarnings){
     type:'ipo', _ipo: true, _sym: i.symbol
   }));
   const all = CALENDAR_EVENTS.concat(liveEarn).concat(ipoEvents);
+  // "Upcoming Events" should not list past prints. Filter to today-onward so the
+  // calendar opens on what's ahead (was showing 8+ stale "14d ago" rows at the top).
+  const todayISO = (function(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
   // Dedupe: prefer live earnings over static (by date+symbol)
   const seen = new Set();
   const events = all.filter(e => {
+    if (!e.date || e.date < todayISO) return false;
     const k = e.date + '|' + (e._sym || e.event.slice(0,30));
     if (seen.has(k)) return false;
     seen.add(k);
